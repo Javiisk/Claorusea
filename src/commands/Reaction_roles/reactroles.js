@@ -292,7 +292,7 @@ async function handleSetup(interaction) {
                     label: role.name,
                     description: `Add/remove the ${role.name} role`,
                     value: role.id,
-                    emoji: '🎭'
+                    emoji: '🪪'
                 }))
             )
     );
