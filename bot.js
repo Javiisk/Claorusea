@@ -10,9 +10,9 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuild
 
 // --- CONFIGURATION ---
 // In production, it's highly recommended to use environment variables (process.env)
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN || 'YOUR_DISCORD_BOT_TOKEN';
-const CLIENT_ID = process.env.CLIENT_ID || 'YOUR_BOT_CLIENT_ID';
-const ROBLOX_API_KEY = process.env.ROBLOX_API_KEY || 'YOUR_ROBLOX_CLOUD_API_KEY';
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN || 'MTUxMzI0OTUzODMxODUzMjc0OQ.GFM3oe.3h1JV74JBCEpLwvXHKPIaIoKPUwi-j-X4HfybA';
+const CLIENT_ID = process.env.CLIENT_ID || '1513249538318532749';
+const ROBLOX_API_KEY = process.env.ROBLOX_API_KEY || '';
 const UNIVERSE_ID = process.env.UNIVERSE_ID || 'YOUR_ROBLOX_UNIVERSE_ID';
 const DATASTORE_NAME = 'TiempoJugadoDS_v1';
 
