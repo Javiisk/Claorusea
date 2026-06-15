@@ -8,7 +8,7 @@ module.exports = class SayCommand extends BaseCommand {
   run(client, message, args) {
 
     // id rank discord to use this command
-    const allowedRoleIDs = ["1153516614797492320", "1153516614784929808", "1156442283114246144"];
+    const allowedRoleIDs = ["1505673879069393024", "1153516614784929808", "1156442283114246144"];
     const memberRoles = message.member.roles.cache.map(role => role.id);
     const hasAllowedRole = memberRoles.some(roleId => allowedRoleIDs.includes(roleId));
 
