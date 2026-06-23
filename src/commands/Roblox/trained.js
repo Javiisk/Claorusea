@@ -62,7 +62,7 @@ export default {
 
       saveUser(roblox.name, { trained: true });
 
-      const embed = createEmbed({ title: '✅ User trained', description: null })
+      const embed = createEmbed({ title: '✅ User marked has trained', description: null })
         .setDescription(`**${roblox.name}** has been marked as **Trained**.`)
         .setColor(0x57F287)
         .setTimestamp();
