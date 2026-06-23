@@ -16,7 +16,6 @@ const DEFAULT_GROUPS = [
   { id: '14029943', name: 'Empyreúm' },
   { id: '1097260506', name: 'Démoria' },
   { id: '97539052', name: 'Ivaloria' },
-  { id: '35008390', name: 'la vélvoria' },
 ];
 
 function loadGroups() {
