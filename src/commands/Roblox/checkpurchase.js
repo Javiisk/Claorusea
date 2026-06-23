@@ -37,7 +37,7 @@ async function checkGamepass(userId) {
 export default {
   data: new SlashCommandBuilder()
     .setName('checkpurchase')
-    .setDescription('Check if a user owns the gamepass 💰')
+    .setDescription('Check if a user owns the gamepass')
     .addStringOption(opt =>
       opt.setName('user').setDescription('Roblox username').setRequired(true)
     ),
@@ -77,7 +77,7 @@ export default {
         return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
       }
 
-      const embed = createEmbed({ title: `💰 Gamepass Check', description: null })
+      const embed = createEmbed({ title: '💰 Gamepass Check', description: null })
         .setDescription(`❌ **${roblox.name}** doesn't have this gamepass.`)
         .setColor(0xED4245)
         .setTimestamp();
