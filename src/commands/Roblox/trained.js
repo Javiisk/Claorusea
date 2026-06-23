@@ -34,9 +34,9 @@ async function getRobloxUser(username) {
 export default {
   data: new SlashCommandBuilder()
     .setName('trained')
-    .setDescription('Marcar a un usuario como entrenado ✅')
+    .setDescription('Mark user has trained ✅')
     .addStringOption(opt =>
-      opt.setName('usuario').setDescription('Usuario de Roblox').setRequired(true)
+      opt.setName('usuario').setDescription('User of roblox').setRequired(true)
     ),
 
   async execute(interaction) {
@@ -51,19 +51,19 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('usuario');
+      const username = interaction.options.getString('user');
       const roblox = await getRobloxUser(username);
 
       if (!roblox) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Usuario de Roblox no encontrado.',
+          content: '❌ Error fetching user.',
         });
       }
 
       saveUser(roblox.name, { trained: true });
 
-      const embed = createEmbed({ title: '✅ Usuario Entrenado', description: null })
-        .setDescription(`**${roblox.name}** ha sido marcado como **Trained**.`)
+      const embed = createEmbed({ title: '✅ User trained', description: null })
+        .setDescription(`**${roblox.name}** has been marked as **Trained**.`)
         .setColor(0x57F287)
         .setTimestamp();
 
@@ -72,7 +72,7 @@ export default {
       logger.error('Trained command error:', error);
       try {
         return await InteractionHelper.safeReply(interaction, {
-          content: '❌ Hubo un error al actualizar el usuario.',
+          content: '❌ Error trying at mark it as trained.',
         });
       } catch (replyError) {
         logger.error('Failed to send error reply:', replyError);
