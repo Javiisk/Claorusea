@@ -34,12 +34,12 @@ async function getRobloxUser(username) {
 export default {
   data: new SlashCommandBuilder()
     .setName('blacklist')
-    .setDescription('Add or remove player blacklist 🚫')
+    .setDescription('Add or remove user blacklist 🚫')
     .addStringOption(opt =>
       opt.setName('user').setDescription('User of roblox').setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('Reason').setDescription('Reason for blacklisting (leave blank to remove from blacklist)').setRequired(false)
+      opt.setName('reason').setDescription('Reason for blacklisting (leave blank to remove from blacklist)').setRequired(false)
     ),
 
   async execute(interaction) {
@@ -79,7 +79,7 @@ export default {
       // Si hay motivo, se agrega a la blacklist
       saveUser(roblox.name, { blacklisted: true, blacklistReason: motivo });
 
-      const embed = createEmbed({ title: '🚫 User blacklisted', description: null })
+      const embed = createEmbed({ title: '🚫 User Blacklisted', description: null })
         .setDescription(`**${roblox.name}** has been added to the blacklist.\n**reason:** ${motivo}`)
         .setColor(0xED4245)
         .setTimestamp();
