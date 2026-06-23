@@ -38,9 +38,9 @@ async function getRobloxGroupRank(userId) {
     const res = await fetch(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
     const data = await res.json();
     const group = data.data?.find(g => String(g.group.id) === String(groupId));
-    return group ? group.role.name : 'No está en el grupo';
+    return group ? group.role.name : 'Not in the group';
   } catch {
-    return 'Error al obtener rango';
+    return 'Error fetching rank';
   }
 }
 
@@ -57,9 +57,9 @@ async function getRobloxAvatar(userId) {
 export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
-    .setDescription('Ver tu perfil de Roblox y estado en el grupo')
+    .setDescription('View you roblox profile info (Use it on DMs)')
     .addStringOption(opt =>
-      opt.setName('usuario').setDescription('Tu usuario de Roblox').setRequired(true)
+      opt.setName('user').setDescription('Your roblox username').setRequired(true)
     ),
 
   async execute(interaction) {
@@ -74,12 +74,12 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('usuario');
+      const username = interaction.options.getString('user');
       const roblox = await getRobloxUser(username);
 
       if (!roblox) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Usuario de Roblox no encontrado.',
+          content: '❌ User not founded.',
         });
       }
 
@@ -101,7 +101,7 @@ export default {
           { name: 'Trained', value: trainedText, inline: false },
           { name: 'Warnings', value: warningsText, inline: false },
         )
-        .setFooter({ text: `Consultado por ${interaction.user.username}` })
+        .setFooter({ text: `Requested by ${interaction.user.username}` })
         .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
@@ -109,7 +109,7 @@ export default {
       logger.error('MyInfo command error:', error);
       try {
         return await InteractionHelper.safeReply(interaction, {
-          content: '❌ Hubo un error al obtener la información.',
+          content: '❌ Error fetching rank',
         });
       } catch (replyError) {
         logger.error('Failed to send error reply:', replyError);
