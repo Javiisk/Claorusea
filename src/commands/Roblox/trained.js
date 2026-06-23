@@ -36,7 +36,7 @@ export default {
     .setName('trained')
     .setDescription('Mark user has trained ✅')
     .addStringOption(opt =>
-      opt.setName('usuario').setDescription('User of roblox').setRequired(true)
+      opt.setName('user').setDescription('User of roblox').setRequired(true)
     ),
 
   async execute(interaction) {
