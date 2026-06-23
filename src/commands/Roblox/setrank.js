@@ -24,29 +24,65 @@ async function getGroupRoles() {
 }
 
 async function setRank(userId, roleId) {
-  const res = await fetch(`https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships?filter=user==${userId}`, {
-    headers: {
-      'x-api-key': API_KEY,
-    },
-  });
-  const data = await res.json();
-  const membership = data.groupMemberships?.[0];
-  if (!membership) return { success: false, error: 'User is not in the group.' };
+  try {
+    // Buscar membership con el userId directamente en el filter
+    const res = await fetch(
+      `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships?filter=user=='users/${userId}'`,
+      {
+        headers: { 'x-api-key': API_KEY },
+      }
+    );
+    const data = await res.json();
+    const membership = data.groupMemberships?.[0];
 
-  const membershipId = membership.path.split('/').pop();
+    if (!membership) {
+      // Segundo intento con formato alternativo
+      const res2 = await fetch(
+        `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships?maxPageSize=1&filter=user==users/${userId}`,
+        {
+          headers: { 'x-api-key': API_KEY },
+        }
+      );
+      const data2 = await res2.json();
+      const membership2 = data2.groupMemberships?.[0];
+      if (!membership2) return { success: false, error: 'User is not in the group.' };
 
-  const updateRes = await fetch(`https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships/${membershipId}`, {
-    method: 'PATCH',
-    headers: {
-      'x-api-key': API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ role: `groups/${GROUP_ID}/roles/${roleId}` }),
-  });
+      const membershipId2 = membership2.path.split('/').pop();
+      const updateRes2 = await fetch(
+        `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships/${membershipId2}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'x-api-key': API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ role: `groups/${GROUP_ID}/roles/${roleId}` }),
+        }
+      );
+      if (updateRes2.ok) return { success: true };
+      const err2 = await updateRes2.json();
+      return { success: false, error: err2.message || 'Failed to update rank.' };
+    }
 
-  if (updateRes.ok) return { success: true };
-  const err = await updateRes.json();
-  return { success: false, error: err.message || 'Failed to update rank.' };
+    const membershipId = membership.path.split('/').pop();
+    const updateRes = await fetch(
+      `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships/${membershipId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: `groups/${GROUP_ID}/roles/${roleId}` }),
+      }
+    );
+
+    if (updateRes.ok) return { success: true };
+    const err = await updateRes.json();
+    return { success: false, error: err.message || 'Failed to update rank.' };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }
 
 export default {
@@ -83,8 +119,6 @@ export default {
       }
 
       const roles = await getGroupRoles();
-
-      // Busca por nombre o por ID
       const role = roles.find(r =>
         r.name.toLowerCase() === rankInput.toLowerCase() ||
         String(r.rank) === rankInput ||
@@ -105,7 +139,6 @@ export default {
         });
       }
 
-      // Respuesta al que usó el comando
       const embed = createEmbed({ title: '🏅 Rank Updated', description: null })
         .setDescription(`**${roblox.name}**'s rank has been changed to **${role.name}**.`)
         .setColor(0x57F287)
@@ -113,7 +146,6 @@ export default {
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
-      // Log en el canal
       const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
       if (logChannel) {
         const logEmbed = new EmbedBuilder()
