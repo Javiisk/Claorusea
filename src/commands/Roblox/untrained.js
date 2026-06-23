@@ -9,6 +9,14 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
 
+const ALLOWED_ROLES = [
+  '1505671307335958728',
+  '1505671314210553877',
+  '1505671325144973323',
+  '1505673879069393024',
+  '1505673808097574912',
+];
+
 function loadDB() {
   if (!existsSync(DB_PATH)) writeFileSync(DB_PATH, JSON.stringify({}));
   return JSON.parse(readFileSync(DB_PATH, 'utf8'));
@@ -34,49 +42,38 @@ async function getRobloxUser(username) {
 export default {
   data: new SlashCommandBuilder()
     .setName('untrained')
-    .setDescription('Mark user has untrained ❌')
+    .setDescription('Mark a user as untrained ❌')
     .addStringOption(opt =>
-      opt.setName('user').setDescription('User of roblox').setRequired(true)
+      opt.setName('user').setDescription('Roblox username').setRequired(true)
     ),
 
   async execute(interaction) {
+    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
+    if (!hasRole) {
+      return await interaction.reply({ content: '❌ You don\'t have permission to use this command.', ephemeral: true });
+    }
+
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
-      logger.warn('Untrained interaction defer failed', {
-        userId: interaction.user.id,
-        guildId: interaction.guildId,
-        commandName: 'untrained',
-      });
+      logger.warn('Untrained interaction defer failed', { userId: interaction.user.id, guildId: interaction.guildId, commandName: 'untrained' });
       return;
     }
 
     try {
       const username = interaction.options.getString('user');
       const roblox = await getRobloxUser(username);
-
-      if (!roblox) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Error fetching user.',
-        });
-      }
+      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
 
       saveUser(roblox.name, { trained: false });
 
-      const embed = createEmbed({ title: '❌ User marked has untrained', description: null })
-        .setDescription(`**${roblox.name}** has marked as **Untrained**.`)
-        .setColor(0xED4245)
-        .setTimestamp();
+      const embed = createEmbed({ title: '❌ User Untrained', description: null })
+        .setDescription(`**${roblox.name}** has been marked as **Untrained**.`)
+        .setColor(0xED4245).setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
       logger.error('Untrained command error:', error);
-      try {
-        return await InteractionHelper.safeReply(interaction, {
-          content: '❌ Error updating rank.',
-        });
-      } catch (replyError) {
-        logger.error('Failed to send error reply:', replyError);
-      }
+      try { return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed to send error reply:', e); }
     }
   },
 };
