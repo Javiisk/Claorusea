@@ -58,6 +58,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
     .setDescription('View you roblox profile info (Use it on DMs)')
+    .setDMpermission (true)
     .addStringOption(opt =>
       opt.setName('user').setDescription('Your roblox username').setRequired(true)
     ),
