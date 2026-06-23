@@ -1,5 +1,4 @@
-import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { InteractionHelper } from '../utils/interactionHelper.js';
+import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { logger } from '../utils/logger.js';
 
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
@@ -47,7 +46,7 @@ async function setRankById(userId, rankNumber) {
 
     if (updateRes.ok) return { success: true, roleName: role.name };
     const err = await updateRes.json();
-    return { success: false, error: err.message || 'Failed to update rank.' };
+    return { success: false, error: err.message || 'Failed.' };
   } catch (e) {
     return { success: false, error: e.message };
   }
@@ -55,21 +54,15 @@ async function setRankById(userId, rankNumber) {
 
 const resignAcceptHandler = {
   name: 'resign_accept',
-  async execute(interaction, client) {
+  async execute(interaction, client, args) {
     try {
-      const parts = interaction.customId.split('_');
-      const discordUserId = parts[2];
-      const robloxId = parts[3];
-      const robloxUser = parts[4];
+      const [discordUserId, robloxId, robloxUser] = args;
 
       await interaction.deferUpdate();
 
-      // Bajar rango en Roblox
       const rankResult = await setRankById(parseInt(robloxId), ESTEEMED_DENIZEN_RANK);
 
-      // DM al usuario aceptado
       try {
-        const { EmbedBuilder } = await import('discord.js');
         const discordUser = await client.users.fetch(discordUserId);
         const dmEmbed = new EmbedBuilder()
           .setTitle('🚀 ‿ Resignation Notice')
@@ -85,10 +78,9 @@ const resignAcceptHandler = {
         await discordUser.send({ embeds: [dmEmbed] });
       } catch { /* DMs disabled */ }
 
-      // Deshabilitar botones
       const updatedRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId('resign_done')
+          .setCustomId('resign_done:done')
           .setLabel('Accepted ✔️')
           .setStyle(ButtonStyle.Success)
           .setDisabled(true),
@@ -109,15 +101,12 @@ const resignAcceptHandler = {
 
 const resignDeclineHandler = {
   name: 'resign_decline',
-  async execute(interaction, client) {
+  async execute(interaction, client, args) {
     try {
-      const parts = interaction.customId.split('_');
-      const discordUserId = parts[2];
-      const robloxId = parts[3];
-      const robloxUser = parts[4];
+      const [discordUserId, robloxId, robloxUser] = args;
 
       const modal = new ModalBuilder()
-        .setCustomId(`resign_modal_${discordUserId}_${robloxId}_${robloxUser}`)
+        .setCustomId(`resign_modal:${discordUserId}:${robloxId}:${robloxUser}`)
         .setTitle('Why decline this resignation.');
 
       const reasonInput = new TextInputBuilder()
