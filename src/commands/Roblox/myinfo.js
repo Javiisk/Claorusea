@@ -8,6 +8,23 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
+const GROUPS_PATH = join(__dirname, '../../../../blacklisted-groups.json');
+
+// Grupos blacklisted iniciales (los que me diste)
+const DEFAULT_GROUPS = [
+  { id: '9221386', name: 'Group 1' },
+  { id: '14029943', name: 'Group 2' },
+  { id: '1097260506', name: 'Group 3' },
+  { id: '97539052', name: 'Group 4' },
+];
+
+function loadGroups() {
+  if (!existsSync(GROUPS_PATH)) {
+    writeFileSync(GROUPS_PATH, JSON.stringify(DEFAULT_GROUPS, null, 2));
+    return DEFAULT_GROUPS;
+  }
+  return JSON.parse(readFileSync(GROUPS_PATH, 'utf8'));
+}
 
 function loadDB() {
   if (!existsSync(DB_PATH)) writeFileSync(DB_PATH, JSON.stringify({}));
@@ -17,9 +34,16 @@ function loadDB() {
 function getUser(username) {
   const db = loadDB();
   const key = username.toLowerCase();
-  if (!db[key]) db[key] = { username, trained: false, warnings: 0, blacklisted: false };
+  if (!db[key]) db[key] = { username, trained: false, warnings: 0, blacklisted: false, blacklistReason: null };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
   return db[key];
+}
+
+function saveUser(username, data) {
+  const db = loadDB();
+  const key = username.toLowerCase();
+  db[key] = { ...(db[key] || { username, trained: false, warnings: 0 }), ...data };
+  writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
 async function getRobloxUser(username) {
@@ -54,13 +78,26 @@ async function getRobloxAvatar(userId) {
   }
 }
 
+async function checkBlacklistedGroups(userId) {
+  try {
+    const blacklistedGroups = loadGroups();
+    const res = await fetch(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
+    const data = await res.json();
+    const userGroups = data.data?.map(g => String(g.group.id)) || [];
+    const found = blacklistedGroups.find(g => userGroups.includes(g.id));
+    return found || null;
+  } catch {
+    return null;
+  }
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
-    .setDescription('View you roblox profile info (Use it on DMs)')
+    .setDescription('View your Roblox profile and group status')
     .setDMPermission(true)
     .addStringOption(opt =>
-      opt.setName('user').setDescription('Your roblox username').setRequired(true)
+      opt.setName('user').setDescription('Your Roblox username').setRequired(true)
     ),
 
   async execute(interaction) {
@@ -80,18 +117,33 @@ export default {
 
       if (!roblox) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ User not founded.',
+          content: '❌ Roblox user not found.',
         });
       }
 
-      const [rank, avatar] = await Promise.all([
+      const [rank, avatar, blacklistedGroup] = await Promise.all([
         getRobloxGroupRank(roblox.id),
         getRobloxAvatar(roblox.id),
+        checkBlacklistedGroups(roblox.id),
       ]);
 
       const userData = getUser(roblox.name);
+
+      // Si está en un grupo blacklisted, se marca automáticamente
+      if (blacklistedGroup && !userData.blacklisted) {
+        saveUser(roblox.name, {
+          blacklisted: true,
+          blacklistReason: `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`,
+        });
+        userData.blacklisted = true;
+        userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
+      }
+
       const trainedText = userData.trained ? '✅ Trained' : '❌ Untrained';
       const warningsText = userData.warnings > 0 ? `⚠️ ${userData.warnings}` : 'None';
+      const blacklistText = userData.blacklisted
+        ? `🚫 ${userData.blacklistReason || 'No reason'}`
+        : 'None';
 
       const embed = createEmbed({ title: '📋 My Info', description: null })
         .setThumbnail(avatar)
@@ -101,6 +153,7 @@ export default {
           { name: 'Rank', value: rank, inline: false },
           { name: 'Trained', value: trainedText, inline: false },
           { name: 'Warnings', value: warningsText, inline: false },
+          { name: 'Blacklists', value: blacklistText, inline: false },
         )
         .setFooter({ text: `Requested by ${interaction.user.username}` })
         .setTimestamp();
@@ -110,7 +163,7 @@ export default {
       logger.error('MyInfo command error:', error);
       try {
         return await InteractionHelper.safeReply(interaction, {
-          content: '❌ Error fetching rank',
+          content: '❌ An error occurred while fetching the information.',
         });
       } catch (replyError) {
         logger.error('Failed to send error reply:', replyError);
