@@ -91,7 +91,6 @@ export default {
       const userData = getUser(roblox.name);
       const trainedText = userData.trained ? '✅ Trained' : '❌ Untrained';
       const warningsText = userData.warnings > 0 ? `⚠️ ${userData.warnings}` : 'None';
-      const blacklistText = userData.blacklisted ? '🚫 Yes' : 'None';
 
       const embed = createEmbed({ title: '📋 My Info', description: null })
         .setThumbnail(avatar)
@@ -101,7 +100,6 @@ export default {
           { name: 'Rank', value: rank, inline: false },
           { name: 'Trained', value: trainedText, inline: false },
           { name: 'Warnings', value: warningsText, inline: false },
-          { name: 'Blacklists', value: blacklistText, inline: false },
         )
         .setFooter({ text: `Consultado por ${interaction.user.username}` })
         .setTimestamp();
