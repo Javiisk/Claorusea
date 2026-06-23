@@ -34,12 +34,12 @@ async function getRobloxUser(username) {
 export default {
   data: new SlashCommandBuilder()
     .setName('blacklist')
-    .setDescription('Agregar o quitar a un usuario de la blacklist 🚫')
+    .setDescription('Add or remove player blacklist 🚫')
     .addStringOption(opt =>
-      opt.setName('usuario').setDescription('Usuario de Roblox').setRequired(true)
+      opt.setName('user').setDescription('User of roblox').setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('motivo').setDescription('Motivo de la blacklist (deja vacío para quitar la blacklist)').setRequired(false)
+      opt.setName('Reason').setDescription('Reason for blacklisting (leave blank to remove from blacklist)').setRequired(false)
     ),
 
   async execute(interaction) {
@@ -54,13 +54,13 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('usuario');
-      const motivo = interaction.options.getString('motivo');
+      const username = interaction.options.getString('user');
+      const motivo = interaction.options.getString('reason');
       const roblox = await getRobloxUser(username);
 
       if (!roblox) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Usuario de Roblox no encontrado.',
+          content: '❌ User not founded.',
         });
       }
 
@@ -68,8 +68,8 @@ export default {
       if (!motivo) {
         saveUser(roblox.name, { blacklisted: false, blacklistReason: null });
 
-        const embed = createEmbed({ title: '✅ Blacklist Eliminada', description: null })
-          .setDescription(`**${roblox.name}** ha sido removido de la blacklist.`)
+        const embed = createEmbed({ title: '✅ Blacklist Removed', description: null })
+          .setDescription(`**${roblox.name}** has been removed from the blacklist.`)
           .setColor(0x57F287)
           .setTimestamp();
 
@@ -79,8 +79,8 @@ export default {
       // Si hay motivo, se agrega a la blacklist
       saveUser(roblox.name, { blacklisted: true, blacklistReason: motivo });
 
-      const embed = createEmbed({ title: '🚫 Usuario Blacklisteado', description: null })
-        .setDescription(`**${roblox.name}** ha sido agregado a la blacklist.\n**Motivo:** ${motivo}`)
+      const embed = createEmbed({ title: '🚫 User blacklisted', description: null })
+        .setDescription(`**${roblox.name}** has been added to the blacklist.\n**reason:** ${motivo}`)
         .setColor(0xED4245)
         .setTimestamp();
 
@@ -89,7 +89,7 @@ export default {
       logger.error('Blacklist command error:', error);
       try {
         return await InteractionHelper.safeReply(interaction, {
-          content: '❌ Hubo un error al actualizar la blacklist.',
+          content: '❌ Error updating user blacklist.',
         });
       } catch (replyError) {
         logger.error('Failed to send error reply:', replyError);
