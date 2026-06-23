@@ -3,16 +3,13 @@ import { logger } from '../utils/logger.js';
 
 const resignDeclineModalHandler = {
   name: 'resign_modal',
-  async execute(interaction, client) {
+  async execute(interaction, client, args) {
     try {
-      const parts = interaction.customId.split('_');
-      const discordUserId = parts[2];
-      const robloxUser = parts[4];
+      const [discordUserId, robloxId, robloxUser] = args;
       const declineReason = interaction.fields.getTextInputValue('decline_reason');
 
       await interaction.deferUpdate();
 
-      // DM al usuario declinado
       try {
         const discordUser = await client.users.fetch(discordUserId);
         const dmEmbed = new EmbedBuilder()
@@ -29,10 +26,9 @@ const resignDeclineModalHandler = {
         await discordUser.send({ embeds: [dmEmbed] });
       } catch { /* DMs disabled */ }
 
-      // Deshabilitar botones
       const updatedRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId('resign_done')
+          .setCustomId('resign_done:done')
           .setLabel('Declined ✖️')
           .setStyle(ButtonStyle.Danger)
           .setDisabled(true),
@@ -46,5 +42,3 @@ const resignDeclineModalHandler = {
     }
   },
 };
-
-export { resignDeclineModalHandler };
