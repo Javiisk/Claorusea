@@ -34,12 +34,12 @@ async function getRobloxUser(username) {
 export default {
   data: new SlashCommandBuilder()
     .setName('warning')
-    .setDescription('Agregar advertencias a un usuario')
+    .setDescription('Add warnings to user history')
     .addStringOption(opt =>
-      opt.setName('usuario').setDescription('Usuario de Roblox').setRequired(true)
+      opt.setName('user').setDescription('User of roblox').setRequired(true)
     )
     .addIntegerOption(opt =>
-      opt.setName('warnings').setDescription('Número de warnings').setRequired(true).setMinValue(0).setMaxValue(10)
+      opt.setName('warnings').setDescription('Number of warnings').setRequired(true).setMinValue(0).setMaxValue(10)
     ),
 
   async execute(interaction) {
@@ -60,14 +60,14 @@ export default {
 
       if (!roblox) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Usuario de Roblox no encontrado.',
+          content: '❌ User not founded.',
         });
       }
 
       saveUser(roblox.name, { warnings });
 
-      const embed = createEmbed({ title: '⚠️ Warnings Actualizados', description: null })
-        .setDescription(`**${roblox.name}** ahora tiene **${warnings} warning(s)**.`)
+      const embed = createEmbed({ title: '⚠️ Warnings updated', description: null })
+        .setDescription(`**${roblox.name}** now has **${warnings} warning(s)**.`)
         .setColor(0xFEE75C)
         .setTimestamp();
 
@@ -76,7 +76,7 @@ export default {
       logger.error('Warning command error:', error);
       try {
         return await InteractionHelper.safeReply(interaction, {
-          content: '❌ Hubo un error al actualizar los warnings.',
+          content: '❌ Error updating warnings.',
         });
       } catch (replyError) {
         logger.error('Failed to send error reply:', replyError);
