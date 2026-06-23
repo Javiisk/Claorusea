@@ -62,7 +62,7 @@ export default {
 
       saveUser(roblox.name, { trained: false });
 
-      const embed = createEmbed({ title: '❌ User not founded', description: null })
+      const embed = createEmbed({ title: '❌ User marked has untrained', description: null })
         .setDescription(`**${roblox.name}** has marked as **Untrained**.`)
         .setColor(0xED4245)
         .setTimestamp();
