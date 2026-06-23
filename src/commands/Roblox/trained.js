@@ -9,6 +9,14 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
 
+const ALLOWED_ROLES = [
+  '1505671307335958728',
+  '1505671314210553877',
+  '1505671325144973323',
+  '1505673879069393024',
+  '1505673808097574912',
+];
+
 function loadDB() {
   if (!existsSync(DB_PATH)) writeFileSync(DB_PATH, JSON.stringify({}));
   return JSON.parse(readFileSync(DB_PATH, 'utf8'));
@@ -34,49 +42,38 @@ async function getRobloxUser(username) {
 export default {
   data: new SlashCommandBuilder()
     .setName('trained')
-    .setDescription('Mark user has trained ✅')
+    .setDescription('Mark a user as trained ✅')
     .addStringOption(opt =>
-      opt.setName('user').setDescription('User of roblox').setRequired(true)
+      opt.setName('user').setDescription('Roblox username').setRequired(true)
     ),
 
   async execute(interaction) {
+    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
+    if (!hasRole) {
+      return await interaction.reply({ content: '❌ You don\'t have permission to use this command.', ephemeral: true });
+    }
+
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
-      logger.warn('Trained interaction defer failed', {
-        userId: interaction.user.id,
-        guildId: interaction.guildId,
-        commandName: 'trained',
-      });
+      logger.warn('Trained interaction defer failed', { userId: interaction.user.id, guildId: interaction.guildId, commandName: 'trained' });
       return;
     }
 
     try {
       const username = interaction.options.getString('user');
       const roblox = await getRobloxUser(username);
-
-      if (!roblox) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Error fetching user.',
-        });
-      }
+      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
 
       saveUser(roblox.name, { trained: true });
 
-      const embed = createEmbed({ title: '✅ User marked has trained', description: null })
+      const embed = createEmbed({ title: '✅ User Trained', description: null })
         .setDescription(`**${roblox.name}** has been marked as **Trained**.`)
-        .setColor(0x57F287)
-        .setTimestamp();
+        .setColor(0x57F287).setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
       logger.error('Trained command error:', error);
-      try {
-        return await InteractionHelper.safeReply(interaction, {
-          content: '❌ Error trying at mark it as trained.',
-        });
-      } catch (replyError) {
-        logger.error('Failed to send error reply:', replyError);
-      }
+      try { return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed to send error reply:', e); }
     }
   },
 };
