@@ -7,6 +7,14 @@ const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 const LOG_CHANNEL_ID = '1504301537109868585';
 
+const ALLOWED_ROLES = [
+  '1505671307335958728',
+  '1505671314210553877',
+  '1505671325144973323',
+  '1505673879069393024',
+  '1505673808097574912',
+];
+
 async function getRobloxUser(username) {
   const res = await fetch('https://users.roblox.com/v1/usernames/users', {
     method: 'POST',
@@ -25,43 +33,21 @@ async function getGroupRoles() {
 
 async function setRank(userId, roleId) {
   try {
-    // Buscar membership con el userId directamente en el filter
     const res = await fetch(
       `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships?filter=user=='users/${userId}'`,
-      {
-        headers: { 'x-api-key': API_KEY },
-      }
+      { headers: { 'x-api-key': API_KEY } }
     );
     const data = await res.json();
-    const membership = data.groupMemberships?.[0];
+    let membership = data.groupMemberships?.[0];
 
     if (!membership) {
-      // Segundo intento con formato alternativo
       const res2 = await fetch(
         `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships?maxPageSize=1&filter=user==users/${userId}`,
-        {
-          headers: { 'x-api-key': API_KEY },
-        }
+        { headers: { 'x-api-key': API_KEY } }
       );
       const data2 = await res2.json();
-      const membership2 = data2.groupMemberships?.[0];
-      if (!membership2) return { success: false, error: 'User is not in the group.' };
-
-      const membershipId2 = membership2.path.split('/').pop();
-      const updateRes2 = await fetch(
-        `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships/${membershipId2}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'x-api-key': API_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ role: `groups/${GROUP_ID}/roles/${roleId}` }),
-        }
-      );
-      if (updateRes2.ok) return { success: true };
-      const err2 = await updateRes2.json();
-      return { success: false, error: err2.message || 'Failed to update rank.' };
+      membership = data2.groupMemberships?.[0];
+      if (!membership) return { success: false, error: 'User is not in the group.' };
     }
 
     const membershipId = membership.path.split('/').pop();
@@ -69,14 +55,10 @@ async function setRank(userId, roleId) {
       `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships/${membershipId}`,
       {
         method: 'PATCH',
-        headers: {
-          'x-api-key': API_KEY,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: `groups/${GROUP_ID}/roles/${roleId}` }),
       }
     );
-
     if (updateRes.ok) return { success: true };
     const err = await updateRes.json();
     return { success: false, error: err.message || 'Failed to update rank.' };
@@ -97,26 +79,22 @@ export default {
     ),
 
   async execute(interaction) {
+    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
+    if (!hasRole) {
+      return await interaction.reply({ content: '❌ You don\'t have permission to use this command.', ephemeral: true });
+    }
+
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
-      logger.warn('SetRank interaction defer failed', {
-        userId: interaction.user.id,
-        guildId: interaction.guildId,
-        commandName: 'setrank',
-      });
+      logger.warn('SetRank interaction defer failed', { userId: interaction.user.id, guildId: interaction.guildId, commandName: 'setrank' });
       return;
     }
 
     try {
       const username = interaction.options.getString('user');
       const rankInput = interaction.options.getString('rank');
-
       const roblox = await getRobloxUser(username);
-      if (!roblox) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Roblox user not found.',
-        });
-      }
+      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
 
       const roles = await getGroupRoles();
       const role = roles.find(r =>
@@ -127,22 +105,15 @@ export default {
 
       if (!role) {
         const roleList = roles.map(r => `\`${r.rank}\` - ${r.name}`).join('\n');
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Rank not found. Available ranks:\n${roleList}`,
-        });
+        return await InteractionHelper.safeEditReply(interaction, { content: `❌ Rank not found. Available ranks:\n${roleList}` });
       }
 
       const result = await setRank(roblox.id, role.id);
-      if (!result.success) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Failed to set rank: ${result.error}`,
-        });
-      }
+      if (!result.success) return await InteractionHelper.safeEditReply(interaction, { content: `❌ Failed to set rank: ${result.error}` });
 
       const embed = createEmbed({ title: '🏅 Rank Updated', description: null })
         .setDescription(`**${roblox.name}**'s rank has been changed to **${role.name}**.`)
-        .setColor(0x57F287)
-        .setTimestamp();
+        .setColor(0x57F287).setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
@@ -155,21 +126,12 @@ export default {
             { name: 'Moderator', value: `${interaction.user.username} (<@${interaction.user.id}>)`, inline: false },
             { name: 'User', value: roblox.name, inline: false },
             { name: 'New Rank', value: role.name, inline: false },
-          )
-          .setTimestamp();
-
+          ).setTimestamp();
         await logChannel.send({ embeds: [logEmbed] });
       }
-
     } catch (error) {
       logger.error('SetRank command error:', error);
-      try {
-        return await InteractionHelper.safeReply(interaction, {
-          content: '❌ An error occurred while setting the rank.',
-        });
-      } catch (replyError) {
-        logger.error('Failed to send error reply:', replyError);
-      }
+      try { return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed to send error reply:', e); }
     }
   },
 };
