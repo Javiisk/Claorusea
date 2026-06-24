@@ -10,7 +10,7 @@ export default {
         .setDescription('Displays real-time server count and active players for the campgrounds.'),
 
     async execute(interaction) {
-        // Evitamos que la interacción expire en tu hosting/móvil
+        // Evitamos que la interacción expire en Railway
         await InteractionHelper.safeDefer(interaction);
 
         try {
@@ -60,7 +60,7 @@ export default {
                 embed.setThumbnail(gameIconUrl);
             }
 
-            // 4. Envío seguro de la respuesta
+            // 4. Envío seguro de la respuesta editando el reply diferido
             await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
         } catch (error) {
