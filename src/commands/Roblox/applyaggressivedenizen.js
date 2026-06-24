@@ -88,7 +88,7 @@ async function setRankById(userId, rankNumber) {
 export default {
   data: new SlashCommandBuilder()
     .setName('applyaggressivedenizen')
-    .setDescription('Apply for Aggressive Denizen rank 🌿')
+    .setDescription('Apply for Aggressive Denizen rank (must have gamepass)')
     .addStringOption(opt =>
       opt.setName('robloxuser').setDescription('Your Roblox username').setRequired(true)
     ),
