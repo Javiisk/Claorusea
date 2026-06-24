@@ -5,6 +5,14 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const GAMEPASS_ID = '1889164521';
 
+const ALLOWED_ROLES = [
+  '1505671307335958728',
+  '1505671314210553877',
+  '1505671325144973323',
+  '1505673879069393024',
+  '1505673808097574912',
+];
+
 async function getRobloxUser(username) {
   const res = await fetch('https://users.roblox.com/v1/usernames/users', {
     method: 'POST',
@@ -43,56 +51,40 @@ export default {
     ),
 
   async execute(interaction) {
+    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
+    if (!hasRole) {
+      return await interaction.reply({ content: '❌ You don\'t have permission to use this command.', ephemeral: true });
+    }
+
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
-      logger.warn('CheckPurchase interaction defer failed', {
-        userId: interaction.user.id,
-        guildId: interaction.guildId,
-        commandName: 'checkpurchase',
-      });
+      logger.warn('CheckPurchase interaction defer failed', { userId: interaction.user.id, guildId: interaction.guildId, commandName: 'checkpurchase' });
       return;
     }
 
     try {
       const username = interaction.options.getString('user');
       const roblox = await getRobloxUser(username);
-
-      if (!roblox) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Roblox user not found.',
-        });
-      }
+      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
 
       const { owned, purchaseDate } = await checkGamepass(roblox.id);
 
       if (owned) {
         const embed = createEmbed({ title: '💰 Gamepass Check', description: null })
           .setDescription(`✅ **${roblox.name}** has this gamepass!`)
-          .addFields(
-            { name: 'Purchase Date', value: purchaseDate, inline: false },
-          )
-          .setColor(0x57F287)
-          .setTimestamp();
-
+          .addFields({ name: 'Purchase Date', value: purchaseDate, inline: false })
+          .setColor(0x57F287).setTimestamp();
         return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
       }
 
       const embed = createEmbed({ title: '💰 Gamepass Check', description: null })
         .setDescription(`❌ **${roblox.name}** doesn't have this gamepass.`)
-        .setColor(0xED4245)
-        .setTimestamp();
-
+        .setColor(0xED4245).setTimestamp();
       return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
     } catch (error) {
       logger.error('CheckPurchase command error:', error);
-      try {
-        return await InteractionHelper.safeReply(interaction, {
-          content: '❌ An error occurred while checking the gamepass.',
-        });
-      } catch (replyError) {
-        logger.error('Failed to send error reply:', replyError);
-      }
+      try { return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed to send error reply:', e); }
     }
   },
 };
