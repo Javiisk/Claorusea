@@ -1,8 +1,8 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed, logger, InteractionHelper } from '../../utils/index.js'; // Subimos dos niveles (../) porque ahora estamos dentro de /roblox/
+import { createEmbed, logger, InteractionHelper } from '../../utils/index.js';
 import fetch from 'node-fetch';
 
-const GAME_ID = 90664126150507; // El ID de tu juego de Adoresa
+const GAME_ID = 90664126150507;
 
 export default {
     data: new SlashCommandBuilder()
@@ -10,12 +10,17 @@ export default {
         .setDescription('Displays real-time server count and active players for the campgrounds.'),
 
     async execute(interaction) {
-        // Aseguramos la interacción para evitar expiración en Railway/móvil
+        // Evitamos que la interacción expire en tu hosting/móvil
         await InteractionHelper.safeDefer(interaction);
 
         try {
-            // 1. Llamada a la API de servidores públicos para contar jugadores y servidores
+            // 1. Petición para contar servidores y jugadores activos
             const serverResponse = await fetch(`https://games.roblox.com/v1/games/2/places/${GAME_ID}/servers/Public?limit=100`);
+            
+            if (!serverResponse.ok) {
+                throw new Error(`Roblox API returned status ${serverResponse.status}`);
+            }
+            
             const serverData = await serverResponse.json();
 
             let totalPlayers = 0;
@@ -28,21 +33,22 @@ export default {
                 }
             }
 
-            // 2. Llamada a la API de Thumbnails para obtener el icono del juego (Game Icon)
-            // Usamos el tamaño 150x150 en formato circular/cuadrado oficial
+            // 2. Petición para obtener el icono oficial del juego
             const iconResponse = await fetch(`https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${GAME_ID}&returnPolicy=PlaceHolder&size=150x150&format=Png&isCircular=false`);
-            const iconData = await iconResponse.json();
-            
             let gameIconUrl = null;
-            if (iconData.data && iconData.data.length > 0) {
-                gameIconUrl = iconData.data[0].imageUrl;
+
+            if (iconResponse.ok) {
+                const iconData = await iconResponse.json();
+                if (iconData.data && iconData.data.length > 0) {
+                    gameIconUrl = iconData.data[0].imageUrl;
+                }
             }
 
-            // 3. Crear el Embed con la estética de Adoresa y su Icono
+            // 3. Construcción del Embed estético de Adoresa
             const embed = createEmbed()
-                .setTitle(`🌲 Adoresa — Camp Status`)
-                .setDescription(`Current real-time activity at the campgrounds.`)
-                .setColor('#2f3136') // Color oscuro/estético
+                .setTitle('🌲 Adoresa — Camp Status')
+                .setDescription('Current real-time activity at the campgrounds.')
+                .setColor('#2f3136')
                 .addFields(
                     { name: '🎮 Active Players', value: `• **${totalPlayers}** campers online`, inline: true },
                     { name: '🖥️ Active Servers', value: `• **${activeServers}** server(s) running`, inline: true },
@@ -50,12 +56,11 @@ export default {
                 )
                 .setTimestamp();
 
-            // Si la API nos devolvió la imagen con éxito, la inyectamos como Thumbnail
             if (gameIconUrl) {
                 embed.setThumbnail(gameIconUrl);
             }
 
-            // Enviamos la respuesta editando el defer de forma segura
+            // 4. Envío seguro de la respuesta
             await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
         } catch (error) {
@@ -66,4 +71,3 @@ export default {
         }
     }
 };
-
