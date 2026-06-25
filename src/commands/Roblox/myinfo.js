@@ -51,11 +51,12 @@ async function getRobloxFromBloxlink(discordId) {
   const res = await fetch(`https://api.blox.link/v4/public/discord/${discordId}/roblox-info`, {
     headers: { 'Authorization': process.env.BLOXLINK_API_KEY },
   });
-  if (!res.ok) return null;
+  logger.info(`Bloxlink status: ${res.status}`);
   const data = await res.json();
+  logger.info(`Bloxlink response: ${JSON.stringify(data)}`);
   if (!data.robloxID) return null;
   return { id: data.robloxID, name: data.robloxUsername ?? null };
-}
+          }
 
 // Fallback: get by username
 async function getRobloxUser(username) {
