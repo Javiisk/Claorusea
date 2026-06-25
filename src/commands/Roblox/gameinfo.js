@@ -83,7 +83,7 @@ export default {
         ? `<t:${Math.floor(new Date(gameInfo.updated).getTime() / 1000)}:R>`
         : 'Unknown';
 
-      const embed = createEmbed({ title: `🎮 ${gameInfo.name}`, description: null })
+      const embed = createEmbed({ title: `${gameInfo.name}`, description: null })
         .setDescription(`> ${description}`)
         .setColor(0x5865f2)
         .setThumbnail(iconUrl ?? null)
