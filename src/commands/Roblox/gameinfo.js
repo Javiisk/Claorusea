@@ -65,10 +65,6 @@ export default {
         getActiveServers(),
       ]);
 
-      // Open = game is published AND has active servers or players
-      const isOpen = gameInfo.isPlayable === true && ((gameInfo.playing ?? 0) > 0 || activeServers > 0);
-      const status = isOpen ? '🟢 Open' : '🔴 Closed';
-
       const visits = gameInfo.visits?.toLocaleString('en-US') ?? '0';
       const favorites = gameInfo.favoritedCount?.toLocaleString('en-US') ?? '0';
       const playing = gameInfo.playing?.toLocaleString('en-US') ?? '0';
@@ -89,10 +85,9 @@ export default {
 
       const embed = createEmbed({ title: `🎮 ${gameInfo.name}`, description: null })
         .setDescription(`> ${description}`)
-        .setColor(isOpen ? 0x57f287 : 0xed4245)
+        .setColor(0x5865f2)
         .setThumbnail(iconUrl ?? null)
         .addFields(
-          { name: '📊 Status',         value: status,                                                                                                             inline: true },
           { name: '👥 Active Players', value: `**${playing}** / ${maxPlayers} per server`,                                                                        inline: true },
           { name: '🖥️ Active Servers', value: `**${activeServers}**`,                                                                                             inline: true },
           { name: '🏆 Total Visits',   value: `**${visits}**`,                                                                                                    inline: true },
