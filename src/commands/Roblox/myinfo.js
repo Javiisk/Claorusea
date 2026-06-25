@@ -46,19 +46,22 @@ function saveUser(username, data) {
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
-// Get Roblox account linked via Bloxlink
 async function getRobloxFromBloxlink(discordId) {
-  const res = await fetch(`https://api.blox.link/v4/public/discord/${discordId}/roblox-info`, {
-    headers: { 'Authorization': process.env.BLOXLINK_API_KEY },
-  });
-  logger.info(`Bloxlink status: ${res.status}`);
-  const data = await res.json();
-  logger.info(`Bloxlink response: ${JSON.stringify(data)}`);
-  if (!data.robloxID) return null;
-  return { id: data.robloxID, name: data.robloxUsername ?? null };
+  try {
+    const res = await fetch(`https://api.blox.link/v4/public/discord/${discordId}/roblox-info`, {
+      headers: { 'api-key': process.env.BLOXLINK_API_KEY },
+    });
+    logger.info(`Bloxlink status: ${res.status}`);
+    const data = await res.json();
+    logger.info(`Bloxlink response: ${JSON.stringify(data)}`);
+    if (!data.robloxID) return null;
+    return { id: data.robloxID, name: data.robloxUsername ?? null };
+  } catch (e) {
+    logger.warn(`Bloxlink error: ${e.message}`);
+    return null;
+  }
 }
 
-// Fallback: get by username
 async function getRobloxUser(username) {
   const res = await fetch('https://users.roblox.com/v1/usernames/users', {
     method: 'POST',
@@ -69,7 +72,6 @@ async function getRobloxUser(username) {
   return data.data?.[0] ?? null;
 }
 
-// Get username from ID if Bloxlink didn't return it
 async function getRobloxUsernameById(userId) {
   const res = await fetch(`https://users.roblox.com/v1/users/${userId}`);
   if (!res.ok) return 'Unknown';
@@ -136,7 +138,6 @@ export default {
       let roblox = null;
       let usedBloxlink = false;
 
-      // Try Bloxlink first if no username provided
       if (!usernameInput) {
         const bloxlink = await getRobloxFromBloxlink(interaction.user.id);
         if (bloxlink) {
@@ -151,7 +152,6 @@ export default {
           });
         }
       } else {
-        // Manual username fallback
         roblox = await getRobloxUser(usernameInput);
         if (!roblox) {
           return await InteractionHelper.safeEditReply(interaction, {
@@ -168,7 +168,6 @@ export default {
 
       const userData = getUser(roblox.name);
 
-      // Auto-blacklist if in blacklisted group
       if (blacklistedGroup && !userData.blacklisted) {
         saveUser(roblox.name, {
           blacklisted: true,
