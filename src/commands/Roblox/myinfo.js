@@ -56,7 +56,7 @@ async function getRobloxFromBloxlink(discordId) {
   logger.info(`Bloxlink response: ${JSON.stringify(data)}`);
   if (!data.robloxID) return null;
   return { id: data.robloxID, name: data.robloxUsername ?? null };
-          }
+}
 
 // Fallback: get by username
 async function getRobloxUser(username) {
