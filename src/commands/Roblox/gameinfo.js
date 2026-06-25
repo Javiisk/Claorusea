@@ -106,7 +106,7 @@ export default {
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
-      logger.error('Gameinfo command error:', error);
+      logger.error('Gameinfo command error:', error.message, error.stack);
       try {
         return await InteractionHelper.safeReply(interaction, {
           content: '❌ An error occurred while fetching game info.',
