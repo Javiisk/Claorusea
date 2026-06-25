@@ -47,6 +47,7 @@ export default {
     .setDMPermission(false),
 
   async execute(interaction) {
+    logger.info('Gameinfo command triggered');
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
       logger.warn('Gameinfo interaction defer failed', {
