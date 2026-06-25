@@ -47,7 +47,6 @@ export default {
     .setDMPermission(false),
 
   async execute(interaction) {
-    logger.info('Gameinfo command triggered');
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
       logger.warn('Gameinfo interaction defer failed', {
@@ -66,8 +65,9 @@ export default {
         getActiveServers(),
       ]);
 
-      const isPlayable = (gameInfo.playing ?? 0) > 0 || activeServers > 0;
-      const status = isPlayable ? '🟢 Open' : '🔴 Closed';
+      // Open = game is published AND has active servers or players
+      const isOpen = gameInfo.isPlayable === true && ((gameInfo.playing ?? 0) > 0 || activeServers > 0);
+      const status = isOpen ? '🟢 Open' : '🔴 Closed';
 
       const visits = gameInfo.visits?.toLocaleString('en-US') ?? '0';
       const favorites = gameInfo.favoritedCount?.toLocaleString('en-US') ?? '0';
@@ -89,18 +89,18 @@ export default {
 
       const embed = createEmbed({ title: `🎮 ${gameInfo.name}`, description: null })
         .setDescription(`> ${description}`)
-        .setColor(isPlayable ? 0x57f287 : 0xed4245)
+        .setColor(isOpen ? 0x57f287 : 0xed4245)
         .setThumbnail(iconUrl ?? null)
         .addFields(
-          { name: '📊 Status',         value: status,                                                                                                      inline: true },
-          { name: '👥 Active Players', value: `**${playing}** / ${maxPlayers} per server`,                                                                 inline: true },
-          { name: '🖥️ Active Servers', value: `**${activeServers}**`,                                                                                      inline: true },
-          { name: '🏆 Total Visits',   value: `**${visits}**`,                                                                                             inline: true },
-          { name: '⭐ Favorites',      value: `**${favorites}**`,                                                                                          inline: true },
+          { name: '📊 Status',         value: status,                                                                                                             inline: true },
+          { name: '👥 Active Players', value: `**${playing}** / ${maxPlayers} per server`,                                                                        inline: true },
+          { name: '🖥️ Active Servers', value: `**${activeServers}**`,                                                                                             inline: true },
+          { name: '🏆 Total Visits',   value: `**${visits}**`,                                                                                                    inline: true },
+          { name: '⭐ Favorites',      value: `**${favorites}**`,                                                                                                 inline: true },
           { name: '👍 Rating',         value: `**${likePercent}%** (${votes.upVotes.toLocaleString('en-US')} 👍 / ${votes.downVotes.toLocaleString('en-US')} 👎)`, inline: true },
-          { name: '📅 Created',        value: createdAt,                                                                                                   inline: true },
-          { name: '🔄 Last Updated',   value: updatedAt,                                                                                                   inline: true },
-          { name: '🔗 Link',           value: `[Go to Game](https://www.roblox.com/games/${PLACE_ID})`,                                                    inline: true }
+          { name: '📅 Created',        value: createdAt,                                                                                                          inline: true },
+          { name: '🔄 Last Updated',   value: updatedAt,                                                                                                          inline: true },
+          { name: '🔗 Link',           value: `[Go to Game](https://www.roblox.com/games/${PLACE_ID})`,                                                           inline: true }
         )
         .setFooter({ text: `Universe ID: ${UNIVERSE_ID} • Place ID: ${PLACE_ID}` })
         .setTimestamp();
