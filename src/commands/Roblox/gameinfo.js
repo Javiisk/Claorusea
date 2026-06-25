@@ -66,7 +66,7 @@ export default {
         getActiveServers(),
       ]);
 
-      const isPlayable = gameInfo.isPlayable ?? false;
+      const isPlayable = (gameInfo.playing ?? 0) > 0 || activeServers > 0;
       const status = isPlayable ? '🟢 Open' : '🔴 Closed';
 
       const visits = gameInfo.visits?.toLocaleString('en-US') ?? '0';
