@@ -4,41 +4,36 @@ import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const PLACE_ID = '90664126150507';
+const UNIVERSE_ID = '7906381869';
 
-async function getUniverseId() {
-  const res = await fetch(`https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe`);
-  if (!res.ok) throw new Error('Failed to fetch universe ID');
+async function getGameInfo() {
+  const res = await fetch(`https://games.roblox.com/v1/games?universeIds=${UNIVERSE_ID}`);
+  if (!res.ok) throw new Error(`Games API error: ${res.status}`);
   const data = await res.json();
-  return data.universeId;
+  if (!data.data?.[0]) throw new Error('No game data returned');
+  return data.data[0];
 }
 
-async function getGameInfo(universeId) {
-  const res = await fetch(`https://games.roblox.com/v1/games?universeIds=${universeId}`);
-  if (!res.ok) throw new Error('Failed to fetch game info');
-  const data = await res.json();
-  return data.data?.[0] ?? null;
-}
-
-async function getGameIcon(universeId) {
+async function getGameIcon() {
   const res = await fetch(
-    `https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeId}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`
+    `https://thumbnails.roblox.com/v1/games/icons?universeIds=${UNIVERSE_ID}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`
   );
   if (!res.ok) return null;
   const data = await res.json();
   return data.data?.[0]?.imageUrl ?? null;
 }
 
-async function getGameVotes(universeId) {
-  const res = await fetch(`https://games.roblox.com/v1/games/votes?universeIds=${universeId}`);
+async function getGameVotes() {
+  const res = await fetch(`https://games.roblox.com/v1/games/votes?universeIds=${UNIVERSE_ID}`);
   if (!res.ok) return { upVotes: 0, downVotes: 0 };
   const data = await res.json();
   const votes = data.data?.[0] ?? {};
   return { upVotes: votes.upVotes ?? 0, downVotes: votes.downVotes ?? 0 };
 }
 
-async function getActiveServers(universeId) {
+async function getActiveServers() {
   const res = await fetch(
-    `https://games.roblox.com/v1/games/${universeId}/servers/Public?limit=100`
+    `https://games.roblox.com/v1/games/${UNIVERSE_ID}/servers/Public?limit=100`
   );
   if (!res.ok) return 0;
   const data = await res.json();
@@ -54,25 +49,21 @@ export default {
   async execute(interaction) {
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
-      logger.warn('Gameinfo interaction defer failed', { userId: interaction.user.id, guildId: interaction.guildId, commandName: 'gameinfo' });
+      logger.warn('Gameinfo interaction defer failed', {
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        commandName: 'gameinfo',
+      });
       return;
     }
 
     try {
-      const universeId = await getUniverseId();
-
       const [gameInfo, iconUrl, votes, activeServers] = await Promise.all([
-        getGameInfo(universeId),
-        getGameIcon(universeId),
-        getGameVotes(universeId),
-        getActiveServers(universeId),
+        getGameInfo(),
+        getGameIcon(),
+        getGameVotes(),
+        getActiveServers(),
       ]);
-
-      if (!gameInfo) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Could not retrieve game information.',
-        });
-      }
 
       const isPlayable = gameInfo.isPlayable ?? false;
       const status = isPlayable ? '🟢 Open' : '🔴 Closed';
@@ -100,24 +91,26 @@ export default {
         .setColor(isPlayable ? 0x57f287 : 0xed4245)
         .setThumbnail(iconUrl ?? null)
         .addFields(
-          { name: '📊 Status', value: status, inline: true },
-          { name: '👥 Active Players', value: `**${playing}** / ${maxPlayers} per server`, inline: true },
-          { name: '🖥️ Active Servers', value: `**${activeServers}**`, inline: true },
-          { name: '🏆 Total Visits', value: `**${visits}**`, inline: true },
-          { name: '⭐ Favorites', value: `**${favorites}**`, inline: true },
-          { name: '👍 Rating', value: `**${likePercent}%** (${votes.upVotes.toLocaleString('en-US')} 👍 / ${votes.downVotes.toLocaleString('en-US')} 👎)`, inline: true },
-          { name: '📅 Created', value: createdAt, inline: true },
-          { name: '🔄 Last Updated', value: updatedAt, inline: true },
-          { name: '🔗 Link', value: `[Go to Game](https://www.roblox.com/games/${PLACE_ID})`, inline: true }
+          { name: '📊 Status',         value: status,                                                                                                      inline: true },
+          { name: '👥 Active Players', value: `**${playing}** / ${maxPlayers} per server`,                                                                 inline: true },
+          { name: '🖥️ Active Servers', value: `**${activeServers}**`,                                                                                      inline: true },
+          { name: '🏆 Total Visits',   value: `**${visits}**`,                                                                                             inline: true },
+          { name: '⭐ Favorites',      value: `**${favorites}**`,                                                                                          inline: true },
+          { name: '👍 Rating',         value: `**${likePercent}%** (${votes.upVotes.toLocaleString('en-US')} 👍 / ${votes.downVotes.toLocaleString('en-US')} 👎)`, inline: true },
+          { name: '📅 Created',        value: createdAt,                                                                                                   inline: true },
+          { name: '🔄 Last Updated',   value: updatedAt,                                                                                                   inline: true },
+          { name: '🔗 Link',           value: `[Go to Game](https://www.roblox.com/games/${PLACE_ID})`,                                                    inline: true }
         )
-        .setFooter({ text: `Universe ID: ${universeId} • Place ID: ${PLACE_ID}` })
+        .setFooter({ text: `Universe ID: ${UNIVERSE_ID} • Place ID: ${PLACE_ID}` })
         .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
       logger.error('Gameinfo command error:', error);
       try {
-        return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred while fetching game info.' });
+        return await InteractionHelper.safeReply(interaction, {
+          content: '❌ An error occurred while fetching game info.',
+        });
       } catch (e) {
         logger.error('Failed to send error reply:', e);
       }
