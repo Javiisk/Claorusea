@@ -10,7 +10,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
 const GROUPS_PATH = join(__dirname, '../../../../blacklisted-groups.json');
 
-// Grupos blacklisted iniciales (los que me diste)
 const DEFAULT_GROUPS = [
   { id: '9221386', name: 'Unholy sacred sisters' },
   { id: '14029943', name: 'Empyreúm' },
@@ -47,6 +46,18 @@ function saveUser(username, data) {
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
+// Get Roblox account linked via Bloxlink
+async function getRobloxFromBloxlink(discordId) {
+  const res = await fetch(`https://api.blox.link/v4/public/discord/${discordId}/roblox-info`, {
+    headers: { 'Authorization': process.env.BLOXLINK_API_KEY },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.robloxID) return null;
+  return { id: data.robloxID, name: data.robloxUsername ?? null };
+}
+
+// Fallback: get by username
 async function getRobloxUser(username) {
   const res = await fetch('https://users.roblox.com/v1/usernames/users', {
     method: 'POST',
@@ -54,7 +65,15 @@ async function getRobloxUser(username) {
     body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
   });
   const data = await res.json();
-  return data.data?.[0] || null;
+  return data.data?.[0] ?? null;
+}
+
+// Get username from ID if Bloxlink didn't return it
+async function getRobloxUsernameById(userId) {
+  const res = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+  if (!res.ok) return 'Unknown';
+  const data = await res.json();
+  return data.name ?? 'Unknown';
 }
 
 async function getRobloxGroupRank(userId) {
@@ -73,7 +92,7 @@ async function getRobloxAvatar(userId) {
   try {
     const res = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`);
     const data = await res.json();
-    return data.data?.[0]?.imageUrl || null;
+    return data.data?.[0]?.imageUrl ?? null;
   } catch {
     return null;
   }
@@ -84,9 +103,8 @@ async function checkBlacklistedGroups(userId) {
     const blacklistedGroups = loadGroups();
     const res = await fetch(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
     const data = await res.json();
-    const userGroups = data.data?.map(g => String(g.group.id)) || [];
-    const found = blacklistedGroups.find(g => userGroups.includes(g.id));
-    return found || null;
+    const userGroups = data.data?.map(g => String(g.group.id)) ?? [];
+    return blacklistedGroups.find(g => userGroups.includes(g.id)) ?? null;
   } catch {
     return null;
   }
@@ -95,10 +113,10 @@ async function checkBlacklistedGroups(userId) {
 export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
-    .setDescription('View your Roblox profile and group status')
+    .setDescription('View your Roblox profile and group status.')
     .setDMPermission(true)
     .addStringOption(opt =>
-      opt.setName('user').setDescription('Your Roblox username').setRequired(true)
+      opt.setName('user').setDescription('Roblox username (optional if you have Bloxlink linked)').setRequired(false)
     ),
 
   async execute(interaction) {
@@ -113,13 +131,32 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('user');
-      const roblox = await getRobloxUser(username);
+      const usernameInput = interaction.options.getString('user');
+      let roblox = null;
+      let usedBloxlink = false;
 
-      if (!roblox) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Roblox user not found.',
-        });
+      // Try Bloxlink first if no username provided
+      if (!usernameInput) {
+        const bloxlink = await getRobloxFromBloxlink(interaction.user.id);
+        if (bloxlink) {
+          roblox = {
+            id: bloxlink.id,
+            name: bloxlink.name ?? await getRobloxUsernameById(bloxlink.id),
+          };
+          usedBloxlink = true;
+        } else {
+          return await InteractionHelper.safeEditReply(interaction, {
+            content: '❌ You don\'t have a Roblox account linked via Bloxlink. Please verify at blox.link or use `/myinfo user: yourUsername`.',
+          });
+        }
+      } else {
+        // Manual username fallback
+        roblox = await getRobloxUser(usernameInput);
+        if (!roblox) {
+          return await InteractionHelper.safeEditReply(interaction, {
+            content: '❌ Roblox user not found.',
+          });
+        }
       }
 
       const [rank, avatar, blacklistedGroup] = await Promise.all([
@@ -130,7 +167,7 @@ export default {
 
       const userData = getUser(roblox.name);
 
-      // Si está en un grupo blacklisted, se marca automáticamente
+      // Auto-blacklist if in blacklisted group
       if (blacklistedGroup && !userData.blacklisted) {
         saveUser(roblox.name, {
           blacklisted: true,
@@ -156,12 +193,12 @@ export default {
           { name: 'Warnings', value: warningsText, inline: false },
           { name: 'Blacklists', value: blacklistText, inline: false },
         )
-        .setFooter({ text: `Requested by ${interaction.user.username}` })
+        .setFooter({ text: `${usedBloxlink ? '🔗 Auto-detected via Bloxlink' : '🔎 Manual lookup'} • Requested by ${interaction.user.username}` })
         .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
-      logger.error('MyInfo command error:', error);
+      logger.error('MyInfo command error:', error.message, error.stack);
       try {
         return await InteractionHelper.safeReply(interaction, {
           content: '❌ An error occurred while fetching the information.',
