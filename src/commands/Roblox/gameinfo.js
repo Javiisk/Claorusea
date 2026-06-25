@@ -3,7 +3,7 @@ import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const PLACE_ID = 90664126150507;
+const PLACE_ID = '90664126150507';
 
 async function getUniverseId() {
   const res = await fetch(`https://apis.roblox.com/universes/v1/places/${PLACE_ID}/universe`);
