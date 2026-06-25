@@ -4,16 +4,12 @@ import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const GROUP_ID = '376034335';
-
-// Rank IDs considered staff (7 to 34, 243, 254, 255)
-const STAFF_RANK_IDS = new Set([
-  ...Array.from({ length: 28 }, (_, i) => i + 7), // 7 to 34
-  243, 254, 255,
-]);
+const STAFF_MIN_RANK = 7;
+const STAFF_EXTRA_RANKS = new Set([243, 254, 255]);
 
 async function getGroupRoles() {
   const res = await fetch(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
-  if (!res.ok) throw new Error(`Failed to fetch group roles: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to fetch roles: ${res.status}`);
   const data = await res.json();
   return data.roles ?? [];
 }
@@ -24,7 +20,11 @@ async function getMembersForRole(roleId) {
 
   do {
     const url = `https://groups.roblox.com/v1/groups/${GROUP_ID}/roles/${roleId}/users?limit=100${cursor ? `&cursor=${cursor}` : ''}`;
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: {
+        'x-api-key': process.env.ROBLOX_API_KEY,
+      },
+    });
     if (!res.ok) break;
     const data = await res.json();
     members.push(...(data.data ?? []));
@@ -54,9 +54,8 @@ export default {
     try {
       const allRoles = await getGroupRoles();
 
-      // Filter only staff ranks, sorted by rank descending
       const staffRoles = allRoles
-        .filter(r => STAFF_RANK_IDS.has(r.rank))
+        .filter(r => r.rank >= STAFF_MIN_RANK || STAFF_EXTRA_RANKS.has(r.rank))
         .sort((a, b) => b.rank - a.rank);
 
       if (staffRoles.length === 0) {
@@ -86,7 +85,6 @@ export default {
           inline: false,
         });
 
-        // Discord embed field limit is 25
         if (embed.data.fields.length >= 25) break;
       }
 
