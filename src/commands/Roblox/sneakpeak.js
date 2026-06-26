@@ -1,4 +1,3 @@
-
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 
@@ -30,7 +29,7 @@ export default {
         .setMaxLength(4000))
     .addStringOption(option =>
       option.setName('media')
-        .setDescription('Image or video URL (Imgur, YouTube, direct link)')
+        .setDescription('Image or video URL (Imgur, YouTube, Discord CDN)')
         .setRequired(true))
     .addChannelOption(option =>
       option.setName('channel')
@@ -52,13 +51,29 @@ export default {
     try {
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
-      const mediaUrl = interaction.options.getString('media');
+      let mediaUrl = interaction.options.getString('media');
       const targetChannel = interaction.options.getChannel('channel');
 
       if (!isValidUrl(mediaUrl)) {
         return await interaction.editReply({
           content: '❌ Invalid URL. Please provide a valid image or video link.',
         });
+      }
+
+      // ─── LIMPIAR URL DE DISCORD ──────────────────────────────────────────
+
+      if (mediaUrl.includes('cdn.discordapp.com')) {
+        // Buscar extensiones de archivo y cortar ahí
+        const match = mediaUrl.match(/(.*\.(mp4|webm|mov|png|jpg|jpeg|gif|webp))/i);
+        if (match) {
+          mediaUrl = match[1];
+        } else {
+          mediaUrl = mediaUrl.split('?')[0];
+        }
+        // Si termina en '&', quitarlo
+        if (mediaUrl.endsWith('&')) {
+          mediaUrl = mediaUrl.slice(0, -1);
+        }
       }
 
       // Verificar permisos
@@ -89,29 +104,18 @@ export default {
       const isImgur = mediaUrl.includes('imgur.com');
       const isYouTube = mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be');
       const isStreamable = mediaUrl.includes('streamable.com');
-      const isDiscord = mediaUrl.includes('cdn.discordapp.com');
 
       if (isDirectVideo) {
-        // Video directo (termina en .mp4, .webm, etc.)
-        const cleanUrl = mediaUrl.split('?')[0]; // Quitar parámetros
-        embed.setImage(cleanUrl);
+        embed.setImage(mediaUrl);
       } else if (isImgur) {
-        // Imgur (soporta videos e imágenes)
-        // Imgur ya se muestra automáticamente en Discord
         embed.setImage(mediaUrl);
       } else if (isYouTube || isStreamable) {
-        // YouTube o Streamable: añadir como enlace en la descripción
         embed.addFields({
           name: '🎥 Watch the sneak peek',
           value: `[Click here to watch](${mediaUrl})`,
           inline: false,
         });
-      } else if (isDiscord) {
-        // Enlace de Discord (limpiar parámetros)
-        const cleanUrl = mediaUrl.split('?')[0];
-        embed.setImage(cleanUrl);
       } else {
-        // Otro enlace: intentar mostrar como imagen
         embed.setImage(mediaUrl);
       }
 
