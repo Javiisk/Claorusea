@@ -13,7 +13,7 @@ const ALLOWED_ROLES = [
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('embed')
+    .setName('embedmessage')  // ← CAMBIADO a embedmessage
     .setDescription('🎨 Create a custom embed and send it to a specific channel')
     .setDMPermission(false)
     .addStringOption(option =>
@@ -67,7 +67,6 @@ export default {
         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
 
   async execute(interaction) {
-    // Permission check (igual que /resign)
     const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
     if (!hasRole) {
       return await interaction.reply({ 
@@ -78,16 +77,15 @@ export default {
 
     const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
     if (!deferSuccess) {
-      logger.warn('Embed interaction defer failed', { 
+      logger.warn('EmbedMessage interaction defer failed', { 
         userId: interaction.user.id, 
         guildId: interaction.guildId, 
-        commandName: 'embed' 
+        commandName: 'embedmessage' 
       });
       return;
     }
 
     try {
-      // Get all options
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
       const colorInput = interaction.options.getString('color');
@@ -100,14 +98,12 @@ export default {
       const url = interaction.options.getString('url');
       const targetChannel = interaction.options.getChannel('channel');
 
-      // Verify channel exists
       if (!targetChannel) {
         return await InteractionHelper.safeEditReply(interaction, { 
           content: '❌ Specified channel not found.' 
         });
       }
 
-      // Check bot permissions in target channel
       const botMember = await targetChannel.guild.members.fetchMe();
       const permissions = targetChannel.permissionsFor(botMember);
       
@@ -117,13 +113,11 @@ export default {
         });
       }
 
-      // Build the embed using createEmbed (igual que tus otros comandos)
       const embed = createEmbed({ 
         title: title || '📋 Custom Embed',
         description: description || 'No description provided.'
       });
 
-      // Set color (igual que /resign usa 0x5865F2)
       if (colorInput) {
         const colorMap = {
           'red': '#FF0000',
@@ -149,7 +143,6 @@ export default {
         embed.setColor(0x5865F2);
       }
 
-      // Add optional fields
       if (thumbnail) embed.setThumbnail(thumbnail);
       if (image) embed.setImage(image);
       if (footer) embed.setFooter({ text: footer, iconURL: footerIcon || null });
@@ -158,18 +151,16 @@ export default {
 
       embed.setTimestamp();
 
-      // Send embed to target channel
       await targetChannel.send({ embeds: [embed] });
 
-      // Reply to user (igual que /resign)
       await InteractionHelper.safeEditReply(interaction, { 
         content: `✅ Embed successfully sent to <#${targetChannel.id}>` 
       });
 
-      logger.info(`[Embed] User ${interaction.user.tag} sent embed to channel ${targetChannel.id}`);
+      logger.info(`[EmbedMessage] User ${interaction.user.tag} sent embed to channel ${targetChannel.id}`);
 
     } catch (error) {
-      logger.error('Embed command error:', error);
+      logger.error('EmbedMessage command error:', error);
       try { 
         return await InteractionHelper.safeReply(interaction, { 
           content: '❌ An error occurred while creating the embed.' 
