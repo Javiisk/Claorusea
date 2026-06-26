@@ -2,7 +2,6 @@ import {
     SlashCommandBuilder,
     PermissionFlagsBits,
     EmbedBuilder,
-    ChannelType,
 } from 'discord.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
 import { successEmbed, errorEmbed } from '../utils/embeds.js';
@@ -52,11 +51,10 @@ export const data = new SlashCommandBuilder()
     .setDescription('Create and send a custom embed')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .setDMPermission(false)
-    .addChannelOption((option) =>
+    .addStringOption((option) =>
         option
             .setName('channel')
-            .setDescription('Channel to send the embed to')
-            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+            .setDescription('Channel ID to send the embed to')
             .setRequired(true)
     )
     .addStringOption((option) =>
@@ -130,7 +128,7 @@ export async function execute(interaction) {
     try {
         await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
-        const channel = interaction.options.getChannel('channel');
+        const channelId = interaction.options.getString('channel').trim();
         const title = interaction.options.getString('title');
         const description = interaction.options.getString('description');
         const colorRaw = interaction.options.getString('color');
@@ -184,9 +182,29 @@ export async function execute(interaction) {
             });
         }
 
-        if (!channel.isTextBased()) {
+        if (!/^\d{15,25}$/.test(channelId)) {
             return await InteractionHelper.safeEditReply(interaction, {
-                embeds: [errorEmbed('Invalid Channel', 'Please choose a text-based channel.')],
+                embeds: [errorEmbed('Invalid Channel ID', 'Please provide a valid numeric channel ID.')],
+            });
+        }
+
+        let channel;
+        try {
+            channel = await interaction.client.channels.fetch(channelId);
+        } catch (fetchError) {
+            return await InteractionHelper.safeEditReply(interaction, {
+                embeds: [
+                    errorEmbed(
+                        'Channel Not Found',
+                        `Could not find a channel with ID \`${channelId}\`. Make sure the ID is correct and the bot has access to it.`
+                    ),
+                ],
+            });
+        }
+
+        if (!channel || !channel.isTextBased()) {
+            return await InteractionHelper.safeEditReply(interaction, {
+                embeds: [errorEmbed('Invalid Channel', 'That ID does not point to a text-based channel.')],
             });
         }
 
@@ -242,4 +260,4 @@ export async function execute(interaction) {
             }).catch(() => {});
         }
     }
-  }
+}
