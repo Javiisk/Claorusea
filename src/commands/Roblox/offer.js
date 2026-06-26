@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -16,74 +16,24 @@ const ALLOWED_ROLES = [
   '1505673808097574912',
 ];
 
-const RANK_IDS = {
-  'Guest': 0,
-  'Losted Denizen': 1,
-  'Denizen': 1,
-  'Esteemed Denizen': 2,
-  'Agressive Denizen': 3,
-  'Honored Denizen': 4,
-  'Untrained Encamp': 7,
-  'Camp Volunteer': 8,
-  'Camp Activist': 9,
-  'Camp Counselour': 10,
-  'Camp Coordinator': 11,
-  'Camp Supervisor': 12,
-  'Camp Council': 13,
-  'Library Coordinator': 14,
-  'Church Advisor': 15,
-  'Camp Chaplain': 16,
-  'Camp Strategist': 17,
-  'Camp Counsultant': 18,
-  'Domain Superior': 20,
-  'Domain Delegate': 21,
-  'Domain Confidant': 22,
-  'Domain Regent': 23,
-  'Quaestor Design': 25,
-  'Quaestor Artisan': 26,
-  'Quaestor Contractor': 27,
-  'Quaestor Craftman': 28,
-  'Quaestor Surgeon': 29,
-  'Quaestor Carer': 30,
-  'Quaestor Prator': 31,
-  'Quaestor Legate': 32,
-  'Quaestor Sovereign': 33,
-  'Quaestor Visionary': 34,
-  'The Human': 243,
-  'The Secretary': 254,
-  'The Supreme': 255,
-};
-
-const RANK_NAMES = Object.keys(RANK_IDS);
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-async function getRobloxUser(username) {
-  try {
-    logger.info(`[DEBUG] Buscando usuario Roblox: ${username}`);
-    
-    const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-    });
-    
-    logger.info(`[DEBUG] Respuesta Roblox status: ${res.status}`);
-    
-    if (!res.ok) {
-      logger.error(`[DEBUG] Error en Roblox API: ${res.status}`);
-      return null;
-    }
-    
-    const data = await res.json();
-    logger.info(`[DEBUG] Datos Roblox: ${JSON.stringify(data)}`);
-    
-    return data.data?.[0] || null;
-  } catch (error) {
-    logger.error(`[DEBUG] Error en getRobloxUser: ${error.message}`);
-    return null;
-  }
-}
+const RANK_NAMES = [
+  'Guest',
+  'Denizen',
+  'Esteemed Denizen',
+  'Agressive Denizen',
+  'Honored Denizen',
+  'Untrained Encamp',
+  'Camp Volunteer',
+  'Camp Activist',
+  'Camp Counselour',
+  'Camp Coordinator',
+  'Camp Supervisor',
+  'Camp Council',
+  'Domain Superior',
+  'Domain Delegate',
+  'Domain Confidant',
+  'Domain Regent'
+];
 
 function loadOffers() {
   if (!existsSync(OFFERS_PATH)) {
@@ -100,12 +50,10 @@ function generateOfferId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
 
-// ─── Comando ────────────────────────────────────────────────────────────────
-
 export default {
   data: new SlashCommandBuilder()
     .setName('offer')
-    .setDescription('🎯 Offer a rank to a Roblox user (24h expiry)')
+    .setDescription('🎯 Offer a rank to a user (24h expiry)')
     .addStringOption(option =>
       option.setName('user')
         .setDescription('Roblox username')
@@ -126,7 +74,7 @@ export default {
     const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
     if (!hasRole) {
       return await interaction.reply({
-        content: '❌ You don\'t have permission to use this command.',
+        content: '❌ You don\'t have permission.',
         ephemeral: true,
       });
     }
@@ -134,47 +82,17 @@ export default {
     await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
     try {
-      logger.info('[DEBUG] Iniciando comando /offer');
-      
       const robloxUsername = interaction.options.getString('user');
       const rankName = interaction.options.getString('rank');
       const reason = interaction.options.getString('reason') || 'No reason provided';
 
-      logger.info(`[DEBUG] Username: ${robloxUsername}, Rank: ${rankName}`);
-
-      // Verificar si el usuario existe en Roblox
-      const robloxUser = await getRobloxUser(robloxUsername);
-      
-      if (!robloxUser) {
-        logger.info('[DEBUG] Usuario no encontrado en Roblox');
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Roblox user **${robloxUsername}** not found.`,
-        });
-      }
-
-      logger.info(`[DEBUG] Usuario encontrado: ${robloxUser.id} - ${robloxUser.name}`);
-
-      const rankId = RANK_IDS[rankName];
-      if (!rankId) {
-        logger.info(`[DEBUG] Rango inválido: ${rankName}`);
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Invalid rank: **${rankName}**`,
-        });
-      }
-
-      logger.info(`[DEBUG] Rank ID: ${rankId}`);
-
       const offerId = generateOfferId();
       const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
 
-      logger.info(`[DEBUG] Offer ID: ${offerId}`);
-
       const offers = loadOffers();
       offers[offerId] = {
-        robloxId: robloxUser.id,
-        robloxUsername: robloxUser.name,
+        robloxUsername: robloxUsername,
         rankName: rankName,
-        rankId: rankId,
         reason: reason,
         offeredBy: interaction.user.id,
         offeredByTag: interaction.user.tag,
@@ -184,19 +102,16 @@ export default {
       };
       saveOffers(offers);
 
-      logger.info('[DEBUG] Oferta guardada correctamente');
-
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ Rank offer for **${robloxUser.name}** (${rankName}) created!\n📋 Offer ID: \`${offerId}\`\n⏳ Expires in 24 hours.`,
+        content: `✅ Rank offer for **${robloxUsername}** (${rankName}) created!\n📋 Offer ID: \`${offerId}\`\n⏳ Expires in 24 hours.\n\n📌 To accept: \`/accept ${offerId}\`\n📌 To reject: \`/reject ${offerId}\``,
       });
 
-      logger.info(`[Offer] ${interaction.user.tag} offered ${rankName} to ${robloxUser.name}`);
+      logger.info(`[Offer] ${interaction.user.tag} offered ${rankName} to ${robloxUsername}`);
 
     } catch (error) {
-      logger.error(`[DEBUG] Error en /offer: ${error.message}`);
-      logger.error(`[DEBUG] Stack: ${error.stack}`);
+      logger.error('Offer error:', error);
       await InteractionHelper.safeReply(interaction, {
-        content: `❌ Error: ${error.message}`,
+        content: '❌ An error occurred.',
         ephemeral: true,
       });
     }
