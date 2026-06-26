@@ -13,7 +13,7 @@ const STAFF_ROLES = [
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('embedcreate')
+    .setName('embed')
     .setDescription('🎨 Create a custom embed and send it to a specific channel')
     .setDMPermission(false)
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
@@ -70,7 +70,7 @@ export default {
   async execute(interaction) {
     const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
     if (!deferSuccess) {
-      logger.warn('EmbedCreate defer failed', { userId: interaction.user.id });
+      logger.warn('Embed defer failed', { userId: interaction.user.id });
       return;
     }
 
@@ -158,10 +158,10 @@ export default {
         content: `✅ Embed successfully sent to <#${targetChannel.id}>`,
       });
 
-      logger.info(`[EmbedCreate] User ${interaction.user.tag} sent embed to channel ${targetChannel.id}`);
+      logger.info(`[Embed] User ${interaction.user.tag} sent embed to channel ${targetChannel.id}`);
 
     } catch (error) {
-      logger.error('EmbedCreate error:', error.message, error.stack);
+      logger.error('Embed error:', error.message, error.stack);
       try {
         await InteractionHelper.safeReply(interaction, {
           content: '❌ An error occurred while creating the embed.',
