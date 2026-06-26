@@ -47,7 +47,11 @@ export default {
       });
     }
 
-    await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+    // ⚠️ NO USAR safeDefer - responder inmediatamente
+    await interaction.reply({
+      content: '⏳ Sending sneak peek...',
+      ephemeral: true,
+    });
 
     try {
       const title = interaction.options.getString('title');
@@ -60,7 +64,7 @@ export default {
       const isAllowed = allowedTypes.some(type => attachment.contentType?.startsWith(type));
       
       if (!isAllowed) {
-        return await InteractionHelper.safeEditReply(interaction, {
+        return await interaction.editReply({
           content: '❌ The file must be an image or video.',
         });
       }
@@ -70,7 +74,7 @@ export default {
       const permissions = targetChannel.permissionsFor(botMember);
       
       if (!permissions.has('SendMessages') || !permissions.has('ViewChannel') || !permissions.has('AttachFiles')) {
-        return await InteractionHelper.safeEditReply(interaction, {
+        return await interaction.editReply({
           content: `❌ I don't have permission to send messages or files in <#${targetChannel.id}>.`,
         });
       }
@@ -80,18 +84,23 @@ export default {
         .setColor(0x3F3F3F)
         .setTitle(`👀 ${title}`)
         .setDescription(description)
-        .setImage(attachment.url)
+        .setImage(attachment.proxyURL || attachment.url) // Usar proxyURL para imágenes
         .setFooter({ 
           text: `Sneak peek sent by ${interaction.user.tag}`,
           iconURL: interaction.user.displayAvatarURL()
         })
         .setTimestamp();
 
-      // If video, send as attachment
+      // Si es video, NO usar .setImage()
       const isVideo = attachment.contentType?.startsWith('video/');
+      if (isVideo) {
+        embed.setImage(null); // Quitar imagen del embed
+      }
+
+      // Archivos adjuntos (solo para videos)
       const files = isVideo ? [new AttachmentBuilder(attachment.url)] : [];
 
-      // Send to channel with role ping
+      // Enviar al canal con ping al rol
       const roleMention = `<@&${PING_ROLE_ID}>`;
       const messageContent = `🔔 **NEW SNEAK PEEK!** ${roleMention}`;
 
@@ -101,7 +110,8 @@ export default {
         files: files,
       });
 
-      await InteractionHelper.safeEditReply(interaction, {
+      // Responder al staff
+      await interaction.editReply({
         content: `✅ Sneak peek successfully sent to <#${targetChannel.id}>`,
       });
 
@@ -109,9 +119,8 @@ export default {
 
     } catch (error) {
       logger.error('SneakPeek error:', error);
-      await InteractionHelper.safeReply(interaction, {
+      await interaction.editReply({
         content: '❌ An error occurred while sending the sneak peek.',
-        ephemeral: true,
       });
     }
   },
