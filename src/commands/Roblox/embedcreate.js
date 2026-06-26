@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits } from 'discord.js';
-import { createEmbed, logger, InteractionHelper } from '../utils/index.js';
+import { createEmbed, logger, InteractionHelper } from '../../utils/index.js';
 
 // Staff role IDs (from your existing configuration)
 const STAFF_ROLES = [
@@ -14,7 +14,7 @@ export const data = new SlashCommandBuilder()
   .setName('embedcreate')
   .setDescription('🎨 Create a custom embed and send it to a specific channel')
   .setDMPermission(false)
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // Fallback permission
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   // Main options
   .addStringOption(option =>
     option.setName('title')
@@ -208,7 +208,7 @@ export async function execute(interaction) {
         'black': '#000000',
         'grey': '#808080',
         'gray': '#808080',
-        'default': '#5865F2' // Discord blurple
+        'default': '#5865F2'
       };
       
       let hexColor = colorInput;
@@ -216,7 +216,6 @@ export async function execute(interaction) {
         hexColor = colorMap[colorInput.toLowerCase()];
       }
       
-      // Ensure it has #
       if (!hexColor.startsWith('#')) {
         hexColor = `#${hexColor}`;
       }
@@ -224,10 +223,10 @@ export async function execute(interaction) {
       try {
         embed.setColor(parseInt(hexColor.replace('#', ''), 16));
       } catch (e) {
-        embed.setColor('#5865F2'); // Default color
+        embed.setColor('#5865F2');
       }
     } else {
-      embed.setColor('#5865F2'); // Default color
+      embed.setColor('#5865F2');
     }
 
     // Thumbnail
