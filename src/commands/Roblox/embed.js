@@ -3,12 +3,12 @@ import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const STAFF_ROLES = [
+const ALLOWED_ROLES = [
   '1505671307335958728',
   '1505671314210553877',
   '1505671325144973323',
   '1505673879069393024',
-  '1505673808097574912'
+  '1505673808097574912',
 ];
 
 export default {
@@ -16,7 +16,6 @@ export default {
     .setName('embed')
     .setDescription('🎨 Create a custom embed and send it to a specific channel')
     .setDMPermission(false)
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Embed title')
@@ -68,23 +67,27 @@ export default {
         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
 
   async execute(interaction) {
+    // Permission check (igual que /resign)
+    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
+    if (!hasRole) {
+      return await interaction.reply({ 
+        content: '❌ You don\'t have permission to use this command.', 
+        ephemeral: true 
+      });
+    }
+
     const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
     if (!deferSuccess) {
-      logger.warn('Embed defer failed', { userId: interaction.user.id });
+      logger.warn('Embed interaction defer failed', { 
+        userId: interaction.user.id, 
+        guildId: interaction.guildId, 
+        commandName: 'embed' 
+      });
       return;
     }
 
     try {
-      const member = interaction.member;
-      const hasStaffRole = STAFF_ROLES.some(roleId => member.roles.cache.has(roleId));
-      
-      if (!hasStaffRole) {
-        return InteractionHelper.safeReply(interaction, {
-          content: '❌ You do not have permission to use this command. Staff roles only.',
-          ephemeral: true
-        });
-      }
-
+      // Get all options
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
       const colorInput = interaction.options.getString('color');
@@ -97,28 +100,30 @@ export default {
       const url = interaction.options.getString('url');
       const targetChannel = interaction.options.getChannel('channel');
 
+      // Verify channel exists
       if (!targetChannel) {
-        return InteractionHelper.safeReply(interaction, {
-          content: '❌ Specified channel not found.',
-          ephemeral: true
+        return await InteractionHelper.safeEditReply(interaction, { 
+          content: '❌ Specified channel not found.' 
         });
       }
 
+      // Check bot permissions in target channel
       const botMember = await targetChannel.guild.members.fetchMe();
       const permissions = targetChannel.permissionsFor(botMember);
       
       if (!permissions.has('SendMessages') || !permissions.has('ViewChannel')) {
-        return InteractionHelper.safeReply(interaction, {
-          content: `❌ I don't have permission to send messages in <#${targetChannel.id}>.`,
-          ephemeral: true
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ I don't have permission to send messages in <#${targetChannel.id}>.`
         });
       }
 
+      // Build the embed using createEmbed (igual que tus otros comandos)
       const embed = createEmbed({ 
         title: title || '📋 Custom Embed',
         description: description || 'No description provided.'
       });
 
+      // Set color (igual que /resign usa 0x5865F2)
       if (colorInput) {
         const colorMap = {
           'red': '#FF0000',
@@ -138,12 +143,13 @@ export default {
         try {
           embed.setColor(parseInt(hexColor.replace('#', ''), 16));
         } catch {
-          embed.setColor(0x5865f2);
+          embed.setColor(0x5865F2);
         }
       } else {
-        embed.setColor(0x5865f2);
+        embed.setColor(0x5865F2);
       }
 
+      // Add optional fields
       if (thumbnail) embed.setThumbnail(thumbnail);
       if (image) embed.setImage(image);
       if (footer) embed.setFooter({ text: footer, iconURL: footerIcon || null });
@@ -152,24 +158,25 @@ export default {
 
       embed.setTimestamp();
 
+      // Send embed to target channel
       await targetChannel.send({ embeds: [embed] });
 
-      await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ Embed successfully sent to <#${targetChannel.id}>`,
+      // Reply to user (igual que /resign)
+      await InteractionHelper.safeEditReply(interaction, { 
+        content: `✅ Embed successfully sent to <#${targetChannel.id}>` 
       });
 
       logger.info(`[Embed] User ${interaction.user.tag} sent embed to channel ${targetChannel.id}`);
 
     } catch (error) {
-      logger.error('Embed error:', error.message, error.stack);
-      try {
-        await InteractionHelper.safeReply(interaction, {
-          content: '❌ An error occurred while creating the embed.',
-          ephemeral: true
-        });
-      } catch (e) {
-        logger.error('Failed to send error reply:', e);
+      logger.error('Embed command error:', error);
+      try { 
+        return await InteractionHelper.safeReply(interaction, { 
+          content: '❌ An error occurred while creating the embed.' 
+        }); 
+      } catch (e) { 
+        logger.error('Failed:', e); 
       }
     }
-  }
+  },
 };
