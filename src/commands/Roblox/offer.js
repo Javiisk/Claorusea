@@ -16,14 +16,6 @@ const ALLOWED_ROLES = [
   '1505673808097574912',
 ];
 
-const RANK_NAMES = [
-  'Guest', 'Denizen', 'Esteemed Denizen', 'Agressive Denizen',
-  'Honored Denizen', 'Untrained Encamp', 'Camp Volunteer',
-  'Camp Activist', 'Camp Counselour', 'Camp Coordinator',
-  'Camp Supervisor', 'Camp Council', 'Domain Superior',
-  'Domain Delegate', 'Domain Confidant', 'Domain Regent'
-];
-
 function loadOffers() {
   if (!existsSync(OFFERS_PATH)) {
     writeFileSync(OFFERS_PATH, JSON.stringify({}));
@@ -35,29 +27,14 @@ function saveOffers(offers) {
   writeFileSync(OFFERS_PATH, JSON.stringify(offers, null, 2));
 }
 
-function generateOfferId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-}
-
 export default {
   data: new SlashCommandBuilder()
-    .setName('offer')
-    .setDescription('🎯 Offer a rank to a user (24h expiry)')
+    .setName('accept')
+    .setDescription('✅ Accept a pending rank offer')
     .addStringOption(option =>
-      option.setName('user')
-        .setDescription('Roblox username')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('rank')
-        .setDescription('Rank to offer')
-        .setRequired(true)
-        .addChoices(
-          ...RANK_NAMES.map(name => ({ name, value: name }))
-        ))
-    .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for the offer')
-        .setRequired(false)),
+      option.setName('offer_id')
+        .setDescription('The offer ID')
+        .setRequired(true)),
 
   async execute(interaction) {
     const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
@@ -71,34 +48,42 @@ export default {
     await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
     try {
-      const user = interaction.options.getString('user');
-      const rank = interaction.options.getString('rank');
-      const reason = interaction.options.getString('reason') || 'No reason provided';
-
-      const offerId = generateOfferId();
-      const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
-
+      const offerId = interaction.options.getString('offer_id');
       const offers = loadOffers();
-      offers[offerId] = {
-        user: user,
-        rank: rank,
-        reason: reason,
-        offeredBy: interaction.user.id,
-        offeredByTag: interaction.user.tag,
-        expiresAt: expiresAt,
-        status: 'pending',
-        createdAt: Date.now(),
-      };
+
+      if (!offers[offerId]) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ Offer **${offerId}** not found.`,
+        });
+      }
+
+      const offer = offers[offerId];
+
+      if (Date.now() > offer.expiresAt) {
+        offer.status = 'expired';
+        saveOffers(offers);
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ Offer **${offerId}** has expired.`,
+        });
+      }
+
+      if (offer.status !== 'pending') {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ Offer **${offerId}** is already ${offer.status}.`,
+        });
+      }
+
+      offer.status = 'accepted';
       saveOffers(offers);
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ Offer created!\n📋 ID: \`${offerId}\`\n👤 User: ${user}\n📊 Rank: ${rank}\n⏳ Expires in 24 hours.\n\n📌 Accept: \`/accept ${offerId}\`\n📌 Reject: \`/reject ${offerId}\``,
+        content: `✅ **${offer.user}** has been offered **${offer.rank}**! (Offer ${offerId} accepted)`,
       });
 
-      logger.info(`[Offer] ${interaction.user.tag} offered ${rank} to ${user}`);
+      logger.info(`[Accept] ${interaction.user.tag} accepted offer ${offerId}`);
 
     } catch (error) {
-      logger.error('Offer error:', error);
+      logger.error('Accept error:', error);
       await InteractionHelper.safeReply(interaction, {
         content: '❌ An error occurred.',
         ephemeral: true,
