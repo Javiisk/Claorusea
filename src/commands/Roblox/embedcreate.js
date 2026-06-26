@@ -1,9 +1,8 @@
 import { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-// Staff role IDs (from your existing configuration)
+// Staff role IDs
 const STAFF_ROLES = [
   '1505671307335958728',
   '1505671314210553877',
@@ -18,7 +17,7 @@ export default {
     .setDescription('🎨 Create a custom embed and send it to a specific channel')
     .setDMPermission(false)
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    // Main options
+    // Main options (11 options)
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Embed title')
@@ -31,15 +30,15 @@ export default {
         .setMaxLength(4000))
     .addStringOption(option =>
       option.setName('color')
-        .setDescription('Hex color (e.g., #FF5733, #00FF00, or RED/BLUE)')
+        .setDescription('Hex color (e.g., #FF5733, RED, BLUE)')
         .setRequired(false))
     .addStringOption(option =>
       option.setName('thumbnail')
-        .setDescription('Thumbnail image URL (top right corner)')
+        .setDescription('Thumbnail image URL')
         .setRequired(false))
     .addStringOption(option =>
       option.setName('image')
-        .setDescription('Large image URL (bottom of embed)')
+        .setDescription('Large image URL')
         .setRequired(false))
     .addStringOption(option =>
       option.setName('footer')
@@ -52,7 +51,7 @@ export default {
         .setRequired(false))
     .addStringOption(option =>
       option.setName('author')
-        .setDescription('Author text (above the title)')
+        .setDescription('Author text')
         .setRequired(false)
         .setMaxLength(256))
     .addStringOption(option =>
@@ -63,7 +62,7 @@ export default {
       option.setName('url')
         .setDescription('URL the title redirects to')
         .setRequired(false))
-    // Field options (up to 5)
+    // Fields: 4 campos × 3 opciones = 12 opciones (Total: 23 opciones ✅)
     .addStringOption(option =>
       option.setName('field1_name')
         .setDescription('Field 1 name')
@@ -120,21 +119,7 @@ export default {
       option.setName('field4_inline')
         .setDescription('Field 4 inline?')
         .setRequired(false))
-    .addStringOption(option =>
-      option.setName('field5_name')
-        .setDescription('Field 5 name')
-        .setRequired(false)
-        .setMaxLength(256))
-    .addStringOption(option =>
-      option.setName('field5_value')
-        .setDescription('Field 5 value')
-        .setRequired(false)
-        .setMaxLength(1024))
-    .addBooleanOption(option =>
-      option.setName('field5_inline')
-        .setDescription('Field 5 inline?')
-        .setRequired(false))
-    // ⭐ TARGET CHANNEL (REQUIRED)
+    // ⭐ TARGET CHANNEL (REQUIRED) - 1 opción (Total: 24 opciones ✅)
     .addChannelOption(option =>
       option.setName('channel')
         .setDescription('📌 Channel where the embed will be sent')
@@ -169,7 +154,6 @@ export default {
       const url = interaction.options.getString('url');
       const targetChannel = interaction.options.getChannel('channel');
 
-      // Verify channel exists
       if (!targetChannel) {
         return InteractionHelper.safeReply(interaction, {
           content: '❌ Specified channel not found.',
@@ -177,7 +161,7 @@ export default {
         });
       }
 
-      // Check bot permissions in target channel
+      // Check bot permissions
       const botMember = await targetChannel.guild.members.fetchMe();
       const permissions = targetChannel.permissionsFor(botMember);
       
@@ -188,16 +172,12 @@ export default {
         });
       }
 
-      // Build the embed
+      // Build embed
       const embed = new EmbedBuilder();
-
-      // Title
       if (title) embed.setTitle(title);
-      
-      // Description
       if (description) embed.setDescription(description);
       
-      // Color (convert name to hex)
+      // Color
       if (colorInput) {
         const colorMap = {
           'red': '#FF0000',
@@ -210,76 +190,39 @@ export default {
           'white': '#FFFFFF',
           'black': '#000000',
           'grey': '#808080',
-          'gray': '#808080',
-          'default': '#5865F2'
+          'gray': '#808080'
         };
-        
-        let hexColor = colorInput;
-        if (colorMap[colorInput.toLowerCase()]) {
-          hexColor = colorMap[colorInput.toLowerCase()];
-        }
-        
-        if (!hexColor.startsWith('#')) {
-          hexColor = `#${hexColor}`;
-        }
-        
+        let hexColor = colorMap[colorInput.toLowerCase()] || colorInput;
+        if (!hexColor.startsWith('#')) hexColor = `#${hexColor}`;
         try {
           embed.setColor(parseInt(hexColor.replace('#', ''), 16));
-        } catch (e) {
+        } catch {
           embed.setColor('#5865F2');
         }
       } else {
         embed.setColor('#5865F2');
       }
 
-      // Thumbnail
       if (thumbnail) embed.setThumbnail(thumbnail);
-      
-      // Image
       if (image) embed.setImage(image);
-      
-      // Footer
-      if (footer) {
-        embed.setFooter({ 
-          text: footer, 
-          iconURL: footerIcon || null 
-        });
-      }
-      
-      // Author
-      if (author) {
-        embed.setAuthor({ 
-          name: author, 
-          iconURL: authorIcon || null 
-        });
-      }
-      
-      // URL
+      if (footer) embed.setFooter({ text: footer, iconURL: footerIcon || null });
+      if (author) embed.setAuthor({ name: author, iconURL: authorIcon || null });
       if (url) embed.setURL(url);
 
-      // Fields (up to 5)
+      // Fields (up to 4)
       const fields = [];
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 4; i++) {
         const name = interaction.options.getString(`field${i}_name`);
         const value = interaction.options.getString(`field${i}_value`);
         const inline = interaction.options.getBoolean(`field${i}_inline`) || false;
-        
-        if (name && value) {
-          fields.push({ name, value, inline });
-        }
+        if (name && value) fields.push({ name, value, inline });
       }
-      
-      if (fields.length > 0) {
-        embed.addFields(fields);
-      }
+      if (fields.length > 0) embed.addFields(fields);
 
-      // Add timestamp
       embed.setTimestamp();
 
-      // Send embed to target channel
+      // Send
       await targetChannel.send({ embeds: [embed] });
-
-      // Reply to user (ephemeral)
       await InteractionHelper.safeReply(interaction, {
         content: `✅ Embed successfully sent to <#${targetChannel.id}>`,
         ephemeral: true
