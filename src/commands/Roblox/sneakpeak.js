@@ -1,3 +1,4 @@
+
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 
@@ -14,7 +15,7 @@ const PING_ROLE_ID = '1513330537798959135';
 export default {
   data: new SlashCommandBuilder()
     .setName('sneakpeak')
-    .setDescription('👀 Send a sneak peek with video and ping the role')
+    .setDescription('👀 Send a sneak peek with image/video and ping the role')
     .setDMPermission(false)
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption(option =>
@@ -28,8 +29,8 @@ export default {
         .setRequired(true)
         .setMaxLength(4000))
     .addStringOption(option =>
-      option.setName('video')
-        .setDescription('Video URL (Discord CDN, direct video link)')
+      option.setName('media')
+        .setDescription('Image or video URL (Imgur, YouTube, direct link)')
         .setRequired(true))
     .addChannelOption(option =>
       option.setName('channel')
@@ -51,17 +52,16 @@ export default {
     try {
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
-      const videoUrl = interaction.options.getString('video');
+      const mediaUrl = interaction.options.getString('media');
       const targetChannel = interaction.options.getChannel('channel');
 
-      // Validar URL del video
-      if (!isValidUrl(videoUrl)) {
+      if (!isValidUrl(mediaUrl)) {
         return await interaction.editReply({
-          content: '❌ Invalid video URL. Please provide a valid direct video link.',
+          content: '❌ Invalid URL. Please provide a valid image or video link.',
         });
       }
 
-      // Verificar permisos del bot en el canal destino
+      // Verificar permisos
       const botMember = await targetChannel.guild.members.fetchMe();
       const permissions = targetChannel.permissionsFor(botMember);
       
@@ -71,23 +71,54 @@ export default {
         });
       }
 
-      // ─── CONSTRUIR EMBED CON EL VIDEO ──────────────────────────────────
+      // ─── CONSTRUIR EMBED ──────────────────────────────────────────────────
 
       const embed = new EmbedBuilder()
         .setColor(0x3F3F3F)
-        .setTitle(`👀 ${title}`)
+        .setTitle(`${title}`)
         .setDescription(description)
-        .setImage(videoUrl)  // ← El video se reproduce aquí
         .setFooter({ 
           text: `Sneak peek sent by ${interaction.user.tag}`,
           iconURL: interaction.user.displayAvatarURL()
         })
         .setTimestamp();
 
+      // ─── DETECTAR TIPO DE ENLACE ────────────────────────────────────────
+
+      const isDirectVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(mediaUrl);
+      const isImgur = mediaUrl.includes('imgur.com');
+      const isYouTube = mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be');
+      const isStreamable = mediaUrl.includes('streamable.com');
+      const isDiscord = mediaUrl.includes('cdn.discordapp.com');
+
+      if (isDirectVideo) {
+        // Video directo (termina en .mp4, .webm, etc.)
+        const cleanUrl = mediaUrl.split('?')[0]; // Quitar parámetros
+        embed.setImage(cleanUrl);
+      } else if (isImgur) {
+        // Imgur (soporta videos e imágenes)
+        // Imgur ya se muestra automáticamente en Discord
+        embed.setImage(mediaUrl);
+      } else if (isYouTube || isStreamable) {
+        // YouTube o Streamable: añadir como enlace en la descripción
+        embed.addFields({
+          name: '🎥 Watch the sneak peek',
+          value: `[Click here to watch](${mediaUrl})`,
+          inline: false,
+        });
+      } else if (isDiscord) {
+        // Enlace de Discord (limpiar parámetros)
+        const cleanUrl = mediaUrl.split('?')[0];
+        embed.setImage(cleanUrl);
+      } else {
+        // Otro enlace: intentar mostrar como imagen
+        embed.setImage(mediaUrl);
+      }
+
       // ─── ENVIAR MENSAJE ──────────────────────────────────────────────────
 
       const roleMention = `<@&${PING_ROLE_ID}>`;
-      const messageContent = `🔔 **NEW SNEAK PEEK!** ${roleMention}`;
+      const messageContent = `${roleMention}`;
 
       await targetChannel.send({
         content: messageContent,
