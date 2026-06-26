@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -75,6 +75,26 @@ export default {
 
       offer.status = 'accepted';
       saveOffers(offers);
+
+      // ─── ENVIAR DM AL USUARIO ──────────────────────────────────────────
+
+      try {
+        const discordUser = await interaction.client.users.fetch(offer.discordId);
+        const dmEmbed = {
+          title: '✅ Rank Offer Accepted',
+          color: 0x57F287,
+          description: `Your rank offer has been **ACCEPTED**!`,
+          fields: [
+            { name: '👤 Roblox User', value: offer.user, inline: true },
+            { name: '📊 Rank', value: offer.rank, inline: true },
+            { name: '✅ Accepted by', value: interaction.user.tag, inline: true },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+        await discordUser.send({ embeds: [dmEmbed] });
+      } catch (dmError) {
+        logger.warn(`[Accept] Could not DM user: ${dmError.message}`);
+      }
 
       await InteractionHelper.safeEditReply(interaction, {
         content: `✅ **${offer.user}** has been offered **${offer.rank}**! (Offer ${offerId} accepted)`,
