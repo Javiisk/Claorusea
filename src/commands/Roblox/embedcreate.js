@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
@@ -13,8 +13,9 @@ const STAFF_ROLES = [
 export default {
   data: new SlashCommandBuilder()
     .setName('embedcreate')
-    .setDescription('🎨 Create a custom embed')
+    .setDescription('🎨 Create a custom embed and send it to a specific channel')
     .setDMPermission(false)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Embed title')
@@ -27,12 +28,43 @@ export default {
         .setMaxLength(4000))
     .addStringOption(option =>
       option.setName('color')
-        .setDescription('Hex color (e.g., #FF5733)')
+        .setDescription('Hex color (e.g., #FF5733, RED, BLUE)')
+        .setRequired(false))
+    .addStringOption(option =>
+      option.setName('thumbnail')
+        .setDescription('Thumbnail image URL')
+        .setRequired(false))
+    .addStringOption(option =>
+      option.setName('image')
+        .setDescription('Large image URL')
+        .setRequired(false))
+    .addStringOption(option =>
+      option.setName('footer')
+        .setDescription('Footer text')
+        .setRequired(false)
+        .setMaxLength(2048))
+    .addStringOption(option =>
+      option.setName('footer_icon')
+        .setDescription('Footer icon URL')
+        .setRequired(false))
+    .addStringOption(option =>
+      option.setName('author')
+        .setDescription('Author text')
+        .setRequired(false)
+        .setMaxLength(256))
+    .addStringOption(option =>
+      option.setName('author_icon')
+        .setDescription('Author icon URL')
+        .setRequired(false))
+    .addStringOption(option =>
+      option.setName('url')
+        .setDescription('URL the title redirects to')
         .setRequired(false))
     .addChannelOption(option =>
       option.setName('channel')
-        .setDescription('Channel to send the embed')
-        .setRequired(true)),
+        .setDescription('📌 Channel where the embed will be sent')
+        .setRequired(true)
+        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
 
   async execute(interaction) {
     try {
@@ -43,7 +75,7 @@ export default {
       
       if (!hasStaffRole) {
         return InteractionHelper.safeReply(interaction, {
-          content: '❌ Staff only.',
+          content: '❌ You do not have permission to use this command. Staff roles only.',
           ephemeral: true
         });
       }
@@ -51,11 +83,28 @@ export default {
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
       const colorInput = interaction.options.getString('color');
+      const thumbnail = interaction.options.getString('thumbnail');
+      const image = interaction.options.getString('image');
+      const footer = interaction.options.getString('footer');
+      const footerIcon = interaction.options.getString('footer_icon');
+      const author = interaction.options.getString('author');
+      const authorIcon = interaction.options.getString('author_icon');
+      const url = interaction.options.getString('url');
       const targetChannel = interaction.options.getChannel('channel');
 
       if (!targetChannel) {
         return InteractionHelper.safeReply(interaction, {
-          content: '❌ Channel not found.',
+          content: '❌ Specified channel not found.',
+          ephemeral: true
+        });
+      }
+
+      const botMember = await targetChannel.guild.members.fetchMe();
+      const permissions = targetChannel.permissionsFor(botMember);
+      
+      if (!permissions.has('SendMessages') || !permissions.has('ViewChannel')) {
+        return InteractionHelper.safeReply(interaction, {
+          content: `❌ I don't have permission to send messages in <#${targetChannel.id}>.`,
           ephemeral: true
         });
       }
@@ -65,7 +114,20 @@ export default {
       if (description) embed.setDescription(description);
       
       if (colorInput) {
-        let hexColor = colorInput;
+        const colorMap = {
+          'red': '#FF0000',
+          'blue': '#0000FF',
+          'green': '#00FF00',
+          'yellow': '#FFFF00',
+          'purple': '#800080',
+          'orange': '#FFA500',
+          'pink': '#FFC0CB',
+          'white': '#FFFFFF',
+          'black': '#000000',
+          'grey': '#808080',
+          'gray': '#808080'
+        };
+        let hexColor = colorMap[colorInput.toLowerCase()] || colorInput;
         if (!hexColor.startsWith('#')) hexColor = `#${hexColor}`;
         try {
           embed.setColor(parseInt(hexColor.replace('#', ''), 16));
@@ -76,18 +138,26 @@ export default {
         embed.setColor('#5865F2');
       }
 
+      if (thumbnail) embed.setThumbnail(thumbnail);
+      if (image) embed.setImage(image);
+      if (footer) embed.setFooter({ text: footer, iconURL: footerIcon || null });
+      if (author) embed.setAuthor({ name: author, iconURL: authorIcon || null });
+      if (url) embed.setURL(url);
+
       embed.setTimestamp();
 
       await targetChannel.send({ embeds: [embed] });
       await InteractionHelper.safeReply(interaction, {
-        content: `✅ Embed sent to <#${targetChannel.id}>`,
+        content: `✅ Embed successfully sent to <#${targetChannel.id}>`,
         ephemeral: true
       });
+
+      logger.info(`[EmbedCreate] User ${interaction.user.tag} sent embed to channel ${targetChannel.id}`);
 
     } catch (error) {
       logger.error(`[EmbedCreate] Error: ${error.message}`);
       await InteractionHelper.safeReply(interaction, {
-        content: `❌ Error: ${error.message}`,
+        content: `❌ Error creating embed: ${error.message}`,
         ephemeral: true
       });
     }
