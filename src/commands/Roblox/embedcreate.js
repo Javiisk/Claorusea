@@ -68,9 +68,13 @@ export default {
         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
 
   async execute(interaction) {
-    try {
-      await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+    const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+    if (!deferSuccess) {
+      logger.warn('EmbedCreate defer failed', { userId: interaction.user.id });
+      return;
+    }
 
+    try {
       const member = interaction.member;
       const hasStaffRole = STAFF_ROLES.some(roleId => member.roles.cache.has(roleId));
       
@@ -110,10 +114,11 @@ export default {
         });
       }
 
-      const embed = new EmbedBuilder();
-      if (title) embed.setTitle(title);
-      if (description) embed.setDescription(description);
-      
+      const embed = createEmbed({ 
+        title: title || '📋 Custom Embed',
+        description: description || 'No description provided.'
+      });
+
       if (colorInput) {
         const colorMap = {
           'red': '#FF0000',
@@ -133,10 +138,10 @@ export default {
         try {
           embed.setColor(parseInt(hexColor.replace('#', ''), 16));
         } catch {
-          embed.setColor('#5865F2');
+          embed.setColor(0x5865f2);
         }
       } else {
-        embed.setColor('#5865F2');
+        embed.setColor(0x5865f2);
       }
 
       if (thumbnail) embed.setThumbnail(thumbnail);
@@ -148,19 +153,23 @@ export default {
       embed.setTimestamp();
 
       await targetChannel.send({ embeds: [embed] });
-      await InteractionHelper.safeReply(interaction, {
+
+      await InteractionHelper.safeEditReply(interaction, {
         content: `✅ Embed successfully sent to <#${targetChannel.id}>`,
-        ephemeral: true
       });
 
       logger.info(`[EmbedCreate] User ${interaction.user.tag} sent embed to channel ${targetChannel.id}`);
 
     } catch (error) {
-      logger.error(`[EmbedCreate] Error: ${error.message}`);
-      await InteractionHelper.safeReply(interaction, {
-        content: `❌ Error creating embed: ${error.message}`,
-        ephemeral: true
-      });
+      logger.error('EmbedCreate error:', error.message, error.stack);
+      try {
+        await InteractionHelper.safeReply(interaction, {
+          content: '❌ An error occurred while creating the embed.',
+          ephemeral: true
+        });
+      } catch (e) {
+        logger.error('Failed to send error reply:', e);
+      }
     }
   }
 };
