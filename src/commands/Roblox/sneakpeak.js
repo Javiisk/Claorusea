@@ -47,11 +47,7 @@ export default {
       });
     }
 
-    // ⚠️ NO USAR safeDefer - responder inmediatamente
-    await interaction.reply({
-      content: '⏳ Sending sneak peek...',
-      ephemeral: true,
-    });
+    await interaction.deferReply({ ephemeral: true });
 
     try {
       const title = interaction.options.getString('title');
@@ -59,7 +55,6 @@ export default {
       const attachment = interaction.options.getAttachment('file');
       const targetChannel = interaction.options.getChannel('channel');
 
-      // Validate file is image or video
       const allowedTypes = ['image/', 'video/'];
       const isAllowed = allowedTypes.some(type => attachment.contentType?.startsWith(type));
       
@@ -69,7 +64,6 @@ export default {
         });
       }
 
-      // Check bot permissions in target channel
       const botMember = await targetChannel.guild.members.fetchMe();
       const permissions = targetChannel.permissionsFor(botMember);
       
@@ -79,30 +73,26 @@ export default {
         });
       }
 
-      // Build embed with color #3F3F3F
+      const isVideo = attachment.contentType?.startsWith('video/');
+
       const embed = new EmbedBuilder()
         .setColor(0x3F3F3F)
         .setTitle(`👀 ${title}`)
         .setDescription(description)
-        .setImage(attachment.proxyURL || attachment.url) // Usar proxyURL para imágenes
         .setFooter({ 
           text: `Sneak peek sent by ${interaction.user.tag}`,
           iconURL: interaction.user.displayAvatarURL()
         })
         .setTimestamp();
 
-      // Si es video, NO usar .setImage()
-      const isVideo = attachment.contentType?.startsWith('video/');
-      if (isVideo) {
-        embed.setImage(null); // Quitar imagen del embed
+      if (!isVideo) {
+        embed.setImage(attachment.proxyURL || attachment.url);
       }
 
-      // Archivos adjuntos (solo para videos)
-      const files = isVideo ? [new AttachmentBuilder(attachment.url)] : [];
-
-      // Enviar al canal con ping al rol
       const roleMention = `<@&${PING_ROLE_ID}>`;
       const messageContent = `🔔 **NEW SNEAK PEEK!** ${roleMention}`;
+
+      const files = isVideo ? [new AttachmentBuilder(attachment.url)] : [];
 
       await targetChannel.send({
         content: messageContent,
@@ -110,7 +100,6 @@ export default {
         files: files,
       });
 
-      // Responder al staff
       await interaction.editReply({
         content: `✅ Sneak peek successfully sent to <#${targetChannel.id}>`,
       });
@@ -119,9 +108,16 @@ export default {
 
     } catch (error) {
       logger.error('SneakPeek error:', error);
-      await interaction.editReply({
-        content: '❌ An error occurred while sending the sneak peek.',
-      });
+      try {
+        await interaction.editReply({
+          content: '❌ An error occurred while sending the sneak peek.',
+        });
+      } catch {
+        await interaction.reply({
+          content: '❌ An error occurred while sending the sneak peek.',
+          ephemeral: true,
+        });
+      }
     }
   },
 };
