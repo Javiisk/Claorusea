@@ -1,12 +1,4 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { logger } from '../../utils/logger.js';
-import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const OFFERS_PATH = join(__dirname, '../../../offers.json');
 
 const ALLOWED_ROLES = [
   '1505671307335958728',
@@ -16,44 +8,10 @@ const ALLOWED_ROLES = [
   '1505673808097574912',
 ];
 
-const RANK_NAMES = [
-  'Guest',
-  'Denizen',
-  'Esteemed Denizen',
-  'Agressive Denizen',
-  'Honored Denizen',
-  'Untrained Encamp',
-  'Camp Volunteer',
-  'Camp Activist',
-  'Camp Counselour',
-  'Camp Coordinator',
-  'Camp Supervisor',
-  'Camp Council',
-  'Domain Superior',
-  'Domain Delegate',
-  'Domain Confidant',
-  'Domain Regent'
-];
-
-function loadOffers() {
-  if (!existsSync(OFFERS_PATH)) {
-    writeFileSync(OFFERS_PATH, JSON.stringify({}));
-  }
-  return JSON.parse(readFileSync(OFFERS_PATH, 'utf8'));
-}
-
-function saveOffers(offers) {
-  writeFileSync(OFFERS_PATH, JSON.stringify(offers, null, 2));
-}
-
-function generateOfferId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-}
-
 export default {
   data: new SlashCommandBuilder()
     .setName('offer')
-    .setDescription('🎯 Offer a rank to a user (24h expiry)')
+    .setDescription('🎯 Offer a rank to a user')
     .addStringOption(option =>
       option.setName('user')
         .setDescription('Roblox username')
@@ -63,12 +21,23 @@ export default {
         .setDescription('Rank to offer')
         .setRequired(true)
         .addChoices(
-          ...RANK_NAMES.map(name => ({ name, value: name }))
-        ))
-    .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for the offer')
-        .setRequired(false)),
+          { name: 'Guest', value: 'Guest' },
+          { name: 'Denizen', value: 'Denizen' },
+          { name: 'Esteemed Denizen', value: 'Esteemed Denizen' },
+          { name: 'Agressive Denizen', value: 'Agressive Denizen' },
+          { name: 'Honored Denizen', value: 'Honored Denizen' },
+          { name: 'Untrained Encamp', value: 'Untrained Encamp' },
+          { name: 'Camp Volunteer', value: 'Camp Volunteer' },
+          { name: 'Camp Activist', value: 'Camp Activist' },
+          { name: 'Camp Counselour', value: 'Camp Counselour' },
+          { name: 'Camp Coordinator', value: 'Camp Coordinator' },
+          { name: 'Camp Supervisor', value: 'Camp Supervisor' },
+          { name: 'Camp Council', value: 'Camp Council' },
+          { name: 'Domain Superior', value: 'Domain Superior' },
+          { name: 'Domain Delegate', value: 'Domain Delegate' },
+          { name: 'Domain Confidant', value: 'Domain Confidant' },
+          { name: 'Domain Regent', value: 'Domain Regent' }
+        )),
 
   async execute(interaction) {
     const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
@@ -79,41 +48,12 @@ export default {
       });
     }
 
-    await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+    const user = interaction.options.getString('user');
+    const rank = interaction.options.getString('rank');
 
-    try {
-      const robloxUsername = interaction.options.getString('user');
-      const rankName = interaction.options.getString('rank');
-      const reason = interaction.options.getString('reason') || 'No reason provided';
-
-      const offerId = generateOfferId();
-      const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
-
-      const offers = loadOffers();
-      offers[offerId] = {
-        robloxUsername: robloxUsername,
-        rankName: rankName,
-        reason: reason,
-        offeredBy: interaction.user.id,
-        offeredByTag: interaction.user.tag,
-        expiresAt: expiresAt,
-        status: 'pending',
-        createdAt: Date.now(),
-      };
-      saveOffers(offers);
-
-      await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ Rank offer for **${robloxUsername}** (${rankName}) created!\n📋 Offer ID: \`${offerId}\`\n⏳ Expires in 24 hours.\n\n📌 To accept: \`/accept ${offerId}\`\n📌 To reject: \`/reject ${offerId}\``,
-      });
-
-      logger.info(`[Offer] ${interaction.user.tag} offered ${rankName} to ${robloxUsername}`);
-
-    } catch (error) {
-      logger.error('Offer error:', error);
-      await InteractionHelper.safeReply(interaction, {
-        content: '❌ An error occurred.',
-        ephemeral: true,
-      });
-    }
+    await interaction.reply({
+      content: `✅ Offer created for **${user}** (${rank})!`,
+      ephemeral: true,
+    });
   },
 };
