@@ -76,6 +76,26 @@ export default {
       offer.status = 'rejected';
       saveOffers(offers);
 
+      // ─── ENVIAR DM AL USUARIO ──────────────────────────────────────────
+
+      try {
+        const discordUser = await interaction.client.users.fetch(offer.discordId);
+        const dmEmbed = {
+          title: '❌ Rank Offer Rejected',
+          color: 0xED4245,
+          description: `Your rank offer has been **REJECTED**.`,
+          fields: [
+            { name: '👤 Roblox User', value: offer.user, inline: true },
+            { name: '📊 Rank', value: offer.rank, inline: true },
+            { name: '❌ Rejected by', value: interaction.user.tag, inline: true },
+          ],
+          timestamp: new Date().toISOString(),
+        };
+        await discordUser.send({ embeds: [dmEmbed] });
+      } catch (dmError) {
+        logger.warn(`[Reject] Could not DM user: ${dmError.message}`);
+      }
+
       await InteractionHelper.safeEditReply(interaction, {
         content: `❌ Offer for **${offer.user}** (${offer.rank}) has been rejected.`,
       });
