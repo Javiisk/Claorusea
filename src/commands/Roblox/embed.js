@@ -13,9 +13,16 @@ const ALLOWED_ROLES = [
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('embedmessage')  // ← CAMBIADO a embedmessage
+    .setName('embedmessage')
     .setDescription('🎨 Create a custom embed and send it to a specific channel')
     .setDMPermission(false)
+    // ⭐ REQUIRED options FIRST
+    .addChannelOption(option =>
+      option.setName('channel')
+        .setDescription('📌 Channel where the embed will be sent')
+        .setRequired(true)
+        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement))
+    // ⭐ NON-REQUIRED options SECOND
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Embed title')
@@ -59,12 +66,7 @@ export default {
     .addStringOption(option =>
       option.setName('url')
         .setDescription('URL the title redirects to')
-        .setRequired(false))
-    .addChannelOption(option =>
-      option.setName('channel')
-        .setDescription('📌 Channel where the embed will be sent')
-        .setRequired(true)
-        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
+        .setRequired(false)),
 
   async execute(interaction) {
     const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
