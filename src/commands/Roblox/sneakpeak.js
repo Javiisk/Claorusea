@@ -14,7 +14,7 @@ const PING_ROLE_ID = '1513330537798959135';
 export default {
   data: new SlashCommandBuilder()
     .setName('sneakpeak')
-    .setDescription('👀 Send a sneak peek with image/video and ping the role')
+    .setDescription('👀 Send a sneak peek with image and ping the role')
     .setDMPermission(false)
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption(option =>
@@ -27,9 +27,9 @@ export default {
         .setDescription('Sneak peek description')
         .setRequired(true)
         .setMaxLength(4000))
-    .addStringOption(option =>
-      option.setName('media')
-        .setDescription('Image or video URL (Imgur, YouTube, Discord CDN)')
+    .addAttachmentOption(option =>
+      option.setName('image')
+        .setDescription('Upload an image')
         .setRequired(true))
     .addChannelOption(option =>
       option.setName('channel')
@@ -51,36 +51,21 @@ export default {
     try {
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
-      let mediaUrl = interaction.options.getString('media');
+      const attachment = interaction.options.getAttachment('image');
       const targetChannel = interaction.options.getChannel('channel');
 
-      if (!isValidUrl(mediaUrl)) {
+      // Verificar que sea una imagen
+      if (!attachment.contentType?.startsWith('image/')) {
         return await interaction.editReply({
-          content: '❌ Invalid URL. Please provide a valid image or video link.',
+          content: '❌ The file must be an image.',
         });
       }
 
-      // ─── LIMPIAR URL DE DISCORD ──────────────────────────────────────────
-
-      if (mediaUrl.includes('cdn.discordapp.com')) {
-        // Buscar extensiones de archivo y cortar ahí
-        const match = mediaUrl.match(/(.*\.(mp4|webm|mov|png|jpg|jpeg|gif|webp))/i);
-        if (match) {
-          mediaUrl = match[1];
-        } else {
-          mediaUrl = mediaUrl.split('?')[0];
-        }
-        // Si termina en '&', quitarlo
-        if (mediaUrl.endsWith('&')) {
-          mediaUrl = mediaUrl.slice(0, -1);
-        }
-      }
-
-      // Verificar permisos
+      // Verificar permisos del bot
       const botMember = await targetChannel.guild.members.fetchMe();
       const permissions = targetChannel.permissionsFor(botMember);
       
-      if (!permissions.has('SendMessages') || !permissions.has('ViewChannel')) {
+      if (!permissions.has('SendMessages') || !permissions.has('ViewChannel') || !permissions.has('AttachFiles')) {
         return await interaction.editReply({
           content: `❌ I don't have permission to send messages in <#${targetChannel.id}>.`,
         });
@@ -92,32 +77,8 @@ export default {
         .setColor(0x3F3F3F)
         .setTitle(`${title}`)
         .setDescription(description)
-        .setFooter({ 
-          text: `Sneak peek sent by ${interaction.user.tag}`,
-          iconURL: interaction.user.displayAvatarURL()
-        })
+        .setImage(attachment.proxyURL || attachment.url)
         .setTimestamp();
-
-      // ─── DETECTAR TIPO DE ENLACE ────────────────────────────────────────
-
-      const isDirectVideo = /\.(mp4|webm|mov|avi|mkv)$/i.test(mediaUrl);
-      const isImgur = mediaUrl.includes('imgur.com');
-      const isYouTube = mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be');
-      const isStreamable = mediaUrl.includes('streamable.com');
-
-      if (isDirectVideo) {
-        embed.setImage(mediaUrl);
-      } else if (isImgur) {
-        embed.setImage(mediaUrl);
-      } else if (isYouTube || isStreamable) {
-        embed.addFields({
-          name: '🎥 Watch the sneak peek',
-          value: `[Click here to watch](${mediaUrl})`,
-          inline: false,
-        });
-      } else {
-        embed.setImage(mediaUrl);
-      }
 
       // ─── ENVIAR MENSAJE ──────────────────────────────────────────────────
 
@@ -150,12 +111,3 @@ export default {
     }
   },
 };
-
-function isValidUrl(str) {
-  try {
-    const url = new URL(str);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
