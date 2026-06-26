@@ -1,6 +1,5 @@
-import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const ALLOWED_ROLES = [
   '1505671307335958728',
@@ -15,7 +14,7 @@ const PING_ROLE_ID = '1513330537798959135';
 export default {
   data: new SlashCommandBuilder()
     .setName('sneakpeak')
-    .setDescription('👀 Send a sneak peek with image/video and ping the role')
+    .setDescription('👀 Send a sneak peek with video and ping the role')
     .setDMPermission(false)
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption(option =>
@@ -28,9 +27,9 @@ export default {
         .setDescription('Sneak peek description')
         .setRequired(true)
         .setMaxLength(4000))
-    .addAttachmentOption(option =>
-      option.setName('file')
-        .setDescription('Image or video for the sneak peek')
+    .addStringOption(option =>
+      option.setName('video')
+        .setDescription('Video URL (Discord CDN, direct video link)')
         .setRequired(true))
     .addChannelOption(option =>
       option.setName('channel')
@@ -52,52 +51,47 @@ export default {
     try {
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
-      const attachment = interaction.options.getAttachment('file');
+      const videoUrl = interaction.options.getString('video');
       const targetChannel = interaction.options.getChannel('channel');
 
-      const allowedTypes = ['image/', 'video/'];
-      const isAllowed = allowedTypes.some(type => attachment.contentType?.startsWith(type));
-      
-      if (!isAllowed) {
+      // Validar URL del video
+      if (!isValidUrl(videoUrl)) {
         return await interaction.editReply({
-          content: '❌ The file must be an image or video.',
+          content: '❌ Invalid video URL. Please provide a valid direct video link.',
         });
       }
 
+      // Verificar permisos del bot en el canal destino
       const botMember = await targetChannel.guild.members.fetchMe();
       const permissions = targetChannel.permissionsFor(botMember);
       
-      if (!permissions.has('SendMessages') || !permissions.has('ViewChannel') || !permissions.has('AttachFiles')) {
+      if (!permissions.has('SendMessages') || !permissions.has('ViewChannel')) {
         return await interaction.editReply({
-          content: `❌ I don't have permission to send messages or files in <#${targetChannel.id}>.`,
+          content: `❌ I don't have permission to send messages in <#${targetChannel.id}>.`,
         });
       }
 
-      const isVideo = attachment.contentType?.startsWith('video/');
+      // ─── CONSTRUIR EMBED CON EL VIDEO ──────────────────────────────────
 
       const embed = new EmbedBuilder()
         .setColor(0x3F3F3F)
         .setTitle(`👀 ${title}`)
         .setDescription(description)
+        .setImage(videoUrl)  // ← El video se reproduce aquí
         .setFooter({ 
           text: `Sneak peek sent by ${interaction.user.tag}`,
           iconURL: interaction.user.displayAvatarURL()
         })
         .setTimestamp();
 
-      if (!isVideo) {
-        embed.setImage(attachment.proxyURL || attachment.url);
-      }
+      // ─── ENVIAR MENSAJE ──────────────────────────────────────────────────
 
       const roleMention = `<@&${PING_ROLE_ID}>`;
       const messageContent = `🔔 **NEW SNEAK PEEK!** ${roleMention}`;
 
-      const files = isVideo ? [new AttachmentBuilder(attachment.url)] : [];
-
       await targetChannel.send({
         content: messageContent,
         embeds: [embed],
-        files: files,
       });
 
       await interaction.editReply({
@@ -121,3 +115,12 @@ export default {
     }
   },
 };
+
+function isValidUrl(str) {
+  try {
+    const url = new URL(str);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
