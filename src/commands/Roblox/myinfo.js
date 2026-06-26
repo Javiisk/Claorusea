@@ -105,7 +105,7 @@ export default {
     if (!deferSuccess) {
       logger.warn('MyInfo interaction defer failed', {
         userId: interaction.user.id,
-        guildId: interaction.guildId,
+        guildId: interaction.guildId || 'DM',
         commandName: 'myinfo',
       });
       return;
