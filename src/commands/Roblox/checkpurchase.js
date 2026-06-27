@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const GAMEPASS_ID = '1889164521';
 
@@ -12,16 +13,6 @@ const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
 ];
-
-async function getRobloxUser(username) {
-  const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-  const data = await res.json();
-  return data.data?.[0] || null;
-}
 
 async function checkGamepass(userId) {
   try {
@@ -46,8 +37,10 @@ export default {
   data: new SlashCommandBuilder()
     .setName('checkpurchase')
     .setDescription('Check if a user owns the gamepass')
-    .addStringOption(opt =>
-      opt.setName('user').setDescription('Roblox username').setRequired(true)
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Discord user to check')
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -63,23 +56,41 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('user');
-      const roblox = await getRobloxUser(username);
-      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
+      const targetUser = interaction.options.getUser('user');
 
-      const { owned, purchaseDate } = await checkGamepass(roblox.id);
+      // ✅ Obtener Roblox info desde Bloxlink
+      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+
+      if (!userInfo) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+        });
+      }
+
+      const robloxId = userInfo.id;
+      const robloxUsername = userInfo.username;
+
+      const { owned, purchaseDate } = await checkGamepass(robloxId);
 
       if (owned) {
         const embed = createEmbed({ title: '💰 Gamepass Check', description: null })
-          .setDescription(`✅ **${roblox.name}** has this gamepass!`)
-          .addFields({ name: 'Purchase Date', value: purchaseDate, inline: false })
-          .setColor(0x57F287).setTimestamp();
+          .setDescription(`✅ **${robloxUsername}** owns this gamepass!`)
+          .addFields(
+            { name: 'Roblox ID', value: String(robloxId), inline: true },
+            { name: 'Purchase Date', value: purchaseDate, inline: true }
+          )
+          .setColor(0x57F287)
+          .setTimestamp();
         return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
       }
 
       const embed = createEmbed({ title: '💰 Gamepass Check', description: null })
-        .setDescription(`❌ **${roblox.name}** doesn't have this gamepass.`)
-        .setColor(0xED4245).setTimestamp();
+        .setDescription(`❌ **${robloxUsername}** does not own this gamepass.`)
+        .addFields(
+          { name: 'Roblox ID', value: String(robloxId), inline: true }
+        )
+        .setColor(0xED4245)
+        .setTimestamp();
       return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
     } catch (error) {
