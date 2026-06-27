@@ -5,12 +5,10 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
-
-const BLOXLINK_API_KEY = process.env.BLOXLINK_API_KEY;
-const GUILD_ID = process.env.GUILD_ID;
 
 const ALLOWED_ROLES = [
   '1505671307335958728',
@@ -30,44 +28,6 @@ function saveUser(username, data) {
   const key = username.toLowerCase();
   db[key] = { ...(db[key] || { username, trained: false, warnings: 0, blacklisted: false }), ...data };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
-}
-
-async function getRobloxUserByDiscord(discordId) {
-  try {
-    const url = `https://api.blox.link/v4/public/guilds/${GUILD_ID}/discord-to-roblox/${discordId}`;
-    
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': BLOXLINK_API_KEY,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
-    
-    if (!res.ok) return null;
-    
-    const data = await res.json();
-    if (!data || !data.robloxID) return null;
-    
-    return data;
-  } catch (error) {
-    logger.error(`[Untrained] Error: ${error.message}`);
-    return null;
-  }
-}
-
-async function getRobloxUsernameById(userId) {
-  try {
-    const id = typeof userId === 'string' ? parseInt(userId) : userId;
-    if (isNaN(id)) return null;
-    const res = await fetch(`https://users.roblox.com/v1/users/${id}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.name || null;
-  } catch {
-    return null;
-  }
 }
 
 export default {
@@ -95,26 +55,15 @@ export default {
     try {
       const targetUser = interaction.options.getUser('user');
 
-      const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
-      if (!bloxlinkData || !bloxlinkData.robloxID) {
+      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+
+      if (!userInfo) {
         return await InteractionHelper.safeEditReply(interaction, {
           content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
         });
       }
 
-      const robloxId = bloxlinkData.robloxID;
-      let robloxUsername = bloxlinkData.primaryAccount || null;
-      
-      if (!robloxUsername || robloxUsername === 'Unknown') {
-        const username = await getRobloxUsernameById(robloxId);
-        if (username) robloxUsername = username;
-      }
-
-      if (!robloxUsername) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Could not get Roblox username for **${targetUser.tag}**.`,
-        });
-      }
+      const robloxUsername = userInfo.username;
 
       saveUser(robloxUsername, { trained: false });
 
