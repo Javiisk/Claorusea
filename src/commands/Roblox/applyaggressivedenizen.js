@@ -1,22 +1,13 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const GAMEPASS_ID = '1890892397';
 const AGGRESSIVE_DENIZEN_RANK = 3;
 const LOG_CHANNEL_ID = '1519207020299812936';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
-
-async function getRobloxUser(username) {
-  const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-  const data = await res.json();
-  return data.data?.[0] || null;
-}
 
 async function checkGamepass(userId) {
   try {
@@ -89,8 +80,10 @@ export default {
   data: new SlashCommandBuilder()
     .setName('applyaggressivedenizen')
     .setDescription('Apply for Aggressive Denizen rank (must have gamepass)')
-    .addStringOption(opt =>
-      opt.setName('robloxuser').setDescription('Your Roblox username').setRequired(true)
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Your Discord user')
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -101,14 +94,20 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('robloxuser');
-      const roblox = await getRobloxUser(username);
+      const targetUser = interaction.options.getUser('user');
 
-      if (!roblox) {
-        return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
+      // ✅ Obtener Roblox info desde Bloxlink
+      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+
+      if (!userInfo) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+        });
       }
 
-      const avatar = await getRobloxAvatar(roblox.id);
+      const robloxId = userInfo.id;
+      const robloxUsername = userInfo.username;
+      const avatar = await getRobloxAvatar(robloxId);
 
       // Mandar DM con instrucciones y botón de verificar
       try {
@@ -117,7 +116,7 @@ export default {
           .setTitle('🌿 Aggressive Denizen Application')
           .setThumbnail(avatar)
           .setDescription(
-            `Greetings, **${roblox.name}**! Welcome to the application process.\n\n` +
+            `Greetings, **${robloxUsername}**! Welcome to the application process.\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
             `To become an **Aggressive Denizen** you must:\n\n` +
             `**Step 1 —** Purchase the Aggressive Denizen Gamepass on Roblox\n` +
@@ -130,13 +129,13 @@ export default {
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId(`aggressivedenizen_verify:${interaction.user.id}:${roblox.id}:${roblox.name}`)
+            .setCustomId(`aggressivedenizen_verify:${targetUser.id}:${robloxId}:${robloxUsername}`)
             .setLabel('Verify Purchase')
             .setStyle(ButtonStyle.Success)
             .setEmoji('✅'),
         );
 
-        await interaction.user.send({ embeds: [dmEmbed], components: [row] });
+        await targetUser.send({ embeds: [dmEmbed], components: [row] });
         await InteractionHelper.safeEditReply(interaction, {
           content: '🌿 Check your DMs! The application instructions have been sent.',
         });
