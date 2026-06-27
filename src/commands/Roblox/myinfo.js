@@ -84,6 +84,19 @@ async function getRobloxUserByDiscord(discordId) {
   }
 }
 
+// ✅ NUEVA FUNCIÓN: Obtener nombre de Roblox desde el ID
+async function getRobloxUsernameById(userId) {
+  try {
+    const res = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.name || null;
+  } catch (error) {
+    logger.error(`[MyInfo] Error getting username: ${error.message}`);
+    return null;
+  }
+}
+
 async function getRobloxGroupRank(userId) {
   try {
     const groupId = process.env.ROBLOX_GROUP_ID;
@@ -163,7 +176,13 @@ export default {
       }
 
       const robloxId = bloxlinkData.robloxID;
-      const robloxUsername = bloxlinkData.primaryAccount || 'Unknown';
+
+      // ✅ OBTENER EL NOMBRE DE ROBLOX DESDE EL ID
+      let robloxUsername = bloxlinkData.primaryAccount || 'Unknown';
+      if (robloxUsername === 'Unknown' || !robloxUsername) {
+        const username = await getRobloxUsernameById(robloxId);
+        if (username) robloxUsername = username;
+      }
 
       logger.info(`[MyInfo] Roblox: ${robloxUsername} (${robloxId})`);
 
