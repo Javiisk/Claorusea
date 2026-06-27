@@ -1,115 +1,108 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const PLACE_ID = '90664126150507';
-const UNIVERSE_ID = '7906381869';
+const GAME_ID = process.env.ROBLOX_GAME_ID || '90664126150507';
 
 async function getGameInfo() {
-  const res = await fetch(`https://games.roblox.com/v1/games?universeIds=${UNIVERSE_ID}`);
-  if (!res.ok) throw new Error(`Games API error: ${res.status}`);
-  const data = await res.json();
-  if (!data.data?.[0]) throw new Error('No game data returned');
-  return data.data[0];
+  try {
+    // Obtener información del juego (jugadores, estado)
+    const res = await fetch(`https://games.roblox.com/v1/games?universeIds=${GAME_ID}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+    return data.data?.[0] || null;
+  } catch (error) {
+    logger.error(`[GameInfo] Error: ${error.message}`);
+    return null;
+  }
 }
 
-async function getGameIcon() {
-  const res = await fetch(
-    `https://thumbnails.roblox.com/v1/games/icons?universeIds=${UNIVERSE_ID}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.data?.[0]?.imageUrl ?? null;
-}
-
-async function getGameVotes() {
-  const res = await fetch(`https://games.roblox.com/v1/games/votes?universeIds=${UNIVERSE_ID}`);
-  if (!res.ok) return { upVotes: 0, downVotes: 0 };
-  const data = await res.json();
-  const votes = data.data?.[0] ?? {};
-  return { upVotes: votes.upVotes ?? 0, downVotes: votes.downVotes ?? 0 };
-}
-
-async function getActiveServers() {
-  const res = await fetch(
-    `https://games.roblox.com/v1/games/${UNIVERSE_ID}/servers/Public?limit=100`
-  );
-  if (!res.ok) return 0;
-  const data = await res.json();
-  return data.data?.length ?? 0;
+async function getGameServers() {
+  try {
+    // Obtener servidores activos del juego
+    const res = await fetch(`https://games.roblox.com/v1/games/${GAME_ID}/servers/Public?limit=100`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+    return data.data || [];
+  } catch (error) {
+    logger.error(`[GameInfo] Error getting servers: ${error.message}`);
+    return [];
+  }
 }
 
 export default {
   data: new SlashCommandBuilder()
     .setName('gameinfo')
-    .setDescription('Displays information about the Roblox game.')
-    .setDMPermission(false),
+    .setDescription('Get information about the Roblox game')
+    .setDMPermission(true),
 
   async execute(interaction) {
-    const deferSuccess = await InteractionHelper.safeDefer(interaction);
-    if (!deferSuccess) {
-      logger.warn('Gameinfo interaction defer failed', {
-        userId: interaction.user.id,
-        guildId: interaction.guildId,
-        commandName: 'gameinfo',
-      });
-      return;
-    }
+    await InteractionHelper.safeDefer(interaction, { ephemeral: false });
 
     try {
-      const [gameInfo, iconUrl, votes, activeServers] = await Promise.all([
+      const [gameInfo, servers] = await Promise.all([
         getGameInfo(),
-        getGameIcon(),
-        getGameVotes(),
-        getActiveServers(),
+        getGameServers(),
       ]);
 
-      const visits = gameInfo.visits?.toLocaleString('en-US') ?? '0';
-      const favorites = gameInfo.favoritedCount?.toLocaleString('en-US') ?? '0';
-      const playing = gameInfo.playing?.toLocaleString('en-US') ?? '0';
-      const maxPlayers = gameInfo.maxPlayers ?? 0;
+      if (!gameInfo) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: '❌ Could not fetch game info. Please check the game ID.',
+        });
+      }
 
-      const totalVotes = votes.upVotes + votes.downVotes;
-      const likePercent = totalVotes > 0 ? Math.round((votes.upVotes / totalVotes) * 100) : 0;
+      // Calcular estadísticas de servidores
+      const totalPlayers = servers.reduce((sum, s) => sum + (s.playing || 0), 0);
+      const totalServers = servers.length;
+      const emptyServers = servers.filter(s => s.playing === 0).length;
+      const fullServers = servers.filter(s => s.playing >= s.maxPlayers - 1).length;
 
-      const rawDesc = gameInfo.description?.trim() ?? 'No description available.';
-      const description = rawDesc.length > 200 ? rawDesc.substring(0, 197) + '...' : rawDesc;
+      // Obtener el número de jugadores actual desde la API principal
+      const playingCount = gameInfo.playing || 0;
 
-      const createdAt = gameInfo.created
-        ? `<t:${Math.floor(new Date(gameInfo.created).getTime() / 1000)}:D>`
-        : 'Unknown';
-      const updatedAt = gameInfo.updated
-        ? `<t:${Math.floor(new Date(gameInfo.updated).getTime() / 1000)}:R>`
-        : 'Unknown';
-
-      const embed = createEmbed({ title: `${gameInfo.name}`, description: null })
-        .setDescription(`> ${description}`)
-        .setColor(0x5865f2)
-        .setThumbnail(iconUrl ?? null)
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle(`🎮 ${gameInfo.name || 'Roblox Game'}`)
+        .setDescription(gameInfo.description || 'No description available.')
+        .setThumbnail(gameInfo.thumbnail?.[0]?.imageUrl || null)
         .addFields(
-          { name: '👥 Active Players', value: `**${playing}** / ${maxPlayers} per server`,                                                                        inline: true },
-          { name: '🖥️ Active Servers', value: `**${activeServers}**`,                                                                                             inline: true },
-          { name: '🏆 Total Visits',   value: `**${visits}**`,                                                                                                    inline: true },
-          { name: '⭐ Favorites',      value: `**${favorites}**`,                                                                                                 inline: true },
-          { name: '👍 Rating',         value: `**${likePercent}%** (${votes.upVotes.toLocaleString('en-US')} 👍 / ${votes.downVotes.toLocaleString('en-US')} 👎)`, inline: true },
-          { name: '📅 Created',        value: createdAt,                                                                                                          inline: true },
-          { name: '🔄 Last Updated',   value: updatedAt,                                                                                                          inline: true },
-          { name: '🔗 Link',           value: `[Go to Game](https://www.roblox.com/games/${PLACE_ID})`,                                                           inline: true }
+          { name: '🟢 Online Players', value: `\`${playingCount}\``, inline: true },
+          { name: '📊 Total Servers', value: `\`${totalServers}\``, inline: true },
+          { name: '🟡 Empty Servers', value: `\`${emptyServers}\``, inline: true },
+          { name: '🔴 Full Servers', value: `\`${fullServers}\``, inline: true },
+          { name: '👥 Max Players', value: `\`${gameInfo.maxPlayers || 'N/A'}\``, inline: true },
+          { name: '📅 Created', value: gameInfo.created ? `<t:${Math.floor(new Date(gameInfo.created).getTime() / 1000)}:R>` : 'N/A', inline: true },
+          { name: '🔗 Link', value: `[Play Game](https://www.roblox.com/games/${GAME_ID})`, inline: false }
         )
-        .setFooter({ text: `Universe ID: ${UNIVERSE_ID} • Place ID: ${PLACE_ID}` })
+        .setFooter({ text: `Game ID: ${GAME_ID} • Updated: ${new Date().toLocaleTimeString()}` })
         .setTimestamp();
 
-      await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-    } catch (error) {
-      logger.error('Gameinfo command error:', error.message, error.stack);
-      try {
-        return await InteractionHelper.safeReply(interaction, {
-          content: '❌ An error occurred while fetching game info.',
+      // Servidores activos (top 5)
+      const activeServers = servers
+        .filter(s => s.playing > 0)
+        .sort((a, b) => b.playing - a.playing)
+        .slice(0, 5);
+
+      if (activeServers.length > 0) {
+        const serverList = activeServers.map((s, i) =>
+          `**${i + 1}.** ${s.playing}/${s.maxPlayers} players (${s.id.substring(0, 8)}...)`
+        ).join('\n');
+        embed.addFields({
+          name: '🖥️ Active Servers',
+          value: serverList || 'No active servers',
+          inline: false,
         });
-      } catch (e) {
-        logger.error('Failed to send error reply:', e);
       }
+
+      await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+
+    } catch (error) {
+      logger.error('GameInfo error:', error);
+      await InteractionHelper.safeReply(interaction, {
+        content: '❌ An error occurred while fetching game info.',
+        ephemeral: true,
+      });
     }
   },
 };
