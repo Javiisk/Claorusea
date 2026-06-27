@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const GROUP_ID = '376034335';
 const TARGET_RANK = 2;
@@ -14,16 +15,6 @@ const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
 ];
-
-async function getRobloxUser(username) {
-  const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-  const data = await res.json();
-  return data.data?.[0] ?? null;
-}
 
 async function getUserRank(userId) {
   const res = await fetch(`https://groups.roblox.com/v1/users/${userId}/groups/roles`);
@@ -71,11 +62,15 @@ export default {
     .setName('massdemotion')
     .setDescription('Demotes a user to the lowest rank. (Staff only)')
     .setDMPermission(false)
-    .addStringOption(opt =>
-      opt.setName('user').setDescription('Roblox username').setRequired(true)
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Discord user to demote')
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('reason').setDescription('Reason for the demotion').setRequired(false)
+      opt.setName('reason')
+        .setDescription('Reason for the demotion')
+        .setRequired(false)
     ),
 
   async execute(interaction) {
@@ -98,20 +93,25 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('user');
+      const targetUser = interaction.options.getUser('user');
       const reason = interaction.options.getString('reason') ?? 'No reason provided.';
 
-      const roblox = await getRobloxUser(username);
-      if (!roblox) {
+      // ✅ Obtener Roblox info desde Bloxlink
+      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+
+      if (!userInfo) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Roblox user not found.',
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
         });
       }
 
-      const currentRank = await getUserRank(roblox.id);
+      const robloxId = userInfo.id;
+      const robloxUsername = userInfo.username;
+
+      const currentRank = await getUserRank(robloxId);
       if (!currentRank) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${roblox.name}** is not in the group.`,
+          content: `❌ **${robloxUsername}** is not in the group.`,
         });
       }
 
@@ -122,13 +122,14 @@ export default {
         });
       }
 
-      await setRank(roblox.id, rankId);
+      await setRank(robloxId, rankId);
 
       // Success embed
       const embed = createEmbed({ title: '⬇️ Mass Demotion Applied', description: null })
         .setColor(0xed4245)
         .addFields(
-          { name: '👤 User', value: `\`${roblox.name}\``, inline: true },
+          { name: '👤 User', value: `\`${robloxUsername}\``, inline: true },
+          { name: '🆔 Roblox ID', value: `\`${robloxId}\``, inline: true },
           { name: '📉 Previous Rank', value: `${currentRank.role} (${currentRank.rank})`, inline: true },
           { name: '📌 New Rank', value: `Rank ${TARGET_RANK}`, inline: true },
           { name: '📝 Reason', value: reason, inline: false },
@@ -145,7 +146,7 @@ export default {
           const logEmbed = createEmbed({ title: '📋 Mass Demotion Log', description: null })
             .setColor(0xed4245)
             .addFields(
-              { name: '👤 User', value: `\`${roblox.name}\` (${roblox.id})`, inline: true },
+              { name: '👤 User', value: `\`${robloxUsername}\` (${robloxId})`, inline: true },
               { name: '📉 Previous Rank', value: `${currentRank.role} (${currentRank.rank})`, inline: true },
               { name: '📌 New Rank', value: `Rank ${TARGET_RANK}`, inline: true },
               { name: '📝 Reason', value: reason, inline: false },
