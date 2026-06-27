@@ -1,18 +1,9 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
-
-async function getRobloxUser(username) {
-  const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-  const data = await res.json();
-  return data.data?.[0] || null;
-}
 
 async function getCurrentRank(userId) {
   try {
@@ -39,8 +30,10 @@ export default {
   data: new SlashCommandBuilder()
     .setName('checkrank')
     .setDescription('Check a user\'s current rank in the group 🏅')
-    .addStringOption(opt =>
-      opt.setName('robloxuser').setDescription('Roblox username').setRequired(true)
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Discord user to check')
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -51,13 +44,23 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('robloxuser');
-      const roblox = await getRobloxUser(username);
-      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
+      const targetUser = interaction.options.getUser('user');
+
+      // ✅ Obtener Roblox info desde Bloxlink
+      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+
+      if (!userInfo) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+        });
+      }
+
+      const robloxId = userInfo.id;
+      const robloxUsername = userInfo.username;
 
       const [currentRole, avatar] = await Promise.all([
-        getCurrentRank(roblox.id),
-        getRobloxAvatar(roblox.id),
+        getCurrentRank(robloxId),
+        getRobloxAvatar(robloxId),
       ]);
 
       const embed = new EmbedBuilder()
@@ -65,8 +68,9 @@ export default {
         .setColor(0x5865F2)
         .setThumbnail(avatar)
         .addFields(
-          { name: 'Username', value: roblox.name, inline: false },
-          { name: 'Roblox ID', value: String(roblox.id), inline: false },
+          { name: 'Username', value: robloxUsername, inline: false },
+          { name: 'Roblox ID', value: String(robloxId), inline: false },
+          { name: 'Discord User', value: `${targetUser}`, inline: false },
           { name: 'Current Rank', value: currentRole ? currentRole.name : 'Not in the group', inline: false },
         )
         .setFooter({ text: `Requested by ${interaction.user.username}` })
