@@ -57,6 +57,19 @@ async function getRobloxUserByDiscord(discordId) {
   }
 }
 
+async function getRobloxUsernameById(userId) {
+  try {
+    const id = typeof userId === 'string' ? parseInt(userId) : userId;
+    if (isNaN(id)) return null;
+    const res = await fetch(`https://users.roblox.com/v1/users/${id}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.name || null;
+  } catch {
+    return null;
+  }
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName('untrained')
@@ -89,7 +102,19 @@ export default {
         });
       }
 
-      const robloxUsername = bloxlinkData.primaryAccount || 'Unknown';
+      const robloxId = bloxlinkData.robloxID;
+      let robloxUsername = bloxlinkData.primaryAccount || null;
+      
+      if (!robloxUsername || robloxUsername === 'Unknown') {
+        const username = await getRobloxUsernameById(robloxId);
+        if (username) robloxUsername = username;
+      }
+
+      if (!robloxUsername) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ Could not get Roblox username for **${targetUser.tag}**.`,
+        });
+      }
 
       saveUser(robloxUsername, { trained: false });
 
