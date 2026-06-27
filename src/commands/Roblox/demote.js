@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const LOG_CHANNEL_ID = '1504301603262566440';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
@@ -13,16 +14,6 @@ const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
 ];
-
-async function getRobloxUser(username) {
-  const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-  const data = await res.json();
-  return data.data?.[0] || null;
-}
 
 async function getGroupRoles() {
   const res = await fetch(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
@@ -82,11 +73,15 @@ export default {
   data: new SlashCommandBuilder()
     .setName('demote')
     .setDescription('Demote a user one rank down ⬇️')
-    .addStringOption(opt =>
-      opt.setName('robloxuser').setDescription('Roblox username').setRequired(true)
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Discord user to demote')
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('reason').setDescription('Reason for demotion').setRequired(true)
+      opt.setName('reason')
+        .setDescription('Reason for demotion')
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -102,13 +97,22 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('robloxuser');
+      const targetUser = interaction.options.getUser('user');
       const reason = interaction.options.getString('reason');
 
-      const roblox = await getRobloxUser(username);
-      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
+      // ✅ Obtener Roblox info desde Bloxlink
+      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
 
-      const currentRole = await getCurrentRank(roblox.id);
+      if (!userInfo) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+        });
+      }
+
+      const robloxId = userInfo.id;
+      const robloxUsername = userInfo.username;
+
+      const currentRole = await getCurrentRank(robloxId);
       if (!currentRole) return await InteractionHelper.safeEditReply(interaction, { content: '❌ User is not in the group.' });
 
       const roles = await getGroupRoles();
@@ -120,7 +124,7 @@ export default {
       }
 
       const newRole = sortedRoles[currentIndex - 1];
-      const result = await setRankByRoleId(roblox.id, newRole.id);
+      const result = await setRankByRoleId(robloxId, newRole.id);
 
       if (!result.success) {
         return await InteractionHelper.safeEditReply(interaction, { content: `❌ Failed to demote: ${result.error}` });
@@ -130,7 +134,9 @@ export default {
         .setTitle('⬇️ User Demoted')
         .setColor(0xED4245)
         .addFields(
-          { name: 'User', value: roblox.name, inline: false },
+          { name: 'User', value: robloxUsername, inline: false },
+          { name: 'Roblox ID', value: String(robloxId), inline: true },
+          { name: 'Discord User', value: `${targetUser}`, inline: true },
           { name: 'Previous Rank', value: currentRole.name, inline: true },
           { name: 'New Rank', value: newRole.name, inline: true },
           { name: 'Reason', value: reason, inline: false },
@@ -148,4 +154,4 @@ export default {
       try { await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed:', e); }
     }
   },
-        }
+};
