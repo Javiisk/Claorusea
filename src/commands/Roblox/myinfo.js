@@ -10,12 +10,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
 const GROUPS_PATH = join(__dirname, '../../../../blacklisted-groups.json');
 
-// ─── VARIABLES DE ENTORNO ─────────────────────────────────────────────────
-
 const BLOXLINK_API_KEY = process.env.BLOXLINK_API_KEY;
 const GUILD_ID = process.env.GUILD_ID;
-
-// ─── CONSTANTES ────────────────────────────────────────────────────────────
 
 const DEFAULT_GROUPS = [
   { id: '9221386', name: 'Unholy sacred sisters' },
@@ -24,8 +20,6 @@ const DEFAULT_GROUPS = [
   { id: '97539052', name: 'Ivaloria' },
   { id: '35008390', name: 'la vélvoria' },
 ];
-
-// ─── HELPERS ────────────────────────────────────────────────────────────────
 
 function loadGroups() {
   if (!existsSync(GROUPS_PATH)) {
@@ -57,7 +51,10 @@ function saveUser(username, data) {
 
 async function getRobloxUserByDiscord(discordId) {
   try {
-    const url = `https://api.blox.link/v4/public/guilds/${GUILD_ID}/discord-to-roblox/${discordId}`;
+    // ✅ URL CORREGIDA - Usando v1 en lugar de v4
+    const url = `https://api.blox.link/v1/guilds/${GUILD_ID}/discord-to-roblox/${discordId}`;
+    logger.info(`[MyInfo] Consultando Bloxlink: ${url}`);
+    
     const res = await fetch(url, {
       headers: {
         'Authorization': BLOXLINK_API_KEY,
@@ -65,8 +62,15 @@ async function getRobloxUserByDiscord(discordId) {
       },
     });
     
-    if (!res.ok) return null;
+    logger.info(`[MyInfo] Respuesta Bloxlink status: ${res.status}`);
+    
+    if (!res.ok) {
+      logger.error(`[MyInfo] Bloxlink error: ${res.status} ${res.statusText}`);
+      return null;
+    }
+    
     const data = await res.json();
+    logger.info(`[MyInfo] Datos Bloxlink: ${JSON.stringify(data)}`);
     return data;
   } catch (error) {
     logger.error(`[MyInfo] Bloxlink API error: ${error.message}`);
@@ -109,8 +113,6 @@ async function checkBlacklistedGroups(userId) {
   }
 }
 
-// ─── COMANDO ────────────────────────────────────────────────────────────────
-
 export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
@@ -136,19 +138,19 @@ export default {
     try {
       const targetUser = interaction.options.getUser('user') || interaction.user;
 
-      // ─── VERIFICAR VARIABLES ──────────────────────────────────────────────
+      logger.info(`[MyInfo] Buscando usuario: ${targetUser.tag} (${targetUser.id})`);
 
       if (!BLOXLINK_API_KEY || !GUILD_ID) {
+        logger.error('[MyInfo] Faltan variables de entorno');
         return await InteractionHelper.safeEditReply(interaction, {
           content: '❌ Bloxlink no está configurado. Faltan variables de entorno.',
         });
       }
 
-      // ─── BUSCAR EN BLOXLINK ──────────────────────────────────────────────
-
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
       if (!bloxlinkData || !bloxlinkData.robloxId) {
+        logger.warn(`[MyInfo] Usuario ${targetUser.tag} no encontrado en Bloxlink`);
         return await InteractionHelper.safeEditReply(interaction, {
           content: `❌ **${targetUser.tag}** no tiene una cuenta de Roblox vinculada en este servidor.`,
         });
@@ -157,7 +159,7 @@ export default {
       const robloxId = bloxlinkData.robloxId;
       const robloxUsername = bloxlinkData.primaryAccount || 'Unknown';
 
-      // ─── OBTENER INFORMACIÓN ADICIONAL ───────────────────────────────────
+      logger.info(`[MyInfo] Roblox encontrado: ${robloxUsername} (${robloxId})`);
 
       const [rank, avatar, blacklistedGroup] = await Promise.all([
         getRobloxGroupRank(robloxId),
