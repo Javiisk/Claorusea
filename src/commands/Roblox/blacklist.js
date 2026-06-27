@@ -5,6 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
@@ -25,29 +26,23 @@ function loadDB() {
 function saveUser(username, data) {
   const db = loadDB();
   const key = username.toLowerCase();
-  db[key] = { ...(db[key] || { username, trained: false, warnings: 0 }), ...data };
+  db[key] = { ...(db[key] || { username, trained: false, warnings: 0, blacklisted: false }), ...data };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
-}
-
-async function getRobloxUser(username) {
-  const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-  const data = await res.json();
-  return data.data?.[0] || null;
 }
 
 export default {
   data: new SlashCommandBuilder()
     .setName('blacklist')
     .setDescription('Blacklist or unblacklist a user 🚫')
-    .addStringOption(opt =>
-      opt.setName('user').setDescription('Roblox username').setRequired(true)
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Discord user')
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('reason').setDescription('Reason (leave empty to remove blacklist)').setRequired(false)
+      opt.setName('reason')
+        .setDescription('Reason (leave empty to remove blacklist)')
+        .setRequired(false)
     ),
 
   async execute(interaction) {
@@ -63,25 +58,46 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('user');
+      const targetUser = interaction.options.getUser('user');
       const reason = interaction.options.getString('reason');
-      const roblox = await getRobloxUser(username);
-      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
+
+      // ✅ Obtener Roblox info desde Bloxlink
+      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+
+      if (!userInfo) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+        });
+      }
+
+      const robloxUsername = userInfo.username;
+      const robloxId = userInfo.id;
 
       if (!reason) {
-        saveUser(roblox.name, { blacklisted: false, blacklistReason: null });
+        saveUser(robloxUsername, { blacklisted: false, blacklistReason: null });
         const embed = createEmbed({ title: '✅ Blacklist Removed', description: null })
-          .setDescription(`**${roblox.name}** has been removed from the blacklist.`)
-          .setColor(0x57F287).setTimestamp();
+          .setDescription(`**${robloxUsername}** has been removed from the blacklist.`)
+          .addFields(
+            { name: 'Roblox ID', value: String(robloxId), inline: true },
+            { name: 'Discord User', value: `${targetUser}`, inline: true }
+          )
+          .setColor(0x57F287)
+          .setTimestamp();
         return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
       }
 
-      saveUser(roblox.name, { blacklisted: true, blacklistReason: reason });
+      saveUser(robloxUsername, { blacklisted: true, blacklistReason: reason });
       const embed = createEmbed({ title: '🚫 User Blacklisted', description: null })
-        .setDescription(`**${roblox.name}** has been blacklisted.\n**Reason:** ${reason}`)
-        .setColor(0xED4245).setTimestamp();
+        .setDescription(`**${robloxUsername}** has been blacklisted.\n**Reason:** ${reason}`)
+        .addFields(
+          { name: 'Roblox ID', value: String(robloxId), inline: true },
+          { name: 'Discord User', value: `${targetUser}`, inline: true }
+        )
+        .setColor(0xED4245)
+        .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+
     } catch (error) {
       logger.error('Blacklist command error:', error);
       try { return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed to send error reply:', e); }
