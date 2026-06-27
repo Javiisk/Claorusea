@@ -205,12 +205,12 @@ export default {
       const embed = createEmbed({ title: `📋 ${robloxUsername}'s Profile`, description: null })
         .setThumbnail(avatar)
         .addFields(
-          { name: '👤 Discord User', value: `${targetUser}`, inline: false },
-          { name: '🆔 Roblox ID', value: String(robloxId), inline: false },
-          { name: '📊 Rank', value: rank, inline: false },
-          { name: '✅ Trained', value: trainedText, inline: false },
-          { name: '⚠️ Warnings', value: warningsText, inline: false },
-          { name: '🚫 Blacklists', value: blacklistText, inline: false },
+          { name: 'Discord User', value: `${targetUser}`, inline: false },
+          { name: 'Roblox ID', value: String(robloxId), inline: false },
+          { name: 'Rank', value: rank, inline: false },
+          { name: 'Trained Status', value: trainedText, inline: false },
+          { name: 'Warnings', value: warningsText, inline: false },
+          { name: 'Blacklists', value: blacklistText, inline: false },
         )
         .setFooter({ text: `Requested by ${interaction.user.username}` })
         .setTimestamp();
