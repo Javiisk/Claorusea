@@ -5,13 +5,17 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { 
+  getRobloxUserByDiscord, 
+  getRobloxUsernameById,
+  getRobloxGroupRank,
+  getRobloxAvatar,
+  checkBlacklistedGroups
+} from './bloxlink.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
 const GROUPS_PATH = join(__dirname, '../../../../blacklisted-groups.json');
-
-const BLOXLINK_API_KEY = process.env.BLOXLINK_API_KEY;
-const GUILD_ID = process.env.GUILD_ID;
 
 const DEFAULT_GROUPS = [
   { id: '9221386', name: 'Unholy sacred sisters' },
@@ -49,79 +53,6 @@ function saveUser(username, data) {
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
-async function getRobloxUserByDiscord(discordId) {
-  try {
-    const url = `https://api.blox.link/v4/public/guilds/${GUILD_ID}/discord-to-roblox/${discordId}`;
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': BLOXLINK_API_KEY,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
-    
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data || !data.robloxID) return null;
-    return data;
-  } catch (error) {
-    logger.error(`[MyInfo] Error: ${error.message}`);
-    return null;
-  }
-}
-
-async function getRobloxUsernameById(userId) {
-  try {
-    const id = typeof userId === 'string' ? parseInt(userId) : userId;
-    if (isNaN(id)) return null;
-    const res = await fetch(`https://users.roblox.com/v1/users/${id}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.name || null;
-  } catch {
-    return null;
-  }
-}
-
-async function getRobloxGroupRank(userId) {
-  try {
-    const groupId = process.env.ROBLOX_GROUP_ID;
-    const id = typeof userId === 'string' ? parseInt(userId) : userId;
-    const res = await fetch(`https://groups.roblox.com/v2/users/${id}/groups/roles`);
-    const data = await res.json();
-    const group = data.data?.find(g => String(g.group.id) === String(groupId));
-    return group ? group.role.name : 'Not in the group';
-  } catch {
-    return 'Error fetching rank';
-  }
-}
-
-async function getRobloxAvatar(userId) {
-  try {
-    const id = typeof userId === 'string' ? parseInt(userId) : userId;
-    const res = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${id}&size=150x150&format=Png&isCircular=false`);
-    const data = await res.json();
-    return data.data?.[0]?.imageUrl || null;
-  } catch {
-    return null;
-  }
-}
-
-async function checkBlacklistedGroups(userId) {
-  try {
-    const blacklistedGroups = loadGroups();
-    const id = typeof userId === 'string' ? parseInt(userId) : userId;
-    const res = await fetch(`https://groups.roblox.com/v2/users/${id}/groups/roles`);
-    const data = await res.json();
-    const userGroups = data.data?.map(g => String(g.group.id)) || [];
-    const found = blacklistedGroups.find(g => userGroups.includes(g.id));
-    return found || null;
-  } catch {
-    return null;
-  }
-}
-
 export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
@@ -149,13 +80,7 @@ export default {
 
       logger.info(`[MyInfo] Looking up: ${targetUser.tag} (${targetUser.id})`);
 
-      if (!BLOXLINK_API_KEY || !GUILD_ID) {
-        logger.error('[MyInfo] Missing environment variables');
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Bloxlink is not configured. Missing environment variables.',
-        });
-      }
-
+      // ✅ Usar bloxlink.js
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
       if (!bloxlinkData || !bloxlinkData.robloxID) {
@@ -166,8 +91,9 @@ export default {
       }
 
       const robloxId = bloxlinkData.robloxID;
-      let robloxUsername = bloxlinkData.primaryAccount || null;
       
+      // ✅ Obtener nombre usando bloxlink.js
+      let robloxUsername = bloxlinkData.primaryAccount || null;
       if (!robloxUsername || robloxUsername === 'Unknown' || robloxUsername === 'null') {
         const username = await getRobloxUsernameById(robloxId);
         if (username) robloxUsername = username;
@@ -179,10 +105,11 @@ export default {
 
       logger.info(`[MyInfo] Roblox: ${robloxUsername} (${robloxId})`);
 
+      // ✅ Usar bloxlink.js
       const [rank, avatar, blacklistedGroup] = await Promise.all([
         getRobloxGroupRank(robloxId),
         getRobloxAvatar(robloxId),
-        checkBlacklistedGroups(robloxId),
+        checkBlacklistedGroups(robloxId, loadGroups()),
       ]);
 
       const userData = getUser(robloxUsername);
