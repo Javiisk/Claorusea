@@ -11,13 +11,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
 const GROUPS_PATH = join(__dirname, '../../../../blacklisted-groups.json');
 
-// ─── BLOXLINK ──────────────────────────────────────────────────────────────
-
 const BLOXLINK_API_KEY = process.env.BLOXLINK_API_KEY;
 const GUILD_ID = process.env.GUILD_ID;
-bloxlink.initialise(BLOXLINK_API_KEY);
 
-// ─── CONSTANTES ────────────────────────────────────────────────────────────
+bloxlink.initialise(BLOXLINK_API_KEY);
 
 const DEFAULT_GROUPS = [
   { id: '9221386', name: 'Unholy sacred sisters' },
@@ -26,8 +23,6 @@ const DEFAULT_GROUPS = [
   { id: '97539052', name: 'Ivaloria' },
   { id: '35008390', name: 'la vélvoria' },
 ];
-
-// ─── HELPERS ────────────────────────────────────────────────────────────────
 
 function loadGroups() {
   if (!existsSync(GROUPS_PATH)) {
@@ -92,12 +87,10 @@ async function checkBlacklistedGroups(userId) {
   }
 }
 
-// ─── COMANDO ────────────────────────────────────────────────────────────────
-
 export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
-    .setDescription('View your Roblox profile and group status (via Bloxlink)')
+    .setDescription('View your Roblox profile and group status')
     .setDMPermission(true)
     .addUserOption(opt =>
       opt.setName('user')
@@ -117,11 +110,7 @@ export default {
     }
 
     try {
-      // ─── OBTENER USUARIO DE DISCORD ──────────────────────────────────────
-
       const targetUser = interaction.options.getUser('user') || interaction.user;
-
-      // ─── BUSCAR EN BLOXLINK ──────────────────────────────────────────────
 
       let robloxId, robloxUsername;
 
@@ -142,8 +131,6 @@ export default {
           content: '❌ Error connecting to Bloxlink. Please check your API Key.',
         });
       }
-
-      // ─── OBTENER INFORMACIÓN ADICIONAL ───────────────────────────────────
 
       const [rank, avatar, blacklistedGroup] = await Promise.all([
         getRobloxGroupRank(robloxId),
@@ -167,8 +154,6 @@ export default {
       const blacklistText = userData.blacklisted
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
-
-      // ─── CONSTRUIR EMBED ──────────────────────────────────────────────────
 
       const embed = createEmbed({ title: `📋 ${robloxUsername}'s Profile`, description: null })
         .setThumbnail(avatar)
