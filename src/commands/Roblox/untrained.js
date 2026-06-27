@@ -9,6 +9,9 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
 
+const BLOXLINK_API_KEY = process.env.BLOXLINK_API_KEY;
+const GUILD_ID = process.env.GUILD_ID;
+
 const ALLOWED_ROLES = [
   '1505671307335958728',
   '1505671314210553877',
@@ -25,26 +28,43 @@ function loadDB() {
 function saveUser(username, data) {
   const db = loadDB();
   const key = username.toLowerCase();
-  db[key] = { ...(db[key] || { username, warnings: 0, blacklisted: false }), ...data };
+  db[key] = { ...(db[key] || { username, trained: false, warnings: 0, blacklisted: false }), ...data };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
-async function getRobloxUser(username) {
-  const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-  const data = await res.json();
-  return data.data?.[0] || null;
+async function getRobloxUserByDiscord(discordId) {
+  try {
+    const url = `https://api.blox.link/v4/public/guilds/${GUILD_ID}/discord-to-roblox/${discordId}`;
+    
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': BLOXLINK_API_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (!res.ok) return null;
+    
+    const data = await res.json();
+    if (!data || !data.robloxID) return null;
+    
+    return data;
+  } catch (error) {
+    logger.error(`[Untrained] Error: ${error.message}`);
+    return null;
+  }
 }
 
 export default {
   data: new SlashCommandBuilder()
     .setName('untrained')
     .setDescription('Mark a user as untrained ❌')
-    .addStringOption(opt =>
-      opt.setName('user').setDescription('Roblox username').setRequired(true)
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Discord user to mark as untrained')
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -55,25 +75,34 @@ export default {
 
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
-      logger.warn('Untrained interaction defer failed', { userId: interaction.user.id, guildId: interaction.guildId, commandName: 'untrained' });
+      logger.warn('Untrained interaction defer failed', { userId: interaction.user.id });
       return;
     }
 
     try {
-      const username = interaction.options.getString('user');
-      const roblox = await getRobloxUser(username);
-      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
+      const targetUser = interaction.options.getUser('user');
 
-      saveUser(roblox.name, { trained: false });
+      const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
+      if (!bloxlinkData || !bloxlinkData.robloxID) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+        });
+      }
+
+      const robloxUsername = bloxlinkData.primaryAccount || 'Unknown';
+
+      saveUser(robloxUsername, { trained: false });
 
       const embed = createEmbed({ title: '❌ User Untrained', description: null })
-        .setDescription(`**${roblox.name}** has been marked as **Untrained**.`)
-        .setColor(0xED4245).setTimestamp();
+        .setDescription(`**${robloxUsername}** (${targetUser.tag}) has been marked as **Untrained**.`)
+        .setColor(0xED4245)
+        .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+
     } catch (error) {
       logger.error('Untrained command error:', error);
-      try { return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed to send error reply:', e); }
+      try { return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed:', e); }
     }
   },
 };
