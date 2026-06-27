@@ -53,7 +53,7 @@ async function getRobloxUserByDiscord(discordId) {
   try {
     const url = `https://api.blox.link/v4/public/guilds/${GUILD_ID}/discord-to-roblox/${discordId}`;
     
-    logger.info(`[MyInfo] 📡 URL: ${url}`);
+    logger.info(`[MyInfo] URL: ${url}`);
     
     const res = await fetch(url, {
       method: 'GET',
@@ -64,14 +64,14 @@ async function getRobloxUserByDiscord(discordId) {
       },
     });
     
-    logger.info(`[MyInfo] 📥 Status: ${res.status}`);
+    logger.info(`[MyInfo] Status: ${res.status}`);
     
     if (!res.ok) {
       return null;
     }
     
     const data = await res.json();
-    logger.info(`[MyInfo] ✅ Datos: ${JSON.stringify(data)}`);
+    logger.info(`[MyInfo] Data: ${JSON.stringify(data)}`);
     
     if (!data || !data.robloxID) {
       return null;
@@ -79,7 +79,7 @@ async function getRobloxUserByDiscord(discordId) {
     
     return data;
   } catch (error) {
-    logger.error(`[MyInfo] ❌ Error: ${error.message}`);
+    logger.error(`[MyInfo] Error: ${error.message}`);
     return null;
   }
 }
@@ -144,28 +144,28 @@ export default {
     try {
       const targetUser = interaction.options.getUser('user') || interaction.user;
 
-      logger.info(`[MyInfo] 👤 Buscando: ${targetUser.tag} (${targetUser.id})`);
+      logger.info(`[MyInfo] Looking up: ${targetUser.tag} (${targetUser.id})`);
 
       if (!BLOXLINK_API_KEY || !GUILD_ID) {
-        logger.error('[MyInfo] ❌ Faltan variables de entorno');
+        logger.error('[MyInfo] Missing environment variables');
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Bloxlink no está configurado. Faltan variables de entorno.',
+          content: '❌ Bloxlink is not configured. Missing environment variables.',
         });
       }
 
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
       if (!bloxlinkData || !bloxlinkData.robloxID) {
-        logger.warn(`[MyInfo] ⚠️ ${targetUser.tag} no vinculado`);
+        logger.warn(`[MyInfo] ${targetUser.tag} not linked`);
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${targetUser.tag}** no tiene una cuenta de Roblox vinculada en este servidor.\n\n🔹 **Solución:** Usa \`/link javii_090\` en el servidor para vincular tu cuenta.`,
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
         });
       }
 
       const robloxId = bloxlinkData.robloxID;
       const robloxUsername = bloxlinkData.primaryAccount || 'Unknown';
 
-      logger.info(`[MyInfo] ✅ Roblox: ${robloxUsername} (${robloxId})`);
+      logger.info(`[MyInfo] Roblox: ${robloxUsername} (${robloxId})`);
 
       const [rank, avatar, blacklistedGroup] = await Promise.all([
         getRobloxGroupRank(robloxId),
