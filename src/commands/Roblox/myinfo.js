@@ -73,7 +73,6 @@ async function getRobloxUserByDiscord(discordId) {
     const data = await res.json();
     logger.info(`[MyInfo] ✅ Datos: ${JSON.stringify(data)}`);
     
-    // ✅ CORREGIDO: Usar "robloxID" (con mayúscula)
     if (!data || !data.robloxID) {
       return null;
     }
@@ -148,19 +147,18 @@ export default {
       logger.info(`[MyInfo] 👤 Buscando: ${targetUser.tag} (${targetUser.id})`);
 
       if (!BLOXLINK_API_KEY || !GUILD_ID) {
-        logger.error('[MyInfo] ❌ Faltan variables');
+        logger.error('[MyInfo] ❌ Faltan variables de entorno');
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Bloxlink no está configurado.',
+          content: '❌ Bloxlink no está configurado. Faltan variables de entorno.',
         });
       }
 
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
-      // ✅ CORREGIDO: Usar "robloxID"
       if (!bloxlinkData || !bloxlinkData.robloxID) {
         logger.warn(`[MyInfo] ⚠️ ${targetUser.tag} no vinculado`);
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${targetUser.tag}** no tiene una cuenta de Roblox vinculada en este servidor.`,
+          content: `❌ **${targetUser.tag}** no tiene una cuenta de Roblox vinculada en este servidor.\n\n🔹 **Solución:** Usa \`/link javii_090\` en el servidor para vincular tu cuenta.`,
         });
       }
 
