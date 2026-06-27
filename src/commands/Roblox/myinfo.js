@@ -51,29 +51,50 @@ function saveUser(username, data) {
 
 async function getRobloxUserByDiscord(discordId) {
   try {
-    // ✅ URL CORREGIDA - Usando v1 en lugar de v4
+    // URL CORRECTA para Bloxlink v1
     const url = `https://api.blox.link/v1/guilds/${GUILD_ID}/discord-to-roblox/${discordId}`;
-    logger.info(`[MyInfo] Consultando Bloxlink: ${url}`);
+    
+    logger.info(`[MyInfo] 📡 Consultando Bloxlink...`);
+    logger.info(`[MyInfo] URL: ${url}`);
+    logger.info(`[MyInfo] Guild ID: ${GUILD_ID}`);
+    logger.info(`[MyInfo] Discord ID: ${discordId}`);
+    logger.info(`[MyInfo] API Key: ${BLOXLINK_API_KEY?.substring(0, 10)}...`);
     
     const res = await fetch(url, {
+      method: 'GET',
       headers: {
         'Authorization': BLOXLINK_API_KEY,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
     });
     
-    logger.info(`[MyInfo] Respuesta Bloxlink status: ${res.status}`);
+    logger.info(`[MyInfo] 📥 Respuesta status: ${res.status} ${res.statusText}`);
     
+    // Si la respuesta no es OK, intentar leer el error
     if (!res.ok) {
-      logger.error(`[MyInfo] Bloxlink error: ${res.status} ${res.statusText}`);
+      let errorText;
+      try {
+        errorText = await res.text();
+      } catch {
+        errorText = 'No se pudo leer el error';
+      }
+      logger.error(`[MyInfo] ❌ Error: ${res.status} - ${errorText}`);
       return null;
     }
     
     const data = await res.json();
-    logger.info(`[MyInfo] Datos Bloxlink: ${JSON.stringify(data)}`);
+    logger.info(`[MyInfo] ✅ Datos recibidos: ${JSON.stringify(data)}`);
+    
+    // Verificar si el usuario existe
+    if (!data || !data.robloxId) {
+      logger.warn(`[MyInfo] ⚠️ Usuario no encontrado en Bloxlink`);
+      return null;
+    }
+    
     return data;
   } catch (error) {
-    logger.error(`[MyInfo] Bloxlink API error: ${error.message}`);
+    logger.error(`[MyInfo] ❌ Excepción: ${error.message}`);
     return null;
   }
 }
@@ -138,10 +159,10 @@ export default {
     try {
       const targetUser = interaction.options.getUser('user') || interaction.user;
 
-      logger.info(`[MyInfo] Buscando usuario: ${targetUser.tag} (${targetUser.id})`);
+      logger.info(`[MyInfo] 👤 Buscando usuario: ${targetUser.tag} (${targetUser.id})`);
 
       if (!BLOXLINK_API_KEY || !GUILD_ID) {
-        logger.error('[MyInfo] Faltan variables de entorno');
+        logger.error('[MyInfo] ❌ Faltan variables de entorno');
         return await InteractionHelper.safeEditReply(interaction, {
           content: '❌ Bloxlink no está configurado. Faltan variables de entorno.',
         });
@@ -150,16 +171,16 @@ export default {
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
       if (!bloxlinkData || !bloxlinkData.robloxId) {
-        logger.warn(`[MyInfo] Usuario ${targetUser.tag} no encontrado en Bloxlink`);
+        logger.warn(`[MyInfo] ⚠️ Usuario ${targetUser.tag} no encontrado en Bloxlink`);
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${targetUser.tag}** no tiene una cuenta de Roblox vinculada en este servidor.`,
+          content: `❌ **${targetUser.tag}** no tiene una cuenta de Roblox vinculada en este servidor.\n\n🔹 **Solución:** Usa \`/roblox link javii_090\` para vincular tu cuenta.`,
         });
       }
 
       const robloxId = bloxlinkData.robloxId;
       const robloxUsername = bloxlinkData.primaryAccount || 'Unknown';
 
-      logger.info(`[MyInfo] Roblox encontrado: ${robloxUsername} (${robloxId})`);
+      logger.info(`[MyInfo] ✅ Roblox encontrado: ${robloxUsername} (${robloxId})`);
 
       const [rank, avatar, blacklistedGroup] = await Promise.all([
         getRobloxGroupRank(robloxId),
