@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
@@ -14,16 +15,6 @@ const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
 ];
-
-async function getRobloxUser(username) {
-  const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-  });
-  const data = await res.json();
-  return data.data?.[0] || null;
-}
 
 async function getGroupRoles() {
   const res = await fetch(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
@@ -71,11 +62,15 @@ export default {
   data: new SlashCommandBuilder()
     .setName('setrank')
     .setDescription('Change a user\'s rank in the group 🏅')
-    .addStringOption(opt =>
-      opt.setName('user').setDescription('Roblox username').setRequired(true)
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Discord user')
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('rank').setDescription('Rank name or Rank ID').setRequired(true)
+      opt.setName('rank')
+        .setDescription('Rank name or Rank ID')
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -91,10 +86,20 @@ export default {
     }
 
     try {
-      const username = interaction.options.getString('user');
+      const targetUser = interaction.options.getUser('user');
       const rankInput = interaction.options.getString('rank');
-      const roblox = await getRobloxUser(username);
-      if (!roblox) return await InteractionHelper.safeEditReply(interaction, { content: '❌ Roblox user not found.' });
+
+      // ✅ Obtener Roblox info desde Bloxlink
+      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+
+      if (!userInfo) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+        });
+      }
+
+      const robloxId = userInfo.id;
+      const robloxUsername = userInfo.username;
 
       const roles = await getGroupRoles();
       const role = roles.find(r =>
@@ -105,15 +110,26 @@ export default {
 
       if (!role) {
         const roleList = roles.map(r => `\`${r.rank}\` - ${r.name}`).join('\n');
-        return await InteractionHelper.safeEditReply(interaction, { content: `❌ Rank not found. Available ranks:\n${roleList}` });
+        return await InteractionHelper.safeEditReply(interaction, { 
+          content: `❌ Rank not found. Available ranks:\n${roleList}` 
+        });
       }
 
-      const result = await setRank(roblox.id, role.id);
-      if (!result.success) return await InteractionHelper.safeEditReply(interaction, { content: `❌ Failed to set rank: ${result.error}` });
+      const result = await setRank(robloxId, role.id);
+      if (!result.success) {
+        return await InteractionHelper.safeEditReply(interaction, { 
+          content: `❌ Failed to set rank: ${result.error}` 
+        });
+      }
 
       const embed = createEmbed({ title: '🏅 Rank Updated', description: null })
-        .setDescription(`**${roblox.name}**'s rank has been changed to **${role.name}**.`)
-        .setColor(0x57F287).setTimestamp();
+        .setDescription(`**${robloxUsername}**'s rank has been changed to **${role.name}**.`)
+        .addFields(
+          { name: 'Roblox ID', value: String(robloxId), inline: true },
+          { name: 'Discord User', value: `${targetUser}`, inline: true }
+        )
+        .setColor(0x57F287)
+        .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
@@ -124,11 +140,14 @@ export default {
           .setColor(0x5865F2)
           .addFields(
             { name: 'Moderator', value: `${interaction.user.username} (<@${interaction.user.id}>)`, inline: false },
-            { name: 'User', value: roblox.name, inline: false },
+            { name: 'User', value: robloxUsername, inline: false },
+            { name: 'Roblox ID', value: String(robloxId), inline: false },
             { name: 'New Rank', value: role.name, inline: false },
-          ).setTimestamp();
+          )
+          .setTimestamp();
         await logChannel.send({ embeds: [logEmbed] });
       }
+
     } catch (error) {
       logger.error('SetRank command error:', error);
       try { return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed to send error reply:', e); }
