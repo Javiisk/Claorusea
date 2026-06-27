@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const LOG_CHANNEL_ID = '1518037992927789126';
 
@@ -17,20 +18,25 @@ export default {
   data: new SlashCommandBuilder()
     .setName('inactivity')
     .setDescription('Register an inactivity notice 🚀')
-    .addStringOption(opt =>
-      opt.setName('robloxuser').setDescription('Roblox username').setRequired(true)
-    )
     .addUserOption(opt =>
-      opt.setName('discorduser').setDescription('Discord user').setRequired(true)
+      opt.setName('discorduser')
+        .setDescription('Discord user')
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('startdate').setDescription('Start date (MM/DD/YYYY)').setRequired(true)
+      opt.setName('startdate')
+        .setDescription('Start date (MM/DD/YYYY)')
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('enddate').setDescription('End date (MM/DD/YYYY)').setRequired(true)
+      opt.setName('enddate')
+        .setDescription('End date (MM/DD/YYYY)')
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName('reason').setDescription('Reason for inactivity').setRequired(true)
+      opt.setName('reason')
+        .setDescription('Reason for inactivity')
+        .setRequired(true)
     ),
 
   async execute(interaction) {
@@ -50,39 +56,51 @@ export default {
     }
 
     try {
-      const robloxUser = interaction.options.getString('robloxuser');
       const discordUser = interaction.options.getUser('discorduser');
       const startDate = interaction.options.getString('startdate');
       const endDate = interaction.options.getString('enddate');
       const reason = interaction.options.getString('reason');
 
+      // ✅ Obtener Roblox info desde Bloxlink
+      const userInfo = await getRobloxUserInfoByDiscord(discordUser.id);
+
+      if (!userInfo) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ **${discordUser.tag}** does not have a Roblox account linked in this server.`,
+        });
+      }
+
+      const robloxUsername = userInfo.username;
+      const robloxId = userInfo.id;
+
       // Embed para el canal de logs
       const logEmbed = new EmbedBuilder()
         .setTitle('🔔 Inactivity Logs')
         .setColor(0x5865F2)
-        .setDescription(`<@${interaction.user.id}> has registered an inactivity notice of **${robloxUser}**! Information about this inactivity notice:`)
+        .setDescription(`<@${interaction.user.id}> has registered an inactivity notice for **${robloxUsername}**!`)
         .addFields(
-          { name: '**Roblox Username:**', value: robloxUser, inline: false },
-          { name: '**Start of inactivity notice:**', value: startDate, inline: false },
-          { name: '**End of Inactivity Notice:**', value: endDate, inline: false },
-          { name: '**Reason of inactivity notice:**', value: reason, inline: false },
+          { name: '**Roblox Username:**', value: robloxUsername, inline: false },
+          { name: '**Roblox ID:**', value: String(robloxId), inline: false },
+          { name: '**Discord User:**', value: `<@${discordUser.id}>`, inline: false },
+          { name: '**Start of Inactivity:**', value: startDate, inline: false },
+          { name: '**End of Inactivity:**', value: endDate, inline: false },
+          { name: '**Reason:**', value: reason, inline: false },
         )
         .addFields(
-          { name: '\u200B', value: '⚠️ • If it didn\'t register **correctly**, remember to use the command again and **inform** the staff why you received the bot\'s DM again.', inline: false },
-          { name: '\u200B', value: `📋 • Remember that **${robloxUser}** cooldown to start another **inactivity** notice has begun: **2 Weeks.**`, inline: false },
+          { name: '\u200B', value: '⚠️ • If it didn\'t register **correctly**, remember to use the command again and **inform** staff.', inline: false },
+          { name: '\u200B', value: `📋 • Remember that **${robloxUsername}** cooldown to start another inactivity notice has begun: **2 Weeks.**`, inline: false },
         )
         .setTimestamp();
 
       // Embed para el DM del usuario
       const dmEmbed = new EmbedBuilder()
-        .setTitle('🚀 ‿ Inactivity Period')
+        .setTitle('🚀 Inactivity Period')
         .setColor(0x5865F2)
-        .setDescription(`Greetings, **${robloxUser}**! We are here to inform you that:`)
+        .setDescription(`Greetings, **${robloxUsername}**! We are here to inform you that:`)
         .addFields(
-          { name: '\u200B', value: `Your inactivity have been logged and will end in **${endDate}**`, inline: false },
+          { name: '\u200B', value: `Your inactivity has been logged and will end in **${endDate}**.`, inline: false },
           { name: '\u200B', value: 'Enjoy your break!', inline: false },
           { name: '\u200B', value: '⚠️ • If you didn\'t request an inactivity notice, please ping a **Domain+** to correct this.', inline: false },
-          { name: '\u200B', value: `Enjoy your break **${robloxUser}**!`, inline: false },
         )
         .setTimestamp();
 
@@ -102,7 +120,7 @@ export default {
 
       // Respuesta de confirmación
       const confirmEmbed = createEmbed({ title: '✅ Inactivity Registered', description: null })
-        .setDescription(`Inactivity notice for **${robloxUser}** has been registered and DM sent to <@${discordUser.id}>.`)
+        .setDescription(`Inactivity notice for **${robloxUsername}** has been registered and DM sent to <@${discordUser.id}>.`)
         .addFields(
           { name: 'Start Date', value: startDate, inline: true },
           { name: 'End Date', value: endDate, inline: true },
