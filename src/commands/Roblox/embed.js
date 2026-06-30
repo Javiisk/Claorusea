@@ -4,11 +4,11 @@ import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const ALLOWED_ROLES = [
-  '1505671307335958728',
-  '1505671314210553877',
-  '1505671325144973323',
   '1505673879069393024',
   '1505673808097574912',
+  '1505671309915328713',
+  '1505671296883757158',
+  '1505671292873867544',
 ];
 
 export default {
