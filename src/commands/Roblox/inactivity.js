@@ -14,9 +14,8 @@ const LOG_CHANNEL_ID = '1518037992927789126';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 
-// Rango que se asigna durante la inactividad
-const HIATUS_RANK_NAME = 'Hiatus';
-const HIATUS_RANK_ID = 5; // ✅ Cambiado a 5
+// ✅ NOMBRE EXACTO DEL RANGO (con emoji y espacio)
+const HIATUS_RANK_NAME = '❗ Abandoned';
 
 const ALLOWED_ROLES = [
   '1505671318262255616',
@@ -41,9 +40,21 @@ function saveInactivity(data) {
 }
 
 async function getGroupRoles() {
-  const res = await fetch(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
-  const data = await res.json();
-  return data.roles || [];
+  try {
+    const res = await fetch(
+      `https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`,
+      { headers: { 'x-api-key': API_KEY } }
+    );
+    if (!res.ok) {
+      logger.error(`[Inactivity] Roles API error: ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    return data.roles || [];
+  } catch (error) {
+    logger.error('[Inactivity] Error fetching group roles:', error);
+    return [];
+  }
 }
 
 async function getCurrentRank(userId) {
@@ -124,16 +135,12 @@ export default {
   async execute(interaction) {
     const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
     if (!hasRole) {
-      return await interaction.reply({ content: '❌ You don\'t have permission to use this command.', ephemeral: true });
+      return await interaction.reply({ content: '❌ You don\'t have permission.', ephemeral: true });
     }
 
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
-      logger.warn('Inactivity interaction defer failed', {
-        userId: interaction.user.id,
-        guildId: interaction.guildId,
-        commandName: 'inactivity',
-      });
+      logger.warn('Inactivity interaction defer failed', { userId: interaction.user.id });
       return;
     }
 
@@ -143,19 +150,17 @@ export default {
       const endDate = interaction.options.getString('enddate');
       const reason = interaction.options.getString('reason');
 
-      // Obtener Roblox info desde Bloxlink
       const userInfo = await getRobloxUserInfoByDiscord(discordUser.id);
 
       if (!userInfo) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${discordUser.tag}** does not have a Roblox account linked in this server.`,
+          content: `❌ **${discordUser.tag}** does not have a Roblox account linked.`,
         });
       }
 
       const robloxId = userInfo.id;
       const robloxUsername = userInfo.username;
 
-      // Obtener rango actual
       const currentRank = await getCurrentRank(robloxId);
       if (!currentRank) {
         return await InteractionHelper.safeEditReply(interaction, {
@@ -163,35 +168,38 @@ export default {
         });
       }
 
-      // Verificar si ya está en Hiatus
+      // ✅ Verificar si ya está en el rango "❗ Abandoned"
       if (currentRank.name === HIATUS_RANK_NAME) {
         return await InteractionHelper.safeEditReply(interaction, {
           content: `⚠️ **${robloxUsername}** is already in **${HIATUS_RANK_NAME}**.`,
         });
       }
 
-      // Obtener el rango "Hiatus" por ID
+      // ✅ Buscar el rango por NOMBRE (con emoji y espacio)
       const roles = await getGroupRoles();
-      const hiatusRole = roles.find(r => r.id === HIATUS_RANK_ID);
+      const hiatusRole = roles.find(r => r.name === HIATUS_RANK_NAME);
+      
       if (!hiatusRole) {
+        logger.error(`[Inactivity] Rank "${HIATUS_RANK_NAME}" not found. Available: ${roles.map(r => r.name).join(', ')}`);
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Rank with ID ${HIATUS_RANK_ID} not found in the group.`,
+          content: `❌ Rank "${HIATUS_RANK_NAME}" not found in the group.`,
         });
       }
 
-      // Cambiar a rango Hiatus
-      const result = await setRankByRoleId(robloxId, HIATUS_RANK_ID);
+      logger.info(`[Inactivity] Found hiatus role: ${hiatusRole.name} (ID: ${hiatusRole.id})`);
+
+      // ✅ Cambiar al rango "❗ Abandoned"
+      const result = await setRankByRoleId(robloxId, hiatusRole.id);
       if (!result.success) {
         return await InteractionHelper.safeEditReply(interaction, {
           content: `❌ Failed to set rank: ${result.error}`,
         });
       }
 
-      // Guardar en el JSON
+      // Guardar en JSON
       const inactivityData = loadInactivity();
       const key = String(robloxId);
 
-      // Parsear fecha fin (MM/DD/YYYY)
       const [month, day, year] = endDate.split('/');
       const endDateObj = new Date(`${year}-${month}-${day}T23:59:59`);
       const endTimestamp = endDateObj.getTime();
@@ -211,77 +219,60 @@ export default {
           rank: currentRank.rank,
         },
         hiatusRank: {
-          id: HIATUS_RANK_ID,
-          name: HIATUS_RANK_NAME,
+          id: hiatusRole.id,
+          name: hiatusRole.name,
         },
         registeredBy: interaction.user.id,
         registeredByTag: interaction.user.tag,
         registeredAt: Date.now(),
-        status: 'active', // active, completed, cancelled, error
+        status: 'active',
       };
       saveInactivity(inactivityData);
 
       // ─── EMBEDS ────────────────────────────────────────────────────────────
 
-      // Log embed
       const logEmbed = new EmbedBuilder()
         .setTitle('🔔 Inactivity Notice')
         .setColor(0xF1C40F)
-        .setDescription(`<@${interaction.user.id}> has registered an inactivity notice for **${robloxUsername}**!`)
+        .setDescription(`**${robloxUsername}** has been placed on **${hiatusRole.name}** until **${endDate}**.`)
         .addFields(
           { name: '👤 Roblox User', value: robloxUsername, inline: true },
           { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
           { name: '📋 Discord User', value: `<@${discordUser.id}>`, inline: true },
           { name: '📊 Previous Rank', value: currentRank.name, inline: true },
-          { name: '📌 Current Rank', value: HIATUS_RANK_NAME, inline: true },
+          { name: '📌 Current Rank', value: hiatusRole.name, inline: true },
           { name: '📅 Start Date', value: startDate, inline: true },
           { name: '📅 End Date', value: endDate, inline: true },
           { name: '📝 Reason', value: reason, inline: false },
-          { name: '\u200B', value: `📋 • Remember that **${robloxUsername}** cooldown to start another inactivity notice has begun: **2 Weeks.**`, inline: false }
+          { name: '👮 Registered by', value: `<@${interaction.user.id}>`, inline: false }
         )
         .setTimestamp();
 
-      // DM embed
       const dmEmbed = new EmbedBuilder()
-        .setTitle('🚀 Inactivity Period')
+        .setTitle('🚀 Inactivity Notice')
         .setColor(0x5865F2)
-        .setDescription(`Greetings, **${robloxUsername}**! We are here to inform you that:`)
+        .setDescription(`Greetings, **${robloxUsername}**!`)
         .addFields(
-          { name: '\u200B', value: `Your inactivity has been logged and will end in **${endDate}**.`, inline: false },
-          { name: '\u200B', value: `You have been placed in **${HIATUS_RANK_NAME}** until your return.`, inline: false },
-          { name: '\u200B', value: '⚠️ • If you didn\'t request an inactivity notice, please ping a **Domain+** to correct this.', inline: false }
+          { name: '📅 End Date', value: endDate, inline: true },
+          { name: '📊 Rank', value: hiatusRole.name, inline: true },
+          { name: '📝 Reason', value: reason, inline: false },
+          { name: '\u200B', value: '⚠️ If you didn\'t request this, ping a **Domain+** to correct this.', inline: false }
         )
         .setTimestamp();
 
-      // Enviar al canal de logs
       const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
       if (logChannel) await logChannel.send({ embeds: [logEmbed] });
 
-      // Enviar DM al usuario
       try {
         await discordUser.send({ embeds: [dmEmbed] });
-      } catch {
-        await InteractionHelper.safeEditReply(interaction, {
-          content: `⚠️ Inactivity logged but couldn't send DM to <@${discordUser.id}> (they may have DMs disabled).`,
-        });
-        return;
-      }
+      } catch {}
 
-      // Respuesta de confirmación
       const confirmEmbed = createEmbed({ title: '✅ Inactivity Registered', description: null })
-        .setDescription(`Inactivity notice for **${robloxUsername}** has been registered and DM sent to <@${discordUser.id}>.`)
-        .addFields(
-          { name: 'Start Date', value: startDate, inline: true },
-          { name: 'End Date', value: endDate, inline: true },
-          { name: 'Rank', value: HIATUS_RANK_NAME, inline: true }
-        )
+        .setDescription(`**${robloxUsername}** has been placed on **${hiatusRole.name}** until **${endDate}**.`)
         .setColor(0x57F287)
         .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [confirmEmbed] });
-
-      // Iniciar el sistema de restauración automática
-      startAutoRestore(interaction.client);
 
     } catch (error) {
       logger.error('Inactivity command error:', error);
@@ -293,114 +284,3 @@ export default {
     }
   },
 };
-
-// ─── AUTO-RESTORE SYSTEM ──────────────────────────────────────────────────
-
-let restoreInterval = null;
-
-function startAutoRestore(client) {
-  if (restoreInterval) {
-    clearInterval(restoreInterval);
-    restoreInterval = null;
-  }
-
-  restoreInterval = setInterval(async () => {
-    try {
-      const inactivityData = loadInactivity();
-      const now = Date.now();
-      let changed = false;
-
-      for (const [robloxId, data] of Object.entries(inactivityData)) {
-        // Saltar si ya está completado o cancelado
-        if (data.status !== 'active') continue;
-
-        // Verificar si la fecha de fin ya pasó
-        if (now >= data.endTimestamp) {
-          logger.info(`[Inactivity] Restoring rank for ${data.robloxUsername} (${robloxId})`);
-
-          // Verificar rango actual (por si acaso)
-          const currentRank = await getCurrentRank(parseInt(robloxId));
-          
-          // Si ya está en el rango correcto, no hacer nada
-          if (currentRank && currentRank.id === data.previousRank.id) {
-            data.status = 'completed';
-            data.restoredAt = Date.now();
-            changed = true;
-            logger.info(`[Inactivity] ${data.robloxUsername} already has correct rank, marking as completed.`);
-            continue;
-          }
-
-          // Restaurar rango anterior
-          const result = await setRankByRoleId(parseInt(robloxId), data.previousRank.id);
-
-          if (result.success) {
-            // Actualizar estado
-            data.status = 'completed';
-            data.restoredAt = Date.now();
-            changed = true;
-
-            // ─── ENVIAR DM AL USUARIO ──────────────────────────────────────
-
-            try {
-              const discordUser = await client.users.fetch(data.discordId);
-              const dmEmbed = new EmbedBuilder()
-                .setTitle('✅ Inactivity Ended')
-                .setColor(0x57F287)
-                .setDescription(`Greetings, **${data.robloxUsername}**!`)
-                .addFields(
-                  { name: '📊 Your Rank', value: `**${data.previousRank.name}** has been restored!`, inline: false },
-                  { name: '📅 Inactivity Ended', value: new Date().toLocaleDateString(), inline: true },
-                  { name: '📝 Reason', value: data.reason || 'No reason provided', inline: false },
-                  { name: '\u200B', value: '🎉 Welcome back!', inline: false }
-                )
-                .setTimestamp();
-
-              await discordUser.send({ embeds: [dmEmbed] });
-              logger.info(`[Inactivity] DM sent to ${data.discordTag}`);
-
-            } catch (dmError) {
-              logger.warn(`[Inactivity] Could not send DM to ${data.discordId}:`, dmError.message);
-            }
-
-            // ─── ENVIAR LOG AL CANAL ───────────────────────────────────────
-
-            try {
-              const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
-              if (logChannel) {
-                const logEmbed = new EmbedBuilder()
-                  .setTitle('✅ Inactivity Ended')
-                  .setColor(0x57F287)
-                  .setDescription(`**${data.robloxUsername}** has returned from inactivity!`)
-                  .addFields(
-                    { name: '👤 Roblox User', value: data.robloxUsername, inline: true },
-                    { name: '🆔 Roblox ID', value: robloxId, inline: true },
-                    { name: '📋 Discord User', value: `<@${data.discordId}>`, inline: true },
-                    { name: '📊 Restored Rank', value: data.previousRank.name, inline: true },
-                    { name: '📅 Original End Date', value: data.endDate, inline: true }
-                  )
-                  .setTimestamp();
-                await logChannel.send({ embeds: [logEmbed] });
-              }
-            } catch (logError) {
-              logger.warn('[Inactivity] Could not send log:', logError.message);
-            }
-
-          } else {
-            // Si falla la restauración, marcar como error
-            data.status = 'error';
-            data.error = result.error;
-            changed = true;
-            logger.error(`[Inactivity] Failed to restore rank for ${data.robloxUsername}: ${result.error}`);
-          }
-        }
-      }
-
-      if (changed) {
-        saveInactivity(inactivityData);
-      }
-
-    } catch (error) {
-      logger.error('[Inactivity] Auto-restore error:', error);
-    }
-  }, 60000); // Revisar cada minuto
-}
