@@ -11,11 +11,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const STAFF_PATH = join(__dirname, '../../../../staff-data.json');
 
 const ALLOWED_ROLES = [
-  '1505671307335958728',
-  '1505671314210553877',
-  '1505671325144973323',
   '1505673879069393024',
   '1505673808097574912',
+  '1505671309915328713',
+  '1505671296883757158',
+  '1505671292873867544',
 ];
 
 function loadStaff() {
