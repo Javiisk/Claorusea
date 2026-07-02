@@ -1,8 +1,6 @@
-import { SlashCommandBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+import { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-
-const SUGGESTIONS_CHANNEL_ID = '1502440575171956908';
 
 const ALLOWED_ROLES = [
   '1505671318262255616',
@@ -28,9 +26,8 @@ export default {
       });
     }
 
-    // Crear modal
     const modal = new ModalBuilder()
-      .setCustomId('suggestion_create_modal')
+      .setCustomId('suggestion_create_modal') // ← Debe coincidir con el modal
       .setTitle('📝 Create Suggestion');
 
     const titleInput = new TextInputBuilder()
