@@ -56,9 +56,23 @@ export const botConfig = {
   applications: {
     // Default questions shown when someone fills out an application.
     defaultQuestions: [
-      { question: "What is your name?", required: true },
-      { question: "How old are you?", required: true },
-      { question: "Why do you want to join?", required: true },
+      { question: "What is your roblox username?", required: true },
+      { question: "Why do you want to apply here?", required: true },
+      { question: "Why you are better than the other applicants?", required: true },
+      { question: "From 1-10 how active are you?", required: true },
+      { question: "What are your disadvantage and advantages?", required: true },
+      { question: "Why should we hire you?", required: true },
+      { question: "Why shouldn't you lie to the HRs?", required: true },
+      { question: "For you, what does the staff do?", required: true },
+      { question: "What would you do if you pass the apps?", required: true },
+      { question: "What would you do if a player was trolling or being disrespectful?", required: true },
+      { question: "What would you do if a inhabitant its exploiting?", required: true },
+      { question: "What would you do if a staff its abusing?", required: true },
+      { question: "What would you do if a staff its being disrespectful?", required: true },
+      { question: "What would you do if a HR was being disrespectful or abusing of power?", required: true },
+      { question: "You accept the staff rules and that you will not abuse?", required: true },
+      { question: "Have you worked in places like this? if yes tell us where if not put N/A", required: true },
+      { question: "Any questions?", required: false },
     ],
 
     // Embed colors by application status.
