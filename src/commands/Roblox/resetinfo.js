@@ -12,7 +12,6 @@ function getWeeklyResetInfo() {
     resetDate.setDate(now.getDate() + daysUntilMonday);
     resetDate.setHours(0, 0, 0, 0);
     
-    // Calcular horas y minutos restantes
     const msUntilReset = resetDate.getTime() - now.getTime();
     const hoursUntilReset = Math.floor(msUntilReset / (1000 * 60 * 60));
     const minutesUntilReset = Math.floor((msUntilReset % (1000 * 60 * 60)) / (1000 * 60));
@@ -46,7 +45,6 @@ export default {
             const embed = new EmbedBuilder()
                 .setColor(0xF1C40F)
                 .setTitle('🔄 Weekly Shift Time Reset')
-                .setDescription('Information about when your weekly shift time resets.')
                 .addFields(
                     { name: '📅 Next Reset', value: `<t:${resetInfo.resetTimestamp}:F>`, inline: false },
                     { name: '📆 Days Until Reset', value: `\`${resetInfo.daysUntilReset} day(s)\``, inline: true },
