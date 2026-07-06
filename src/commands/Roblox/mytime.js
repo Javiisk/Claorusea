@@ -75,12 +75,11 @@ export default {
         .setDMPermission(true),
 
     async execute(interaction) {
-        await InteractionHelper.safeDefer(interaction, { ephemeral: false });
+        // ✅ Mensaje privado (ephemeral)
+        await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
         try {
             const targetUser = interaction.user;
-
-            // ─── OBTENER INFO DE ROBLOX VIA BLOXLINK ──────────────────────
 
             const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
 
@@ -93,8 +92,6 @@ export default {
             const robloxId = userInfo.id;
             const robloxUsername = userInfo.username;
 
-            // ─── OBTENER HORAS DE JUEGO ────────────────────────────────────
-
             const playtimeResult = await getPlaytimeFromDataStore(robloxId);
             
             if (!playtimeResult.success) {
@@ -103,12 +100,7 @@ export default {
                 });
             }
 
-            // ─── OBTENER RANGO ──────────────────────────────────────────────
-
             const rank = await getRobloxGroupRank(robloxId);
-
-            // ─── FORMATEAR TIEMPO ───────────────────────────────────────────
-
             const formattedTime = formatPlaytime(playtimeResult.playtime);
             const hoursDecimal = (playtimeResult.playtime / 3600).toFixed(1);
 
@@ -117,7 +109,6 @@ export default {
             const embed = new EmbedBuilder()
                 .setColor(0x5865F2)
                 .setTitle(`⏱️ ${robloxUsername}'s Weekly Shift Time`)
-                .setDescription(`Your weekly shift time and rank.`)
                 .addFields(
                     { name: '⏱️ Shift Time', value: `\`${formattedTime}\` (${hoursDecimal} hours)`, inline: false },
                     { name: '📊 Rank', value: `\`${rank}\``, inline: true },
