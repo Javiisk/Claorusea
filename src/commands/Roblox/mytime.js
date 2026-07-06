@@ -5,7 +5,7 @@ import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const UNIVERSE_ID = process.env.UNIVERSE_ID;
-const OPENCLOUD_API_KEY = process.env.OPENCLOUD_API_KEY;
+const OPENCLOUD_API_KEY = process.env.ROBLOX_API_KEY;
 
 // ─── OBTENER HORAS DE JUEGO DESDE DATASTORE ──────────────────────────────
 
@@ -66,27 +66,12 @@ function formatPlaytime(seconds) {
     }
 }
 
-function getWeeklyResetInfo() {
-    const now = new Date();
-    const day = now.getDay(); // 0 = Sunday, 1 = Monday
-    const daysUntilMonday = day === 0 ? 1 : 8 - day;
-    const resetDate = new Date(now);
-    resetDate.setDate(now.getDate() + daysUntilMonday);
-    resetDate.setHours(0, 0, 0, 0);
-    
-    return {
-        resetTime: resetDate,
-        daysUntilReset: daysUntilMonday,
-        resetTimestamp: Math.floor(resetDate.getTime() / 1000),
-    };
-}
-
 // ─── COMANDO ────────────────────────────────────────────────────────────────
 
 export default {
     data: new SlashCommandBuilder()
         .setName('mytime')
-        .setDescription('⏱️ Get your weekly shift time, rank, and Roblox ID')
+        .setDescription('⏱️ Get your weekly shift time and rank')
         .setDMPermission(true),
 
     async execute(interaction) {
@@ -122,9 +107,8 @@ export default {
 
             const rank = await getRobloxGroupRank(robloxId);
 
-            // ─── INFO DE RESET SEMANAL ─────────────────────────────────────
+            // ─── FORMATEAR TIEMPO ───────────────────────────────────────────
 
-            const resetInfo = getWeeklyResetInfo();
             const formattedTime = formatPlaytime(playtimeResult.playtime);
             const hoursDecimal = (playtimeResult.playtime / 3600).toFixed(1);
 
@@ -133,16 +117,13 @@ export default {
             const embed = new EmbedBuilder()
                 .setColor(0x5865F2)
                 .setTitle(`⏱️ ${robloxUsername}'s Weekly Shift Time`)
-                .setDescription(`Get your weekly shift time, rank, and Roblox ID.`)
+                .setDescription(`Your weekly shift time and rank.`)
                 .addFields(
                     { name: '⏱️ Shift Time', value: `\`${formattedTime}\` (${hoursDecimal} hours)`, inline: false },
                     { name: '📊 Rank', value: `\`${rank}\``, inline: true },
-                    { name: '🆔 Roblox ID', value: `\`${robloxId}\``, inline: true },
-                    { name: '👤 Discord User', value: `${targetUser}`, inline: true },
-                    { name: '🔄 Weekly Reset', value: `<t:${resetInfo.resetTimestamp}:F>`, inline: false },
-                    { name: '📅 Days Until Reset', value: `\`${resetInfo.daysUntilReset} day(s)\``, inline: true }
+                    { name: '🆔 Roblox ID', value: `\`${robloxId}\``, inline: true }
                 )
-                .setFooter({ text: 'Shift time resets every Monday at 00:00 UTC' })
+                .setFooter({ text: 'Shift time resets every Monday' })
                 .setTimestamp();
 
             await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
