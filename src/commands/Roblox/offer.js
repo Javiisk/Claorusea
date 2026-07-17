@@ -17,17 +17,49 @@ const ALLOWED_ROLES = [
   '1505673808097574912',
 ];
 
-const RANK_NAMES = [
-  'Guest', 'Losted Denizen', 'Denizen', 'Inhabitant',
-  'Irregular Inhabitant', 'Luminous Inhabitant', 'Abandoned',
-  'Untrained Encamp', 'Camp Volunteer', 'Camp Activist',
-  'Camp Aspirant', 'Camp Counselor', 'Camp Shepherd',
-  'Chalet Associate', 'Chalet Advocate', 'Chalet Chaperon',
-  'Chalet Cultivator', 'Quarter Delegate', 'Regnant Council',
-  'Regnant Evaluator', 'Regnant Regulator', 'Cabin Artisan',
-  'Cabin Meister', 'Directorial Superior', 'Directorial Confederate',
-  "Supreme's Architect", "Genesia's Prescient", 'Genesia', 'Supreme'
+// ─── RANGOS CON SU ID ────────────────────────────────────────────────────
+
+const RANK_CHOICES = [
+  { name: 'Guest', value: '0' },
+  { name: 'Losted Denizen', value: '1' },
+  { name: 'Denizen', value: '1' },
+  { name: 'Inhabitant', value: '2' },
+  { name: 'Irregular Inhabitant', value: '3' },
+  { name: 'Luminous Inhabitant', value: '4' },
+  { name: 'Abandoned', value: '5' },
+  { name: 'Untrained Encamp', value: '8' },
+  { name: 'Camp Volunteer', value: '9' },
+  { name: 'Camp Activist', value: '10' },
+  { name: 'Camp Aspirant', value: '11' },
+  { name: 'Camp Counselor', value: '12' },
+  { name: 'Camp Shepherd', value: '13' },
+  { name: 'Chalet Associate', value: '14' },
+  { name: 'Chalet Advocate', value: '15' },
+  { name: 'Chalet Chaperon', value: '16' },
+  { name: 'Chalet Cultivator', value: '17' },
+  { name: 'Quarter Delegate', value: '19' },
+  { name: 'Regnant Council', value: '20' },
+  { name: 'Regnant Evaluator', value: '21' },
+  { name: 'Regnant Regulator', value: '22' },
+  { name: 'Cabin Artisan', value: '23' },
+  { name: 'Cabin Meister', value: '24' },
+  { name: 'Directorial Superior', value: '27' },
+  { name: 'Directorial Confederate', value: '28' },
+  { name: "Supreme's Architect", value: '251' },
+  { name: "Genesia's Prescient", value: '252' },
+  { name: 'Genesia', value: '254' },
+  { name: 'Supreme', value: '255' },
 ];
+
+// Eliminar duplicados para las opciones del comando (guardar solo el primero)
+const uniqueRanks = [];
+const seen = new Set();
+for (const rank of RANK_CHOICES) {
+  if (!seen.has(rank.value)) {
+    seen.add(rank.value);
+    uniqueRanks.push(rank);
+  }
+}
 
 function loadOffers() {
   if (!existsSync(OFFERS_PATH)) {
@@ -57,9 +89,8 @@ export default {
       option.setName('rank')
         .setDescription('Rank to offer')
         .setRequired(true)
-        .addChoices(
-          ...RANK_NAMES.map(name => ({ name, value: name }))
-        ))
+        .addChoices(...uniqueRanks.map(r => ({ name: r.name, value: r.value })))
+    )
     .addStringOption(option =>
       option.setName('reason')
         .setDescription('Reason for the offer')
@@ -78,8 +109,12 @@ export default {
 
     try {
       const discordUser = interaction.options.getUser('discorduser');
-      const rank = interaction.options.getString('rank');
+      const rankId = parseInt(interaction.options.getString('rank'));
       const reason = interaction.options.getString('reason') || 'No reason provided';
+
+      // ─── OBTENER NOMBRE DEL RANGO ──────────────────────────────────────
+
+      const rankName = RANK_CHOICES.find(r => parseInt(r.value) === rankId)?.name || `Rank ${rankId}`;
 
       // ─── OBTENER INFO DE ROBLOX VIA BLOXLINK ──────────────────────────
 
@@ -105,7 +140,8 @@ export default {
         robloxUsername: robloxUsername,
         discordId: discordUser.id,
         discordTag: discordUser.tag,
-        rank: rank,
+        rankId: rankId,
+        rankName: rankName,
         reason: reason,
         offeredBy: interaction.user.id,
         offeredByTag: interaction.user.tag,
@@ -124,7 +160,8 @@ export default {
         .addFields(
           { name: '👤 Roblox User', value: robloxUsername, inline: true },
           { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
-          { name: '📊 Rank', value: rank, inline: true },
+          { name: '📊 Rank', value: rankName, inline: true },
+          { name: '🔢 Rank ID', value: `\`${rankId}\``, inline: true },
           { name: '📝 Reason', value: reason, inline: false },
           { name: '📋 Offer ID', value: `\`${offerId}\``, inline: false },
           { name: '⏳ Expires', value: `<t:${Math.floor(expiresAt / 1000)}:R>`, inline: false },
@@ -153,7 +190,8 @@ export default {
           .setDescription(`You have received a rank offer from **${interaction.user.tag}**!`)
           .addFields(
             { name: '👤 Roblox User', value: robloxUsername, inline: true },
-            { name: '📊 Rank', value: rank, inline: true },
+            { name: '📊 Rank', value: rankName, inline: true },
+            { name: '🔢 Rank ID', value: `\`${rankId}\``, inline: true },
             { name: '📝 Reason', value: reason, inline: false },
             { name: '⏳ Expires', value: `<t:${Math.floor(expiresAt / 1000)}:R>`, inline: false },
             { name: '📋 Offer ID', value: `\`${offerId}\``, inline: false },
@@ -170,10 +208,10 @@ export default {
       // ─── RESPUESTA AL STAFF ────────────────────────────────────────────
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ Offer created!\n📋 ID: \`${offerId}\`\n👤 User: ${robloxUsername}\n📊 Rank: ${rank}\n📨 DM sent to <@${discordUser.id}>\n⏳ Expires in 24 hours.\n\n📌 Accept: \`/accept ${offerId}\`\n📌 Reject: \`/reject ${offerId}\``,
+        content: `✅ Offer created!\n📋 ID: \`${offerId}\`\n👤 User: ${robloxUsername}\n📊 Rank: ${rankName}\n🔢 Rank ID: ${rankId}\n📨 DM sent to <@${discordUser.id}>\n⏳ Expires in 24 hours.\n\n📌 Accept: \`/accept ${offerId}\`\n📌 Reject: \`/reject ${offerId}\``,
       });
 
-      logger.info(`[Offer] ${interaction.user.tag} offered ${rank} to ${robloxUsername}`);
+      logger.info(`[Offer] ${interaction.user.tag} offered ${rankName} (${rankId}) to ${robloxUsername}`);
 
     } catch (error) {
       logger.error('Offer error:', error);
