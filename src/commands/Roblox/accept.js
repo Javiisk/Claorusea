@@ -8,8 +8,6 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OFFERS_PATH = join(__dirname, '../../../offers.json');
 
-// ✅ SIN ALLOWED_ROLES - Cualquier miembro del servidor puede aceptar
-
 function loadOffers() {
   if (!existsSync(OFFERS_PATH)) {
     writeFileSync(OFFERS_PATH, JSON.stringify({}));
@@ -19,16 +17,6 @@ function loadOffers() {
 
 function saveOffers(offers) {
   writeFileSync(OFFERS_PATH, JSON.stringify(offers, null, 2));
-}
-
-async function getGroupRoles() {
-  const groupId = process.env.ROBLOX_GROUP_ID;
-  const apiKey = process.env.ROBLOX_API_KEY;
-  const res = await fetch(`https://groups.roblox.com/v1/groups/${groupId}/roles`, {
-    headers: { 'x-api-key': apiKey }
-  });
-  const data = await res.json();
-  return data.roles || [];
 }
 
 async function setRankByRoleId(userId, roleId) {
@@ -81,8 +69,6 @@ export default {
         .setRequired(true)),
 
   async execute(interaction) {
-    // ✅ SIN ALLOWED_ROLES - Cualquier miembro del servidor puede aceptar
-
     await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
     try {
@@ -111,20 +97,9 @@ export default {
         });
       }
 
-      // ─── OBTENER ID DEL RANGO ──────────────────────────────────────────
+      // ─── CAMBIAR EL RANGO EN ROBLOX USANDO Rank ID ────────────────────
 
-      const roles = await getGroupRoles();
-      const role = roles.find(r => r.name === offer.rank);
-      
-      if (!role) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Rank "${offer.rank}" not found in the group.`,
-        });
-      }
-
-      // ─── CAMBIAR EL RANGO EN ROBLOX ────────────────────────────────────
-
-      const result = await setRankByRoleId(offer.robloxId, role.id);
+      const result = await setRankByRoleId(offer.robloxId, offer.rankId);
 
       if (!result.success) {
         return await InteractionHelper.safeEditReply(interaction, {
@@ -145,7 +120,7 @@ export default {
           .setDescription(`Your rank offer has been **ACCEPTED**!`)
           .addFields(
             { name: '👤 Roblox User', value: offer.robloxUsername, inline: true },
-            { name: '📊 Rank', value: offer.rank, inline: true },
+            { name: '📊 Rank', value: offer.rankName, inline: true },
             { name: '✅ Accepted by', value: interaction.user.tag, inline: true }
           )
           .setTimestamp();
@@ -155,7 +130,7 @@ export default {
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ **${offer.robloxUsername}** has been promoted to **${offer.rank}**!`,
+        content: `✅ **${offer.robloxUsername}** has been promoted to **${offer.rankName}**!`,
       });
 
       logger.info(`[Accept] ${interaction.user.tag} accepted offer ${offerId}`);
