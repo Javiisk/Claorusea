@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -8,13 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OFFERS_PATH = join(__dirname, '../../../offers.json');
 
-const ALLOWED_ROLES = [
-  '1505671307335958728',
-  '1505671314210553877',
-  '1505671325144973323',
-  '1505673879069393024',
-  '1505673808097574912',
-];
+// ✅ SIN ALLOWED_ROLES - Cualquier miembro del servidor puede rechazar
 
 function loadOffers() {
   if (!existsSync(OFFERS_PATH)) {
@@ -37,13 +31,7 @@ export default {
         .setRequired(true)),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({
-        content: '❌ You don\'t have permission.',
-        ephemeral: true,
-      });
-    }
+    // ✅ SIN ALLOWED_ROLES - Cualquier miembro del servidor puede rechazar
 
     await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
@@ -80,24 +68,23 @@ export default {
 
       try {
         const discordUser = await interaction.client.users.fetch(offer.discordId);
-        const dmEmbed = {
-          title: '❌ Rank Offer Rejected',
-          color: 0xED4245,
-          description: `Your rank offer has been **REJECTED**.`,
-          fields: [
-            { name: '👤 Roblox User', value: offer.user, inline: true },
+        const dmEmbed = new EmbedBuilder()
+          .setColor(0xED4245)
+          .setTitle('❌ Rank Offer Rejected')
+          .setDescription(`Your rank offer has been **REJECTED**.`)
+          .addFields(
+            { name: '👤 Roblox User', value: offer.robloxUsername, inline: true },
             { name: '📊 Rank', value: offer.rank, inline: true },
-            { name: '❌ Rejected by', value: interaction.user.tag, inline: true },
-          ],
-          timestamp: new Date().toISOString(),
-        };
+            { name: '❌ Rejected by', value: interaction.user.tag, inline: true }
+          )
+          .setTimestamp();
         await discordUser.send({ embeds: [dmEmbed] });
       } catch (dmError) {
         logger.warn(`[Reject] Could not DM user: ${dmError.message}`);
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `❌ Offer for **${offer.user}** (${offer.rank}) has been rejected.`,
+        content: `❌ Offer for **${offer.robloxUsername}** (${offer.rank}) has been rejected.`,
       });
 
       logger.info(`[Reject] ${interaction.user.tag} rejected offer ${offerId}`);
