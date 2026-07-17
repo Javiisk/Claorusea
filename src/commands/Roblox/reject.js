@@ -8,8 +8,6 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OFFERS_PATH = join(__dirname, '../../../offers.json');
 
-// ✅ SIN ALLOWED_ROLES - Cualquier miembro del servidor puede rechazar
-
 function loadOffers() {
   if (!existsSync(OFFERS_PATH)) {
     writeFileSync(OFFERS_PATH, JSON.stringify({}));
@@ -31,8 +29,6 @@ export default {
         .setRequired(true)),
 
   async execute(interaction) {
-    // ✅ SIN ALLOWED_ROLES - Cualquier miembro del servidor puede rechazar
-
     await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
     try {
@@ -74,7 +70,7 @@ export default {
           .setDescription(`Your rank offer has been **REJECTED**.`)
           .addFields(
             { name: '👤 Roblox User', value: offer.robloxUsername, inline: true },
-            { name: '📊 Rank', value: offer.rank, inline: true },
+            { name: '📊 Rank', value: offer.rankName, inline: true },
             { name: '❌ Rejected by', value: interaction.user.tag, inline: true }
           )
           .setTimestamp();
@@ -84,7 +80,7 @@ export default {
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `❌ Offer for **${offer.robloxUsername}** (${offer.rank}) has been rejected.`,
+        content: `❌ Offer for **${offer.robloxUsername}** (${offer.rankName}) has been rejected.`,
       });
 
       logger.info(`[Reject] ${interaction.user.tag} rejected offer ${offerId}`);
