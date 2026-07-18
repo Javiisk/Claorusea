@@ -5,6 +5,10 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
 const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
 
+// ─── CANAL DE LOGS ──────────────────────────────────────────────────────
+
+const LOG_CHANNEL_ID = '1528111897273040897';
+
 // ─── MAPA DE TABLEROS ────────────────────────────────────────────────────
 
 const BOARDS = {
@@ -63,6 +67,59 @@ async function inviteMemberToBoard(boardId, email) {
   }
 }
 
+// ─── FUNCIÓN PARA ENVIAR LOG ─────────────────────────────────────────────
+
+async function sendLog(interaction, email, results, successCount, failCount) {
+  try {
+    const channel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+    if (!channel) return;
+
+    const embed = new EmbedBuilder()
+      .setColor(successCount > 0 ? 0x57F287 : 0xED4245)
+      .setTitle('📋 Trello Invitation Log')
+      .setDescription(`**${interaction.user.tag}** used \`/jointrello\``)
+      .addFields(
+        { name: '📧 Email', value: `\`${email}\``, inline: true },
+        { name: '✅ Invited to', value: `\`${successCount}\` boards`, inline: true },
+        { name: '❌ Failed', value: `\`${failCount}\` boards`, inline: true },
+        { name: '👤 Invited by', value: `${interaction.user} (${interaction.user.id})`, inline: false }
+      )
+      .setTimestamp();
+
+    // Boards exitosos
+    const successBoards = results
+      .filter(r => r.success)
+      .map(r => r.board)
+      .join(', ');
+
+    if (successBoards) {
+      embed.addFields({
+        name: '✅ Boards Invited',
+        value: successBoards || 'None',
+        inline: false,
+      });
+    }
+
+    // Boards fallidos
+    const failBoards = results
+      .filter(r => !r.success)
+      .map(r => `- ${r.board}: ${r.error}`)
+      .join('\n');
+
+    if (failBoards) {
+      embed.addFields({
+        name: '❌ Failed Boards',
+        value: failBoards,
+        inline: false,
+      });
+    }
+
+    await channel.send({ embeds: [embed] });
+  } catch (error) {
+    logger.error('[JoinTrello] Log error:', error);
+  }
+}
+
 // ─── COMANDO ──────────────────────────────────────────────────────────────
 
 export default {
@@ -112,7 +169,11 @@ export default {
         else failCount++;
       }
 
-      // ─── CREAR EMBED DE RESPUESTA ──────────────────────────────────────
+      // ─── ENVIAR LOG AL CANAL ──────────────────────────────────────────
+
+      await sendLog(interaction, email, results, successCount, failCount);
+
+      // ─── RESPONDER AL USUARIO ──────────────────────────────────────────
 
       const embed = new EmbedBuilder()
         .setColor(successCount > 0 ? 0x57F287 : 0xED4245)
@@ -124,7 +185,6 @@ export default {
         )
         .setTimestamp();
 
-      // Lista de boards exitosos
       const successBoards = results
         .filter(r => r.success)
         .map(r => r.board)
@@ -138,7 +198,6 @@ export default {
         });
       }
 
-      // Lista de boards fallidos
       const failBoards = results
         .filter(r => !r.success)
         .map(r => `- ${r.board}: ${r.error}`)
