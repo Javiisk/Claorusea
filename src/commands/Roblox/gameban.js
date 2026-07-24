@@ -1,10 +1,12 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserByDiscord, getRobloxUsernameById } from './bloxlink.js';
 
 const UNIVERSE_ID = process.env.UNIVERSE_ID;
 const ROBLOX_API_KEY = process.env.ROBLOX_API_KEY;
+const LOG_CHANNEL_ID = '1530033235403210762';
 
 const ALLOWED_ROLES = [
   '1505671307335958728',
@@ -14,24 +16,26 @@ const ALLOWED_ROLES = [
   '1505673808097574912',
 ];
 
-// ─── FUNCIÓN PARA BANEAR CON DETECCIÓN DE ALTS ──────────────────────────
+// ─── FUNCIÓN PARA OBTENER ROBLOX USER ──────────────────────────────────
+
+async function getRobloxUser(username) {
+  try {
+    const res = await fetch('https://users.roblox.com/v1/usernames/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
+    });
+    const data = await res.json();
+    return data.data?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── FUNCIÓN PARA BANEAR ──────────────────────────────────────────────────
 
 async function banUserWithAlts(userId, durationSeconds, displayReason, privateReason) {
   try {
-    // Verificar si el usuario ya está baneado
-    const checkRes = await fetch(
-      `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/user-restrictions/${userId}`,
-      { headers: { 'x-api-key': ROBLOX_API_KEY } }
-    );
-    
-    if (checkRes.ok) {
-      const data = await checkRes.json();
-      if (data.gameJoinRestriction?.active) {
-        return { success: false, error: 'User is already banned.', alreadyBanned: true };
-      }
-    }
-
-    // Banear al usuario principal (y sus alts automáticamente)
     const url = `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/user-restrictions/${userId}`;
     
     const body = {
@@ -40,7 +44,7 @@ async function banUserWithAlts(userId, durationSeconds, displayReason, privateRe
         duration: `${durationSeconds}s`,
         displayReason: displayReason || 'Banned by staff.',
         privateReason: privateReason || 'No reason provided.',
-        excludeAltAccounts: false, // ← Esto banea automáticamente las alts
+        excludeAltAccounts: false,
       }
     };
 
@@ -60,41 +64,36 @@ async function banUserWithAlts(userId, durationSeconds, displayReason, privateRe
 
     return { success: true };
   } catch (error) {
-    logger.error('[GameBan] Error banning user:', error);
     return { success: false, error: error.message };
   }
 }
 
-// ─── FUNCIÓN PARA DESBANEAR ──────────────────────────────────────────────
+// ─── FUNCIÓN PARA ENVIAR LOG ─────────────────────────────────────────────
 
-async function unbanUser(userId) {
+async function sendLog(interaction, robloxUsername, robloxId, durationDisplay, reason, success) {
   try {
-    const url = `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/user-restrictions/${userId}`;
-    
-    const body = {
-      gameJoinRestriction: {
-        active: false,
-      }
-    };
+    const channel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+    if (!channel) return;
 
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'x-api-key': ROBLOX_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    const embed = new EmbedBuilder()
+      .setColor(success ? 0xED4245 : 0xF1C40F)
+      .setTitle(success ? '🔨 Game Ban' : '⚠️ Game Ban Failed')
+      .setDescription(success 
+        ? `✅ Successfully banned **${robloxUsername}** & all detected alts from the game!`
+        : `❌ Failed to ban **${robloxUsername}**`
+      )
+      .addFields(
+        { name: '👤 Roblox User', value: robloxUsername, inline: true },
+        { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
+        { name: '⏱️ Duration', value: `\`${durationDisplay}\``, inline: true },
+        { name: '📝 Reason', value: reason, inline: false },
+        { name: '👮 Banned by', value: `${interaction.user} (${interaction.user.tag})`, inline: true }
+      )
+      .setTimestamp();
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API error ${response.status}: ${errorText}`);
-    }
-
-    return { success: true };
+    await channel.send({ embeds: [embed] });
   } catch (error) {
-    logger.error('[GameUnban] Error unbanning user:', error);
-    return { success: false, error: error.message };
+    logger.error('[GameBan] Log error:', error);
   }
 }
 
@@ -103,10 +102,8 @@ async function unbanUser(userId) {
 function parseDuration(input) {
   const match = input.match(/^(\d+)([smhdw])$/);
   if (!match) return null;
-
   const value = parseInt(match[1]);
   const unit = match[2];
-
   switch (unit) {
     case 's': return value;
     case 'm': return value * 60;
@@ -140,16 +137,16 @@ function formatDuration(seconds) {
 export default {
   data: new SlashCommandBuilder()
     .setName('gameban')
-    .setDescription('🔨 Ban a user from the game (Staff only)')
+    .setDescription('🔨 Ban a user from the game by Roblox username (Staff only)')
     .setDMPermission(false)
-    .addUserOption(opt =>
-      opt.setName('user')
-        .setDescription('Discord user to ban')
+    .addStringOption(opt =>
+      opt.setName('robloxuser')
+        .setDescription('Roblox username to ban')
         .setRequired(true)
     )
     .addStringOption(opt =>
       opt.setName('duration')
-        .setDescription('Ban duration (e.g., 1h, 1d, 1w, permanent)')
+        .setDescription('Ban duration (1s, 10m, 2h, 3d, 1w, permanent)')
         .setRequired(true)
     )
     .addStringOption(opt =>
@@ -167,33 +164,36 @@ export default {
       });
     }
 
-    await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+    const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+    if (!deferSuccess) {
+      logger.warn('GameBan interaction defer failed', {
+        userId: interaction.user.id,
+        guildId: interaction.guildId || 'DM',
+        commandName: 'gameban',
+      });
+      return;
+    }
 
     try {
-      const targetUser = interaction.options.getUser('user');
+      const robloxUsername = interaction.options.getString('robloxuser');
       const durationInput = interaction.options.getString('duration');
       const reason = interaction.options.getString('reason');
 
-      // ─── OBTENER ROBLOX ID ──────────────────────────────────────────────
-
-      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
-
-      if (!userInfo) {
+      const roblox = await getRobloxUser(robloxUsername);
+      if (!roblox) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+          content: `❌ Roblox user **${robloxUsername}** not found.`,
         });
       }
 
-      const robloxId = userInfo.id;
-      const robloxUsername = userInfo.username;
-
-      // ─── PARSEAR DURACIÓN ───────────────────────────────────────────────
+      const robloxId = roblox.id;
+      const robloxName = roblox.name;
 
       let durationSeconds;
       let durationDisplay;
 
       if (durationInput.toLowerCase() === 'permanent') {
-        durationSeconds = 315360000; // 10 años
+        durationSeconds = 315360000;
         durationDisplay = 'permanent';
       } else {
         durationSeconds = parseDuration(durationInput);
@@ -205,8 +205,6 @@ export default {
         durationDisplay = formatDuration(durationSeconds);
       }
 
-      // ─── BANEAR ──────────────────────────────────────────────────────────
-
       const result = await banUserWithAlts(
         robloxId,
         durationSeconds,
@@ -214,27 +212,21 @@ export default {
         `Banned by ${interaction.user.tag}: ${reason}`
       );
 
+      await sendLog(interaction, robloxName, robloxId, durationDisplay, reason, result.success);
+
       if (!result.success) {
-        if (result.alreadyBanned) {
-          return await InteractionHelper.safeEditReply(interaction, {
-            content: `⚠️ **${robloxUsername}** is already banned from the game.`,
-          });
-        }
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Failed to ban **${robloxUsername}**: ${result.error}`,
+          content: `❌ Failed to ban **${robloxName}**: ${result.error}`,
         });
       }
-
-      // ─── EMBED DE CONFIRMACIÓN ──────────────────────────────────────────
 
       const embed = new EmbedBuilder()
         .setColor(0xED4245)
         .setTitle('🔨 Game Ban')
-        .setDescription(`✅ Successfully banned **${robloxUsername}** & all detected alts from the game!`)
+        .setDescription(`✅ Successfully banned **${robloxName}** & all detected alts from the game!`)
         .addFields(
-          { name: '👤 Roblox User', value: robloxUsername, inline: true },
+          { name: '👤 Roblox User', value: robloxName, inline: true },
           { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
-          { name: '📋 Discord User', value: `${targetUser}`, inline: true },
           { name: '⏱️ Duration', value: `\`${durationDisplay}\``, inline: true },
           { name: '📝 Reason', value: reason, inline: false },
           { name: '👮 Banned by', value: `${interaction.user}`, inline: true }
@@ -244,13 +236,17 @@ export default {
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
-      logger.info(`[GameBan] ${interaction.user.tag} banned ${robloxUsername} (${robloxId}) for ${durationDisplay}: ${reason}`);
+      logger.info(`[GameBan] ${interaction.user.tag} banned ${robloxName} (${robloxId}) for ${durationDisplay}: ${reason}`);
 
     } catch (error) {
-      logger.error('GameBan error:', error);
-      await InteractionHelper.safeEditReply(interaction, {
-        content: `❌ An error occurred: ${error.message}`,
-      });
+      logger.error('GameBan command error:', error);
+      try {
+        return await InteractionHelper.safeReply(interaction, {
+          content: '❌ An error occurred while banning the user.',
+        });
+      } catch (replyError) {
+        logger.error('Failed to send error reply:', replyError);
+      }
     }
   },
 };
