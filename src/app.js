@@ -1,421 +1,108 @@
 import 'dotenv/config';
 import { Client, Collection, GatewayIntentBits, REST, Routes } from 'discord.js';
-import express from 'express';
-import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import config from './config/application.js';
-import { initializeDatabase } from './utils/database.js';
-import { getGuildConfig } from './services/guildConfig.js';
-import { getServerCounters, saveServerCounters, updateCounter } from './services/serverstatsService.js';
-import { logger, startupLog, shutdownLog } from './utils/logger.js';
-import { checkBirthdays } from './services/birthdayService.js';
-import { checkGiveaways } from './services/giveawayService.js';
-import { loadCommands } from './handlers/commandLoader.js';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-class TitanBot extends Client {
-  constructor() {
-    super({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildBans,
-      ],
-    });
+// ─── CLIENTE ──────────────────────────────────────────────────────────────
 
-    this.config = config;
-    this.commands = new Collection();
-    this.events = new Collection();
-    this.buttons = new Collection();
-    this.selectMenus = new Collection();
-    this.modals = new Collection();
-    this.cooldowns = new Collection();
-    this.db = null;
-  }
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessageReactions,
+  ],
+});
 
-  async start() {
-    try {
-      startupLog('Starting TitanBot...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+client.commands = new Collection();
 
-      startupLog('Initializing database...');
-      const dbInstance = await initializeDatabase();
-      this.db = dbInstance.db;
+// ─── CARGAR COMANDOS ──────────────────────────────────────────────────────
 
-      const dbStatus = this.db.getStatus();
-      if (dbStatus.isDegraded) {
-        logger.warn('');
-        logger.warn('╔═══════════════════════════════════════════════════════╗');
-        logger.warn('║ ⚠️  DATABASE RUNNING IN DEGRADED MODE                 ║');
-        logger.warn('║                                                       ║');
-        logger.warn('║ Connection: In-Memory Storage (PostgreSQL unavailable)║');
-        logger.warn('║ Data Persistence: DISABLED - data lost on restart    ║');
-        logger.warn('║ Action Required: Fix PostgreSQL and restart bot      ║');
-        logger.warn('╚═══════════════════════════════════════════════════════╝');
-        logger.warn('');
+async function loadCommands() {
+  const commands = [];
+  const foldersPath = path.join(__dirname, 'commands');
+  const commandFolders = fs.readdirSync(foldersPath);
+
+  for (const folder of commandFolders) {
+    const commandsPath = path.join(foldersPath, folder);
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+    for (const file of commandFiles) {
+      const filePath = path.join(commandsPath, file);
+      const command = await import(`file://${filePath}`);
+      const cmd = command.default || command;
+
+      if (cmd && 'data' in cmd && 'execute' in cmd) {
+        client.commands.set(cmd.data.name, cmd);
+        commands.push(cmd.data.toJSON());
+        console.log(`✅ Comando cargado: ${cmd.data.name}`);
       } else {
-        startupLog(`✅ Database Status: ${dbStatus.connectionType} (fully operational)`);
-      }
-
-      startupLog('Starting web server...');
-      this.startWebServer();
-
-      startupLog('Loading commands...');
-      await loadCommands(this);
-      startupLog(`Commands loaded: ${this.commands.size}`);
-
-      startupLog('Loading handlers...');
-      await this.loadHandlers();
-      startupLog('Handlers loaded');
-
-      startupLog('Logging into Discord...');
-      await this.login(this.config.bot.token);
-      startupLog('Discord login successful');
-
-      // ─── REGISTRAR COMANDOS GLOBALMENTE ──────────────────────────────
-
-      startupLog('Registering global slash commands...');
-      await this.registerCommands();
-      startupLog('Global slash commands registration complete');
-
-      const databaseMode = dbStatus.isDegraded
-        ? 'Optional in-memory mode (data resets after restart)'
-        : 'Connected (persistent data enabled)';
-      const handlerSummary = `${this.buttons.size} buttons, ${this.selectMenus.size} menus, ${this.modals.size} modals`;
-      startupLog(
-        `ONLINE ✅ | ${this.commands.size} commands loaded | ${handlerSummary} | Database: ${databaseMode}`
-      );
-
-      this.setupCronJobs();
-    } catch (error) {
-      logger.error('Failed to start bot:', error);
-      process.exit(1);
-    }
-  }
-
-  // ─── REGISTRO DE COMANDOS GLOBALES ─────────────────────────────────────
-
-  async registerCommands() {
-    try {
-      const commands = [];
-      const foldersPath = path.join(__dirname, 'commands/Roblox');
-      
-      if (!fs.existsSync(foldersPath)) {
-        logger.warn(`⚠️ Folder not found: ${foldersPath}`);
-        return;
-      }
-
-      const commandFiles = fs.readdirSync(foldersPath).filter(file => file.endsWith('.js'));
-
-      for (const file of commandFiles) {
-        try {
-          const filePath = path.join(foldersPath, file);
-          const command = await import(`file://${filePath}`);
-          const cmd = command.default || command;
-          
-          if (cmd && 'data' in cmd && 'execute' in cmd) {
-            commands.push(cmd.data.toJSON());
-            logger.info(`✅ Loaded command: ${cmd.data.name} from ${file}`);
-          } else {
-            logger.warn(`⚠️ Command at ${file} is missing "data" or "execute" property.`);
-          }
-        } catch (error) {
-          logger.error(`❌ Error loading command ${file}:`, error.message);
-        }
-      }
-
-      if (commands.length === 0) {
-        logger.warn('⚠️ No commands to register.');
-        return;
-      }
-
-      const rest = new REST().setToken(this.config.bot.token);
-
-      logger.info(`🔄 Registering ${commands.length} commands GLOBALLY...`);
-
-      // ✅ COMANDOS GLOBALES (no expiran)
-      await rest.put(
-        Routes.applicationCommands(this.config.bot.clientId),
-        { body: commands }
-      );
-
-      logger.info(`✅ ${commands.length} global commands registered successfully!`);
-      logger.info('⏳ Discord may take up to 1 hour to update the command list globally.');
-    } catch (error) {
-      logger.error('❌ Error registering commands:', error);
-    }
-  }
-
-  startWebServer() {
-    const app = express();
-    const configuredPort = Number(this.config.api?.port || process.env.PORT || 3000);
-    const maxPortRetryAttempts = Number(process.env.PORT_RETRY_ATTEMPTS || 5);
-    const host = process.env.WEB_HOST || '0.0.0.0';
-    const corsOrigin = this.config.api?.cors?.origin || '*';
-
-    app.use((req, res, next) => {
-      const allowedOrigins = Array.isArray(corsOrigin) ? corsOrigin : [corsOrigin];
-      const origin = req.headers.origin;
-
-      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-        res.header('Access-Control-Allow-Origin', origin || '*');
-      }
-      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-      if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-      }
-      next();
-    });
-
-    const requestCounts = new Map();
-    const windowMs = 60000;
-    const maxRequests = this.config.api?.rateLimit?.max || 100;
-
-    app.use((req, res, next) => {
-      const ip = req.ip;
-      const now = Date.now();
-      const windowStart = now - windowMs;
-
-      if (!requestCounts.has(ip)) {
-        requestCounts.set(ip, []);
-      }
-
-      const times = requestCounts.get(ip).filter(t => t > windowStart);
-
-      if (times.length >= maxRequests) {
-        return res.status(429).json({ error: 'Too many requests' });
-      }
-
-      times.push(now);
-      requestCounts.set(ip, times);
-      next();
-    });
-
-    app.get('/health', (req, res) => {
-      const dbStatus = this.db?.getStatus?.() || { isDegraded: 'unknown' };
-      const status = {
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        database: {
-          connected: dbStatus.connectionType !== 'none',
-          degraded: dbStatus.isDegraded,
-          type: dbStatus.connectionType
-        }
-      };
-      res.status(200).json(status);
-    });
-
-    app.get('/ready', (req, res) => {
-      const dbStatus = this.db?.getStatus?.() || { isDegraded: true };
-      const isReady = this.isReady() && !dbStatus.isDegraded;
-
-      if (isReady) {
-        return res.status(200).json({
-          ready: true,
-          message: 'Bot is ready'
-        });
-      }
-
-      res.status(503).json({
-        ready: false,
-        reason: !this.isReady() ? 'Bot not Ready' : 'Database degraded'
-      });
-    });
-
-    app.get('/', (req, res) => {
-      res.status(200).json({
-        message: 'TitanBot System Online',
-        version: '2.0.0',
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    const startServer = (port, attempt = 0) => {
-      let hasStartedListening = false;
-      const server = app.listen(port, host, () => {
-        hasStartedListening = true;
-        this.webServer = server;
-        startupLog(`✅ Web Server running on ${host}:${port}`);
-        startupLog(`Health endpoint: http://localhost:${port}/health`);
-        startupLog(`Ready endpoint: http://localhost:${port}/ready`);
-      });
-
-      server.on('error', (error) => {
-        const errorCode = error?.code || 'UNKNOWN_ERROR';
-        const errorMessage = error?.message || 'Unknown server error';
-
-        if (!hasStartedListening && errorCode === 'EADDRINUSE' && attempt < maxPortRetryAttempts) {
-          const nextPort = port + 1;
-          startupLog(`Port ${port} is already in use. Trying port ${nextPort}...`);
-          setTimeout(() => startServer(nextPort, attempt + 1), 250);
-          return;
-        }
-
-        if (hasStartedListening && errorCode === 'EADDRINUSE') {
-          logger.warn(`Web server reported a duplicate bind warning on ${host}:${port}, but the bot remains online.`);
-          return;
-        }
-
-        logger.error(`❌ Web server error on port ${port} (${errorCode}): ${errorMessage}`);
-
-        if (!hasStartedListening) {
-          process.exit(1);
-        }
-      });
-    };
-
-    startServer(configuredPort, 0);
-  }
-
-  setupCronJobs() {
-    cron.schedule('0 6 * * *', () => checkBirthdays(this));
-    cron.schedule('* * * * *', () => checkGiveaways(this));
-    cron.schedule('*/15 * * * *', () => this.updateAllCounters());
-  }
-
-  async updateAllCounters() {
-    if (!this.db) {
-      logger.warn('Database not available for counter updates');
-      return;
-    }
-
-    for (const [guildId, guild] of this.guilds.cache) {
-      try {
-        const counters = await getServerCounters(this, guildId);
-        const validCounters = [];
-        const orphanedCounters = [];
-
-        for (const counter of counters) {
-          if (counter && counter.type && counter.channelId && counter.enabled !== false) {
-            const channel = guild.channels.cache.get(counter.channelId);
-            if (channel) {
-              validCounters.push(counter);
-              await updateCounter(this, guild, counter);
-            } else {
-              orphanedCounters.push(counter);
-              logger.info(`Removing orphaned counter ${counter.id} (type: ${counter.type}, deleted channel: ${counter.channelId}) from guild ${guildId}`);
-            }
-          }
-        }
-
-        if (orphanedCounters.length > 0) {
-          await saveServerCounters(this, guildId, validCounters);
-          logger.info(`Cleaned up ${orphanedCounters.length} orphaned counter(s) from guild ${guildId} during scheduled update`);
-        }
-      } catch (error) {
-        logger.error(`Error updating counters for guild ${guildId}:`, error);
+        console.log(`⚠️ ${file} no tiene "data" o "execute"`);
       }
     }
   }
 
-  async loadHandlers() {
-    const handlers = [
-      { path: 'events', type: 'default', required: true },
-      { path: 'interactions', type: 'default', required: true }
-    ];
+  return commands;
+}
 
-    for (const handler of handlers) {
-      try {
-        const module = await import(`./handlers/${handler.path}.js`);
-        const loaderFn = handler.type.startsWith('named:')
-          ? module[handler.type.split(':')[1]]
-          : module.default;
+// ─── REGISTRAR COMANDOS ──────────────────────────────────────────────────
 
-        if (typeof loaderFn === 'function') {
-          await loaderFn(this);
-          logger.info(`✅ Loaded ${handler.path}`);
-        } else {
-          throw new Error(`Invalid loader export from ${handler.path}`);
-        }
-      } catch (error) {
-        if (handler.required) {
-          logger.error(`❌ Failed to load required handler ${handler.path}:`, error.message);
-          throw error;
-        } else if (error.code !== 'MODULE_NOT_FOUND') {
-          logger.warn(`⚠️  Failed to load optional handler ${handler.path}:`, error.message);
-        }
-      }
-    }
-  }
+async function registerCommands(commands) {
+  try {
+    const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
-  async shutdown(reason = 'UNKNOWN') {
-    shutdownLog(`Bot is shutting down (${reason})...`);
-    logger.info(`\n${'='.repeat(60)}`);
-    logger.info(`🛑 Graceful Shutdown Initiated (${reason})`);
-    logger.info(`${'='.repeat(60)}`);
+    console.log(`🔄 Registrando ${commands.length} comandos...`);
 
-    try {
-      logger.info('Stopping cron jobs...');
-      cron.getTasks().forEach(task => task.stop());
-      logger.info('✅ Cron jobs stopped');
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: commands }
+    );
 
-      if (this.db && this.db.db) {
-        logger.info('Closing database connection...');
-        try {
-          if (this.db.db.pool) {
-            await this.db.db.pool.end();
-            logger.info('✅ Database connection closed');
-          }
-        } catch (error) {
-          logger.warn('Error closing database pool:', error.message);
-        }
-      }
-
-      logger.info('Destroying Discord client...');
-      if (this.isReady()) {
-        try {
-          this.destroy();
-          logger.info('✅ Discord client destroyed');
-        } catch (error) {
-          logger.warn('Discord client destroy warning (non-critical):', error.message);
-        }
-      }
-
-      logger.info('✅ Graceful shutdown complete');
-      shutdownLog('Bot stopped successfully.');
-      process.exit(0);
-    } catch (error) {
-      logger.error('Error during graceful shutdown:', error);
-      process.exit(1);
-    }
+    console.log(`✅ ${commands.length} comandos registrados correctamente!`);
+  } catch (error) {
+    console.error('❌ Error al registrar comandos:', error);
   }
 }
 
-try {
-  const bot = new TitanBot();
+// ─── EVENTOS ──────────────────────────────────────────────────────────────
 
-  const setupShutdown = () => {
-    process.on('SIGTERM', () => bot.shutdown('SIGTERM'));
-    process.on('SIGINT', () => bot.shutdown('SIGINT'));
+client.once('ready', async () => {
+  console.log(`✅ Bot conectado como ${client.user.tag}`);
 
-    process.on('uncaughtException', (error) => {
-      logger.error('Uncaught Exception:', error);
-      bot.shutdown('UNCAUGHT_EXCEPTION');
+  const commands = await loadCommands();
+  await registerCommands(commands);
+
+  console.log(`🎯 ${client.commands.size} comandos listos para usar.`);
+});
+
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const command = client.commands.get(interaction.commandName);
+
+  if (!command) {
+    return interaction.reply({
+      content: '❌ Comando no encontrado.',
+      ephemeral: true,
     });
+  }
 
-    process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-      bot.shutdown('UNHANDLED_REJECTION');
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(`❌ Error al ejecutar ${interaction.commandName}:`, error);
+    await interaction.reply({
+      content: '❌ Ocurrió un error al ejecutar el comando.',
+      ephemeral: true,
     });
-  };
+  }
+});
 
-  setupShutdown();
-  bot.start();
-} catch (error) {
-  logger.error('Fatal error during bot startup:', error);
-  process.exit(1);
-}
+// ─── LOGIN ─────────────────────────────────────────────────────────────────
 
-export default TitanBot;
+client.login(process.env.DISCORD_TOKEN);
