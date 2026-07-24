@@ -81,11 +81,11 @@ class TitanBot extends Client {
       await this.login(this.config.bot.token);
       startupLog('Discord login successful');
 
-      // ─── REGISTRAR COMANDOS AUTOMÁTICAMENTE ──────────────────────────
+      // ─── REGISTRAR COMANDOS GLOBALMENTE ──────────────────────────────
 
-      startupLog('Registering slash commands...');
+      startupLog('Registering global slash commands...');
       await this.registerCommands();
-      startupLog('Slash commands registration complete');
+      startupLog('Global slash commands registration complete');
 
       const databaseMode = dbStatus.isDegraded
         ? 'Optional in-memory mode (data resets after restart)'
@@ -102,7 +102,7 @@ class TitanBot extends Client {
     }
   }
 
-  // ─── REGISTRO DE COMANDOS (ARREGLADO) ──────────────────────────────────
+  // ─── REGISTRO DE COMANDOS GLOBALES ─────────────────────────────────────
 
   async registerCommands() {
     try {
@@ -140,16 +140,16 @@ class TitanBot extends Client {
 
       const rest = new REST().setToken(this.config.bot.token);
 
-      logger.info(`🔄 Registering ${commands.length} commands...`);
+      logger.info(`🔄 Registering ${commands.length} commands GLOBALLY...`);
 
-      // Registrar en el servidor (guild)
+      // ✅ COMANDOS GLOBALES (no expiran)
       await rest.put(
-        Routes.applicationGuildCommands(this.config.bot.clientId, this.config.bot.guildId),
+        Routes.applicationCommands(this.config.bot.clientId),
         { body: commands }
       );
 
-      logger.info(`✅ ${commands.length} guild commands registered successfully!`);
-      logger.info('⏳ Discord may take 1-2 minutes to update the command list.');
+      logger.info(`✅ ${commands.length} global commands registered successfully!`);
+      logger.info('⏳ Discord may take up to 1 hour to update the command list globally.');
     } catch (error) {
       logger.error('❌ Error registering commands:', error);
     }
