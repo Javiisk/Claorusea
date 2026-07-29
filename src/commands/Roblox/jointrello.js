@@ -8,15 +8,11 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REQUESTS_PATH = join(__dirname, '../../../trello-requests.json');
 
-// ─── CANAL DE APROBACIÓN ─────────────────────────────────────────────────
-
 const APPROVAL_CHANNEL_ID = '1528116543848710217';
-
-// ─── MAPA DE TABLEROS ────────────────────────────────────────────────────
 
 const BOARDS = {
   main: process.env.TRELLO_BOARD_ID,
-  blacklists: process.env.TRELLO_BOARD_BLACKLISTS,
+  blacklists: process.env.TRELLO_BOARD_BLACKLIST,
   dockets: process.env.TRELLO_BOARD_DOCKETS,
   event: process.env.TRELLO_BOARD_EVENT,
   mr: process.env.TRELLO_BOARD_MR,
@@ -32,8 +28,6 @@ const BOARD_NAMES = {
   staff: '👥 Staff',
 };
 
-// ─── ROLES PERMITIDOS ────────────────────────────────────────────────────
-
 const ALLOWED_ROLES = [
   '1505671307335958728',
   '1505671314210553877',
@@ -41,8 +35,6 @@ const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
 ];
-
-// ─── FUNCIONES DE ALMACENAMIENTO ────────────────────────────────────────
 
 function loadRequests() {
   if (!existsSync(REQUESTS_PATH)) {
@@ -58,8 +50,6 @@ function saveRequests(data) {
 function generateRequestId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
-
-// ─── COMANDO ──────────────────────────────────────────────────────────────
 
 export default {
   data: new SlashCommandBuilder()
@@ -86,8 +76,6 @@ export default {
     try {
       const email = interaction.options.getString('email');
 
-      // ─── VERIFICAR QUE EL EMAIL NO ESTÉ YA SOLICITADO ────────────────
-
       const requests = loadRequests();
       const existing = Object.values(requests).find(r => r.email === email && r.status === 'pending');
       if (existing) {
@@ -95,8 +83,6 @@ export default {
           content: `❌ There is already a pending request for **${email}**.`,
         });
       }
-
-      // ─── CREAR SOLICITUD ──────────────────────────────────────────────
 
       const requestId = generateRequestId();
       requests[requestId] = {
@@ -109,8 +95,6 @@ export default {
         boards: Object.keys(BOARDS),
       };
       saveRequests(requests);
-
-      // ─── ENVIAR SOLICITUD AL CANAL DE APROBACIÓN ──────────────────────
 
       const channel = await interaction.client.channels.fetch(APPROVAL_CHANNEL_ID);
       if (channel) {
