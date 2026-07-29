@@ -11,8 +11,6 @@ const WEBHOOKS_PATH = join(__dirname, '../../../trello-webhooks.json');
 const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
 const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
 
-// ─── MAPA DE TABLEROS ────────────────────────────────────────────────────
-
 const BOARDS = {
   main: process.env.TRELLO_BOARD_ID,
   blacklists: process.env.TRELLO_BOARD_BLACKLISTS,
@@ -36,8 +34,6 @@ const BOARD_CHOICES = Object.keys(BOARDS).map(key => ({
   value: key,
 }));
 
-// ─── ROLES PERMITIDOS ────────────────────────────────────────────────────
-
 const ALLOWED_ROLES = [
   '1505671307335958728',
   '1505671314210553877',
@@ -45,8 +41,6 @@ const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
 ];
-
-// ─── FUNCIONES DE TRELLO ──────────────────────────────────────────────────
 
 async function getTrelloLists(boardId) {
   const res = await fetch(
@@ -115,8 +109,6 @@ function saveWebhooks(data) {
   writeFileSync(WEBHOOKS_PATH, JSON.stringify(data, null, 2));
 }
 
-// ─── COMANDO ──────────────────────────────────────────────────────────────
-
 export default {
   data: new SlashCommandBuilder()
     .setName('trellowebhook')
@@ -169,23 +161,18 @@ export default {
     try {
       const subcommand = interaction.options.getSubcommand();
 
-      // ─── SETUP ──────────────────────────────────────────────────────────
-
       if (subcommand === 'setup') {
         const boardKey = interaction.options.getString('board');
         const channel = interaction.options.getChannel('channel');
         const boardId = getBoardId(boardKey);
         const boardName = BOARD_NAMES[boardKey] || boardKey;
 
-        // Obtener la URL del bot (Replit)
-        const botUrl = process.env.REPL_SLUG 
+        const botUrl = process.env.REPL_SLUG
           ? `https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.repl.co/trello-webhook`
           : 'https://claorusea--javielote94.replit.app/trello-webhook';
 
-        // Crear webhook en Trello
         const webhook = await createTrelloWebhook(boardId, botUrl);
 
-        // Guardar en JSON
         const webhooks = loadWebhooks();
         webhooks.push({
           id: webhook.id,
@@ -196,12 +183,6 @@ export default {
           createdBy: interaction.user.id,
         });
         saveWebhooks(webhooks);
-
-        // Crear webhook en Discord
-        const discordWebhook = await channel.createWebhook({
-          name: `Trello - ${boardName}`,
-          avatar: 'https://cdn.discordapp.com/attachments/.../trello-logo.png',
-        });
 
         const embed = new EmbedBuilder()
           .setColor(0x57F287)
@@ -219,8 +200,6 @@ export default {
 
         logger.info(`[TrelloWebhook] ${interaction.user.tag} created webhook for ${boardName}`);
       }
-
-      // ─── LIST ───────────────────────────────────────────────────────────
 
       if (subcommand === 'list') {
         const trelloWebhooks = await getTrelloWebhooks();
@@ -250,8 +229,6 @@ export default {
         await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
       }
 
-      // ─── DELETE ─────────────────────────────────────────────────────────
-
       if (subcommand === 'delete') {
         const webhookId = interaction.options.getString('webhook_id');
 
@@ -263,7 +240,6 @@ export default {
           });
         }
 
-        // Eliminar del JSON
         const webhooks = loadWebhooks();
         const updated = webhooks.filter(w => w.id !== webhookId);
         saveWebhooks(updated);
