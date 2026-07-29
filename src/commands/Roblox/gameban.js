@@ -1,8 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserByDiscord, getRobloxUsernameById } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const UNIVERSE_ID = process.env.UNIVERSE_ID;
 const ROBLOX_API_KEY = process.env.ROBLOX_API_KEY;
@@ -15,8 +14,6 @@ const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
 ];
-
-// ─── FUNCIÓN PARA OBTENER ROBLOX USER ──────────────────────────────────
 
 async function getRobloxUser(username) {
   try {
@@ -32,12 +29,10 @@ async function getRobloxUser(username) {
   }
 }
 
-// ─── FUNCIÓN PARA BANEAR ──────────────────────────────────────────────────
-
 async function banUserWithAlts(userId, durationSeconds, displayReason, privateReason) {
   try {
     const url = `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/user-restrictions/${userId}`;
-    
+
     const body = {
       gameJoinRestriction: {
         active: true,
@@ -68,8 +63,6 @@ async function banUserWithAlts(userId, durationSeconds, displayReason, privateRe
   }
 }
 
-// ─── FUNCIÓN PARA ENVIAR LOG ─────────────────────────────────────────────
-
 async function sendLog(interaction, robloxUsername, robloxId, durationDisplay, reason, success) {
   try {
     const channel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
@@ -78,7 +71,7 @@ async function sendLog(interaction, robloxUsername, robloxId, durationDisplay, r
     const embed = new EmbedBuilder()
       .setColor(success ? 0xED4245 : 0xF1C40F)
       .setTitle(success ? '🔨 Game Ban' : '⚠️ Game Ban Failed')
-      .setDescription(success 
+      .setDescription(success
         ? `✅ Successfully banned **${robloxUsername}** & all detected alts from the game!`
         : `❌ Failed to ban **${robloxUsername}**`
       )
@@ -96,8 +89,6 @@ async function sendLog(interaction, robloxUsername, robloxId, durationDisplay, r
     logger.error('[GameBan] Log error:', error);
   }
 }
-
-// ─── FUNCIÓN PARA FORMATEAR DURACIÓN ─────────────────────────────────────
 
 function parseDuration(input) {
   const match = input.match(/^(\d+)([smhdw])$/);
@@ -131,8 +122,6 @@ function formatDuration(seconds) {
     return `${seconds} second${seconds > 1 ? 's' : ''}`;
   }
 }
-
-// ─── COMANDO ──────────────────────────────────────────────────────────────
 
 export default {
   data: new SlashCommandBuilder()
