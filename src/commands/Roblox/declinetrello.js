@@ -69,15 +69,11 @@ export default {
         });
       }
 
-      // ─── ACTUALIZAR ESTADO ─────────────────────────────────────────────
-
       request.status = 'declined';
       request.declinedBy = interaction.user.id;
       request.declinedByTag = interaction.user.tag;
       request.declinedAt = Date.now();
       saveRequests(requests);
-
-      // ─── ENVIAR LOG ────────────────────────────────────────────────────
 
       const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
       if (logChannel) {
