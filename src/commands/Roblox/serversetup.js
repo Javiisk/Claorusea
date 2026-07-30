@@ -19,14 +19,13 @@ const ALLOWED_ROLES = [
   '1505673808097574912',
 ];
 
-// ─── CONFIGURACIÓN ────────────────────────────────────────────────────────
-
 function loadConfig() {
   if (!existsSync(CONFIG_PATH)) {
     writeFileSync(CONFIG_PATH, JSON.stringify({
       enabled: false,
       channelId: null,
       messageId: null,
+      interval: 60,
     }));
   }
   return JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
@@ -35,8 +34,6 @@ function loadConfig() {
 function saveConfig(data) {
   writeFileSync(CONFIG_PATH, JSON.stringify(data, null, 2));
 }
-
-// ─── FUNCIONES DE LA API ──────────────────────────────────────────────────
 
 async function getGameServers() {
   try {
@@ -66,8 +63,6 @@ async function getGameInfo() {
   }
 }
 
-// ─── GENERAR EMBED ────────────────────────────────────────────────────────
-
 async function generateEmbed() {
   const [servers, gameInfo] = await Promise.all([
     getGameServers(),
@@ -85,7 +80,6 @@ async function generateEmbed() {
   const totalPlayers = servers.reduce((sum, s) => sum + (s.playing || 0), 0);
   const maxPlayers = gameInfo.maxPlayers || 50;
 
-  // Servidores por región
   const regions = {};
   for (const server of servers) {
     const region = server.region || 'Unknown';
@@ -93,7 +87,6 @@ async function generateEmbed() {
     regions[region]++;
   }
 
-  // Servidores activos (ordenados por jugadores)
   const activeServers = servers
     .filter(s => s.playing > 0)
     .sort((a, b) => b.playing - a.playing)
@@ -110,7 +103,6 @@ async function generateEmbed() {
     )
     .setTimestamp();
 
-  // Servidores activos
   if (activeServers.length > 0) {
     const serverList = activeServers.map((s, i) =>
       `**${i + 1}.** ${s.playing}/${maxPlayers} players | ${s.id.substring(0, 8)}... | ${s.region || 'Unknown'}`
@@ -128,7 +120,6 @@ async function generateEmbed() {
     });
   }
 
-  // Regiones
   const regionSummary = Object.entries(regions)
     .map(([region, count]) => `- ${region}: ${count}`)
     .join('\n');
@@ -145,8 +136,6 @@ async function generateEmbed() {
   return embed;
 }
 
-// ─── COMANDO ──────────────────────────────────────────────────────────────
-
 export default {
   data: new SlashCommandBuilder()
     .setName('serversetup')
@@ -156,7 +145,7 @@ export default {
     .addSubcommand(sub =>
       sub
         .setName('start')
-        .setDescription('Start monitoring servers in a channel')
+        .setDescription('Start monitoring servers')
         .addChannelOption(opt =>
           opt.setName('channel')
             .setDescription('Channel to send server updates')
@@ -192,8 +181,6 @@ export default {
 
     const subcommand = interaction.options.getSubcommand();
 
-    // ─── START ─────────────────────────────────────────────────────────────
-
     if (subcommand === 'start') {
       const channel = interaction.options.getChannel('channel');
       const interval = interaction.options.getInteger('interval') || 60;
@@ -201,11 +188,9 @@ export default {
       await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
       try {
-        // Enviar el primer embed
         const embed = await generateEmbed();
         const message = await channel.send({ embeds: [embed] });
 
-        // Guardar configuración
         const config = loadConfig();
         config.enabled = true;
         config.channelId = channel.id;
@@ -213,12 +198,10 @@ export default {
         config.interval = interval;
         saveConfig(config);
 
-        // Detener intervalo anterior si existe
         if (global.serverMonitorInterval) {
           clearInterval(global.serverMonitorInterval);
         }
 
-        // Iniciar nuevo intervalo
         global.serverMonitorInterval = setInterval(async () => {
           try {
             const cfg = loadConfig();
@@ -257,8 +240,6 @@ export default {
       }
     }
 
-    // ─── STOP ──────────────────────────────────────────────────────────────
-
     if (subcommand === 'stop') {
       await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
@@ -283,8 +264,6 @@ export default {
         });
       }
     }
-
-    // ─── STATUS ────────────────────────────────────────────────────────────
 
     if (subcommand === 'status') {
       await InteractionHelper.safeDefer(interaction, { ephemeral: true });
