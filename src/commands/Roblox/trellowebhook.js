@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -114,6 +114,7 @@ export default {
     .setName('trellowebhook')
     .setDescription('🔗 Configure Trello webhooks for Discord')
     .setDMPermission(false)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(sub =>
       sub
         .setName('setup')
@@ -124,7 +125,7 @@ export default {
             .setRequired(true)
             .addChoices(...BOARD_CHOICES)
         )
-        .addStringOption(opt =>
+        .addChannelOption(opt =>
           opt.setName('channel')
             .setDescription('Discord channel for notifications')
             .setRequired(true)
