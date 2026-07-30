@@ -17,47 +17,6 @@ const ALLOWED_ROLES = [
   '1505673808097574912',
 ];
 
-const RANK_CHOICES = [
-  { name: 'Guest', value: '0' },
-  { name: 'Losted Denizen', value: '1' },
-  { name: 'Denizen', value: '1' },
-  { name: 'Inhabitant', value: '2' },
-  { name: 'Irregular Inhabitant', value: '3' },
-  { name: 'Luminous Inhabitant', value: '4' },
-  { name: 'Abandoned', value: '5' },
-  { name: 'Untrained Encamp', value: '8' },
-  { name: 'Camp Volunteer', value: '9' },
-  { name: 'Camp Activist', value: '10' },
-  { name: 'Camp Aspirant', value: '11' },
-  { name: 'Camp Counselor', value: '12' },
-  { name: 'Camp Shepherd', value: '13' },
-  { name: 'Chalet Associate', value: '14' },
-  { name: 'Chalet Advocate', value: '15' },
-  { name: 'Chalet Chaperon', value: '16' },
-  { name: 'Chalet Cultivator', value: '17' },
-  { name: 'Quarter Delegate', value: '19' },
-  { name: 'Regnant Council', value: '20' },
-  { name: 'Regnant Evaluator', value: '21' },
-  { name: 'Regnant Regulator', value: '22' },
-  { name: 'Cabin Artisan', value: '23' },
-  { name: 'Cabin Meister', value: '24' },
-  { name: 'Directorial Superior', value: '27' },
-  { name: 'Directorial Confederate', value: '28' },
-  { name: "Supreme's Architect", value: '251' },
-  { name: "Genesia's Prescient", value: '252' },
-  { name: 'Genesia', value: '254' },
-  { name: 'Supreme', value: '255' },
-];
-
-const uniqueRanks = [];
-const seen = new Set();
-for (const rank of RANK_CHOICES) {
-  if (!seen.has(rank.value)) {
-    seen.add(rank.value);
-    uniqueRanks.push(rank);
-  }
-}
-
 function loadOffers() {
   if (!existsSync(OFFERS_PATH)) {
     writeFileSync(OFFERS_PATH, JSON.stringify({}));
@@ -83,15 +42,9 @@ export default {
         .setRequired(true)
     )
     .addStringOption(option =>
-      option.setName('rank')
-        .setDescription('Rank to offer')
+      option.setName('rank_name')
+        .setDescription('Rank name to offer')
         .setRequired(true)
-        .addChoices(...uniqueRanks.map(r => ({ name: r.name, value: r.value })))
-    )
-    .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for the offer')
-        .setRequired(false)
     ),
 
   async execute(interaction) {
@@ -107,42 +60,25 @@ export default {
 
     try {
       const discordUser = interaction.options.getUser('discorduser');
-      const rankInput = interaction.options.getString('rank');
-      const reason = interaction.options.getString('reason') || 'No reason provided';
-
-      // Validar que rankInput sea un número
-      const rankId = parseInt(rankInput);
-      if (isNaN(rankId)) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Invalid rank. Please select a valid rank from the list.',
-        });
-      }
-
-      const rankName = RANK_CHOICES.find(r => parseInt(r.value) === rankId)?.name || `Rank ${rankId}`;
+      const rankName = interaction.options.getString('rank_name');
 
       const userInfo = await getRobloxUserInfoByDiscord(discordUser.id);
-
       if (!userInfo) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${discordUser.tag}** does not have a Roblox account linked in this server.`,
+          content: `❌ **${discordUser.tag}** does not have a Roblox account linked.`,
         });
       }
-
-      const robloxId = userInfo.id;
-      const robloxUsername = userInfo.username;
 
       const offerId = generateOfferId();
       const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
 
       const offers = loadOffers();
       offers[offerId] = {
-        robloxId: robloxId,
-        robloxUsername: robloxUsername,
+        robloxId: userInfo.id,
+        robloxUsername: userInfo.username,
         discordId: discordUser.id,
         discordTag: discordUser.tag,
-        rankId: rankId,
         rankName: rankName,
-        reason: reason,
         offeredBy: interaction.user.id,
         offeredByTag: interaction.user.tag,
         expiresAt: expiresAt,
@@ -154,56 +90,24 @@ export default {
       const embed = new EmbedBuilder()
         .setColor(0xF1C40F)
         .setTitle('🎯 Rank Offer Created')
-        .setDescription(`A rank offer has been created for **${robloxUsername}**!`)
+        .setDescription(`A rank offer has been created for **${userInfo.username}**!`)
         .addFields(
-          { name: '👤 Roblox User', value: robloxUsername, inline: true },
-          { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
+          { name: '👤 User', value: userInfo.username, inline: true },
           { name: '📊 Rank', value: rankName, inline: true },
-          { name: '🔢 Rank ID', value: `\`${rankId}\``, inline: true },
-          { name: '📝 Reason', value: reason, inline: false },
-          { name: '📋 Offer ID', value: `\`${offerId}\``, inline: false },
-          { name: '⏳ Expires', value: `<t:${Math.floor(expiresAt / 1000)}:R>`, inline: false },
-          { name: '👤 Offered by', value: `${interaction.user.tag}`, inline: false },
+          { name: '📋 Offer ID', value: `\`${offerId}\``, inline: true },
+          { name: '⏳ Expires', value: `<t:${Math.floor(expiresAt / 1000)}:R>`, inline: true },
           { name: '\u200B', value: `**To accept:** \`/accept ${offerId}\`\n**To reject:** \`/reject ${offerId}\``, inline: false }
         )
         .setTimestamp();
 
-      const logChannelId = '1504301603262566440';
-      const logChannel = await interaction.client.channels.fetch(logChannelId);
+      const logChannel = await interaction.client.channels.fetch('1504301603262566440');
       if (logChannel) {
-        await logChannel.send({
-          content: `<@&1513330537798959135>`,
-          embeds: [embed],
-        });
-      }
-
-      try {
-        const dmEmbed = new EmbedBuilder()
-          .setColor(0xF1C40F)
-          .setTitle('🎯 Rank Offer Received')
-          .setDescription(`You have received a rank offer from **${interaction.user.tag}**!`)
-          .addFields(
-            { name: '👤 Roblox User', value: robloxUsername, inline: true },
-            { name: '📊 Rank', value: rankName, inline: true },
-            { name: '🔢 Rank ID', value: `\`${rankId}\``, inline: true },
-            { name: '📝 Reason', value: reason, inline: false },
-            { name: '⏳ Expires', value: `<t:${Math.floor(expiresAt / 1000)}:R>`, inline: false },
-            { name: '📋 Offer ID', value: `\`${offerId}\``, inline: false },
-            { name: '\u200B', value: `**To accept:** \`/accept ${offerId}\`\n**To reject:** \`/reject ${offerId}\``, inline: false }
-          )
-          .setTimestamp();
-
-        await discordUser.send({ embeds: [dmEmbed] });
-        logger.info(`[Offer] DM sent to ${discordUser.tag}`);
-      } catch (dmError) {
-        logger.warn(`[Offer] Could not DM ${discordUser.tag}: ${dmError.message}`);
+        await logChannel.send({ embeds: [embed] });
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ Offer created!\n📋 ID: \`${offerId}\`\n👤 User: ${robloxUsername}\n📊 Rank: ${rankName}\n🔢 Rank ID: ${rankId}\n📨 DM sent to <@${discordUser.id}>\n⏳ Expires in 24 hours.\n\n📌 Accept: \`/accept ${offerId}\`\n📌 Reject: \`/reject ${offerId}\``,
+        content: `✅ Offer created!\n📋 ID: \`${offerId}\`\n👤 User: ${userInfo.username}\n📊 Rank: ${rankName}\n⏳ Expires in 24 hours.`,
       });
-
-      logger.info(`[Offer] ${interaction.user.tag} offered ${rankName} (${rankId}) to ${robloxUsername}`);
 
     } catch (error) {
       logger.error('Offer error:', error);
