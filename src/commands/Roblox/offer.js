@@ -17,8 +17,6 @@ const ALLOWED_ROLES = [
   '1505673808097574912',
 ];
 
-// ─── RANGOS CON SU ID ────────────────────────────────────────────────────
-
 const RANK_CHOICES = [
   { name: 'Guest', value: '0' },
   { name: 'Losted Denizen', value: '1' },
@@ -51,7 +49,6 @@ const RANK_CHOICES = [
   { name: 'Supreme', value: '255' },
 ];
 
-// Eliminar duplicados para las opciones del comando (guardar solo el primero)
 const uniqueRanks = [];
 const seen = new Set();
 for (const rank of RANK_CHOICES) {
@@ -94,7 +91,8 @@ export default {
     .addStringOption(option =>
       option.setName('reason')
         .setDescription('Reason for the offer')
-        .setRequired(false)),
+        .setRequired(false)
+    ),
 
   async execute(interaction) {
     const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
@@ -109,14 +107,17 @@ export default {
 
     try {
       const discordUser = interaction.options.getUser('discorduser');
-      const rankId = parseInt(interaction.options.getString('rank'));
+      const rankInput = interaction.options.getString('rank');
       const reason = interaction.options.getString('reason') || 'No reason provided';
 
-      // ─── OBTENER NOMBRE DEL RANGO ──────────────────────────────────────
+      const rankId = parseInt(rankInput);
+      if (isNaN(rankId)) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: '❌ Invalid rank. Please select a valid rank from the list.',
+        });
+      }
 
       const rankName = RANK_CHOICES.find(r => parseInt(r.value) === rankId)?.name || `Rank ${rankId}`;
-
-      // ─── OBTENER INFO DE ROBLOX VIA BLOXLINK ──────────────────────────
 
       const userInfo = await getRobloxUserInfoByDiscord(discordUser.id);
 
@@ -128,8 +129,6 @@ export default {
 
       const robloxId = userInfo.id;
       const robloxUsername = userInfo.username;
-
-      // ─── GUARDAR OFERTA ────────────────────────────────────────────────
 
       const offerId = generateOfferId();
       const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
@@ -151,8 +150,6 @@ export default {
       };
       saveOffers(offers);
 
-      // ─── CREAR EMBED ────────────────────────────────────────────────────
-
       const embed = new EmbedBuilder()
         .setColor(0xF1C40F)
         .setTitle('🎯 Rank Offer Created')
@@ -170,8 +167,6 @@ export default {
         )
         .setTimestamp();
 
-      // ─── ENVIAR AL CANAL DE LOGS ──────────────────────────────────────
-
       const logChannelId = '1504301603262566440';
       const logChannel = await interaction.client.channels.fetch(logChannelId);
       if (logChannel) {
@@ -180,8 +175,6 @@ export default {
           embeds: [embed],
         });
       }
-
-      // ─── ENVIAR DM AL USUARIO ──────────────────────────────────────────
 
       try {
         const dmEmbed = new EmbedBuilder()
@@ -204,8 +197,6 @@ export default {
       } catch (dmError) {
         logger.warn(`[Offer] Could not DM ${discordUser.tag}: ${dmError.message}`);
       }
-
-      // ─── RESPUESTA AL STAFF ────────────────────────────────────────────
 
       await InteractionHelper.safeEditReply(interaction, {
         content: `✅ Offer created!\n📋 ID: \`${offerId}\`\n👤 User: ${robloxUsername}\n📊 Rank: ${rankName}\n🔢 Rank ID: ${rankId}\n📨 DM sent to <@${discordUser.id}>\n⏳ Expires in 24 hours.\n\n📌 Accept: \`/accept ${offerId}\`\n📌 Reject: \`/reject ${offerId}\``,
