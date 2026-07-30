@@ -11,29 +11,6 @@ const WEBHOOKS_PATH = join(__dirname, '../../../trello-webhooks.json');
 const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
 const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
 
-const BOARDS = {
-  main: process.env.TRELLO_BOARD_ID,
-  blacklists: process.env.TRELLO_BOARD_BLACKLISTS,
-  dockets: process.env.TRELLO_BOARD_DOCKETS,
-  event: process.env.TRELLO_BOARD_EVENT,
-  mr: process.env.TRELLO_BOARD_MR,
-  staff: process.env.TRELLO_BOARD_STAFF,
-};
-
-const BOARD_NAMES = {
-  main: '📋 Main',
-  blacklists: '🚫 Blacklists',
-  dockets: '📄 Dockets',
-  event: '🎪 Event',
-  mr: '📝 MR',
-  staff: '👥 Staff',
-};
-
-const BOARD_CHOICES = Object.keys(BOARDS).map(key => ({
-  name: BOARD_NAMES[key] || key,
-  value: key,
-}));
-
 const ALLOWED_ROLES = [
   '1505671307335958728',
   '1505671314210553877',
@@ -41,62 +18,6 @@ const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
 ];
-
-async function getTrelloLists(boardId) {
-  const res = await fetch(
-    `https://api.trello.com/1/boards/${boardId}/lists?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`
-  );
-  return res.json();
-}
-
-async function getTrelloCards(boardId) {
-  const res = await fetch(
-    `https://api.trello.com/1/boards/${boardId}/cards?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`
-  );
-  return res.json();
-}
-
-async function createTrelloWebhook(boardId, callbackUrl) {
-  const res = await fetch(
-    `https://api.trello.com/1/webhooks?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        callbackURL: callbackUrl,
-        idModel: boardId,
-        description: 'Discord Bot Webhook',
-        active: true,
-      }),
-    }
-  );
-  return res.json();
-}
-
-async function getTrelloWebhooks() {
-  const res = await fetch(
-    `https://api.trello.com/1/tokens/${TRELLO_TOKEN}/webhooks?key=${TRELLO_API_KEY}`
-  );
-  return res.json();
-}
-
-async function deleteTrelloWebhook(webhookId) {
-  const res = await fetch(
-    `https://api.trello.com/1/webhooks/${webhookId}?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`,
-    {
-      method: 'DELETE',
-    }
-  );
-  return res.ok;
-}
-
-function getBoardId(boardKey) {
-  const id = BOARDS[boardKey];
-  if (!id) {
-    throw new Error(`Board "${boardKey}" not found. Options: ${Object.keys(BOARDS).join(', ')}`);
-  }
-  return id;
-}
 
 function loadWebhooks() {
   if (!existsSync(WEBHOOKS_PATH)) {
@@ -112,38 +33,36 @@ function saveWebhooks(data) {
 export default {
   data: new SlashCommandBuilder()
     .setName('trellowebhook')
-    .setDescription('🔗 Configure Trello webhooks for Discord')
+    .setDescription('🔗 Configure Trello webhooks')
     .setDMPermission(false)
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(sub =>
       sub
         .setName('setup')
-        .setDescription('Create a webhook for a board')
+        .setDescription('Setup a webhook')
         .addStringOption(opt =>
           opt.setName('board')
-            .setDescription('Board to monitor')
+            .setDescription('Board ID')
             .setRequired(true)
-            .addChoices(...BOARD_CHOICES)
         )
         .addChannelOption(opt =>
           opt.setName('channel')
-            .setDescription('Discord channel for notifications')
+            .setDescription('Discord channel')
             .setRequired(true)
-            .addChannelTypes(0)
         )
     )
     .addSubcommand(sub =>
       sub
         .setName('list')
-        .setDescription('List all active webhooks')
+        .setDescription('List all webhooks')
     )
     .addSubcommand(sub =>
       sub
         .setName('delete')
         .setDescription('Delete a webhook')
         .addStringOption(opt =>
-          opt.setName('webhook_id')
-            .setDescription('Webhook ID to delete')
+          opt.setName('id')
+            .setDescription('Webhook ID')
             .setRequired(true)
         )
     ),
@@ -152,109 +71,61 @@ export default {
     const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
     if (!hasRole) {
       return await interaction.reply({
-        content: '❌ You don\'t have permission to use this command.',
+        content: '❌ You don\'t have permission.',
         ephemeral: true,
       });
     }
 
-    await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+    await interaction.deferReply({ ephemeral: true });
 
     try {
       const subcommand = interaction.options.getSubcommand();
 
       if (subcommand === 'setup') {
-        const boardKey = interaction.options.getString('board');
+        const boardId = interaction.options.getString('board');
         const channel = interaction.options.getChannel('channel');
-        const boardId = getBoardId(boardKey);
-        const boardName = BOARD_NAMES[boardKey] || boardKey;
-
-        const botUrl = process.env.REPL_SLUG
-          ? `https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.repl.co/trello-webhook`
-          : 'https://claorusea--javielote94.replit.app/trello-webhook';
-
-        const webhook = await createTrelloWebhook(boardId, botUrl);
 
         const webhooks = loadWebhooks();
         webhooks.push({
-          id: webhook.id,
-          boardId: boardId,
-          boardName: boardName,
+          boardId,
           channelId: channel.id,
           createdAt: Date.now(),
-          createdBy: interaction.user.id,
         });
         saveWebhooks(webhooks);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x57F287)
-          .setTitle('✅ Trello Webhook Setup Complete')
-          .setDescription(`Webhook configured for **${boardName}**`)
-          .addFields(
-            { name: '📋 Board', value: boardName, inline: true },
-            { name: '📌 Channel', value: `${channel}`, inline: true },
-            { name: '🆔 Webhook ID', value: `\`${webhook.id}\``, inline: true },
-            { name: '🔗 Webhook URL', value: `\`${botUrl}\``, inline: false }
-          )
-          .setTimestamp();
-
-        await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-
-        logger.info(`[TrelloWebhook] ${interaction.user.tag} created webhook for ${boardName}`);
-      }
-
-      if (subcommand === 'list') {
-        const trelloWebhooks = await getTrelloWebhooks();
-        const savedWebhooks = loadWebhooks();
-
-        if (trelloWebhooks.length === 0) {
-          return await InteractionHelper.safeEditReply(interaction, {
-            content: '📭 No active webhooks found.',
-          });
-        }
-
-        const embed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle('🔗 Active Trello Webhooks')
-          .setDescription(`**${trelloWebhooks.length}** webhook(s) active.`)
-          .setTimestamp();
-
-        for (const webhook of trelloWebhooks.slice(0, 10)) {
-          const saved = savedWebhooks.find(w => w.id === webhook.id);
-          embed.addFields({
-            name: `📋 ${webhook.description || 'Webhook'}`,
-            value: `🆔 \`${webhook.id}\`\n📌 ${saved ? `<#${saved.channelId}>` : 'Unknown channel'}\n📋 Board: ${saved?.boardName || 'Unknown'}`,
-            inline: false,
-          });
-        }
-
-        await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-      }
-
-      if (subcommand === 'delete') {
-        const webhookId = interaction.options.getString('webhook_id');
-
-        const success = await deleteTrelloWebhook(webhookId);
-
-        if (!success) {
-          return await InteractionHelper.safeEditReply(interaction, {
-            content: `❌ Failed to delete webhook \`${webhookId}\`.`,
-          });
-        }
-
-        const webhooks = loadWebhooks();
-        const updated = webhooks.filter(w => w.id !== webhookId);
-        saveWebhooks(updated);
-
-        await InteractionHelper.safeEditReply(interaction, {
-          content: `✅ Webhook \`${webhookId}\` deleted successfully.`,
+        await interaction.editReply({
+          content: `✅ Webhook configured for board \`${boardId}\` in ${channel}`,
         });
-
-        logger.info(`[TrelloWebhook] ${interaction.user.tag} deleted webhook ${webhookId}`);
+      } else if (subcommand === 'list') {
+        const webhooks = loadWebhooks();
+        if (webhooks.length === 0) {
+          return await interaction.editReply({
+            content: '📭 No webhooks configured.',
+          });
+        }
+        const list = webhooks.map((w, i) => 
+          `${i + 1}. Board: \`${w.boardId}\`, Channel: <#${w.channelId}>`
+        ).join('\n');
+        await interaction.editReply({
+          content: `📋 **Webhooks:**\n${list}`,
+        });
+      } else if (subcommand === 'delete') {
+        const id = parseInt(interaction.options.getString('id')) - 1;
+        const webhooks = loadWebhooks();
+        if (id < 0 || id >= webhooks.length) {
+          return await interaction.editReply({
+            content: '❌ Invalid webhook ID.',
+          });
+        }
+        webhooks.splice(id, 1);
+        saveWebhooks(webhooks);
+        await interaction.editReply({
+          content: '✅ Webhook deleted.',
+        });
       }
-
     } catch (error) {
       logger.error('TrelloWebhook error:', error);
-      await InteractionHelper.safeEditReply(interaction, {
+      await interaction.editReply({
         content: `❌ An error occurred: ${error.message}`,
       });
     }
