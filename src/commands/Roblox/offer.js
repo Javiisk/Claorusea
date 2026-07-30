@@ -110,6 +110,7 @@ export default {
       const rankInput = interaction.options.getString('rank');
       const reason = interaction.options.getString('reason') || 'No reason provided';
 
+      // Validar que rankInput sea un número
       const rankId = parseInt(rankInput);
       if (isNaN(rankId)) {
         return await InteractionHelper.safeEditReply(interaction, {
