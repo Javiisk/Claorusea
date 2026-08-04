@@ -141,14 +141,14 @@ export default {
             .setRequired(true)
         )
         .addStringOption(opt => 
-          opt.setName('description')
-            .setDescription('Card description')
-            .setRequired(false)
-        )
-        .addStringOption(opt => 
           opt.setName('list')
             .setDescription('Destination list')
             .setRequired(true)
+        )
+        .addStringOption(opt => 
+          opt.setName('description')
+            .setDescription('Card description')
+            .setRequired(false)
         )
     )
     .addSubcommand(sub =>

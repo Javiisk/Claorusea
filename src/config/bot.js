@@ -502,14 +502,15 @@ export function validateConfig(config) {
 
   
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.POSTGRES_HOST) {
-      errors.push("PostgreSQL host is required in production (POSTGRES_HOST environment variable)");
+    const hasPgUrl = !!process.env.POSTGRES_URL;
+    if (!hasPgUrl && !process.env.POSTGRES_HOST) {
+      errors.push("PostgreSQL host is required in production (POSTGRES_HOST or POSTGRES_URL environment variable)");
     }
-    if (!process.env.POSTGRES_USER) {
-      errors.push("PostgreSQL user is required in production (POSTGRES_USER environment variable)");
+    if (!hasPgUrl && !process.env.POSTGRES_USER) {
+      errors.push("PostgreSQL user is required in production (POSTGRES_USER or POSTGRES_URL environment variable)");
     }
-    if (!process.env.POSTGRES_PASSWORD) {
-      errors.push("PostgreSQL password is required in production (POSTGRES_PASSWORD environment variable)");
+    if (!hasPgUrl && !process.env.POSTGRES_PASSWORD) {
+      errors.push("PostgreSQL password is required in production (POSTGRES_PASSWORD or POSTGRES_URL environment variable)");
     }
   }
 

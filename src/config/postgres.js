@@ -48,16 +48,21 @@ const validatedTables = Object.fromEntries(
 
 
 
+// Parse individual connection parts from POSTGRES_URL when individual vars aren't set
+const _pgUrl = process.env.POSTGRES_URL
+    ? (() => { try { return new URL(process.env.POSTGRES_URL); } catch { return null; } })()
+    : null;
+
 export const pgConfig = {
     url: process.env.POSTGRES_URL || 'postgresql://localhost:5432/titanbot',
     
     options: {
         
-        host: process.env.POSTGRES_HOST || 'localhost',
-        port: parseInt(process.env.POSTGRES_PORT) || 5432,
-        database: process.env.POSTGRES_DB || 'titanbot',
-        user: process.env.POSTGRES_USER || 'postgres',
-        password: (process.env.POSTGRES_PASSWORD || '').toString(),
+        host: process.env.POSTGRES_HOST || _pgUrl?.hostname || 'localhost',
+        port: parseInt(process.env.POSTGRES_PORT) || parseInt(_pgUrl?.port) || 5432,
+        database: process.env.POSTGRES_DB || _pgUrl?.pathname?.replace(/^\//, '') || 'titanbot',
+        user: process.env.POSTGRES_USER || _pgUrl?.username || 'postgres',
+        password: (process.env.POSTGRES_PASSWORD || _pgUrl?.password || '').toString(),
         ssl: false,
         
         

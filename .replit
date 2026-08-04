@@ -29,3 +29,30 @@ POSTGRES_RETRIES = "3"
 SCHEMA_VERSION = "1"
 SCHEMA_VERSION_LABEL = "baseline-v1"
 WEB_HOST = "0.0.0.0"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
