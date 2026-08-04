@@ -1,5 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import { createEmbed, errorEmbed, successEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
@@ -30,7 +29,7 @@ export default {
         .setName('message')
         .setDescription('The message to send')
         .setRequired(true)
-        .setMaxLength(2000)
+        .setMaxLength(4000)
     )
     .addBooleanOption(option =>
       option
@@ -66,8 +65,6 @@ export default {
       // ─── EXTRAER ID DE MENCIONES ──────────────────────────────────────
 
       let userId = userIdInput;
-
-      // Si es una mención (<@123456789> o <@!123456789>)
       const mentionMatch = userIdInput.match(/^<@!?(\d+)>$/);
       if (mentionMatch) {
         userId = mentionMatch[1];
@@ -77,7 +74,7 @@ export default {
 
       if (!/^\d{17,20}$/.test(userId)) {
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [errorEmbed('Invalid ID', 'Please provide a valid Discord User ID or @mention.')],
+          content: '❌ Invalid Discord User ID. Must be a 17-20 digit number or @mention.',
         });
       }
 
@@ -88,56 +85,62 @@ export default {
         targetUser = await interaction.client.users.fetch(userId);
       } catch {
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [errorEmbed('User Not Found', 'No user found with that ID.')],
+          content: '❌ User not found. Please check the ID.',
         });
       }
 
       if (targetUser.bot) {
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [errorEmbed('Cannot DM Bot', 'You cannot send DMs to bot accounts.')],
+          content: '❌ You cannot send DMs to bot accounts.',
         });
       }
 
-      if (message.length > 2000) {
+      if (message.length > 4000) {
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [errorEmbed('Message Too Long', 'Messages must be under 2000 characters.')],
+          content: '❌ Message is too long. Max 4000 characters.',
         });
       }
 
-      // ─── ENVIAR DM ──────────────────────────────────────────────────────
+      // ─── CONSTRUIR MENSAJE DE TEXTO ──────────────────────────────────
 
-      const dmChannel = await targetUser.createDM();
+      let dmMessage = '';
 
-      const dmEmbed = successEmbed(
-        anonymous ? 'Message from the Staff Team' : `Message from ${interaction.user.tag}`,
-        message
-      )
-        .setFooter({ text: `You cannot reply to this message. | Logger ID: ${interaction.id}` })
-        .setTimestamp();
+      if (anonymous) {
+        dmMessage = `📩 **Message from the Staff Team**\n\n${message}`;
+      } else {
+        dmMessage = `📩 **Message from ${interaction.user.tag}**\n\n${message}`;
+      }
 
-      await dmChannel.send({ embeds: [dmEmbed] });
+      dmMessage += `\n\n*You cannot reply to this message. | Logger ID: ${interaction.id}*`;
+
+      // ─── ENVIAR DM (TEXTO PLANO) ──────────────────────────────────────
+
+      try {
+        await targetUser.send(dmMessage);
+      } catch {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ Could not send DM to **${targetUser.tag}**. They may have DMs disabled.`,
+        });
+      }
 
       // ─── LOG AL CANAL ──────────────────────────────────────────────────
 
       const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
       if (logChannel) {
-        const logEmbed = new EmbedBuilder()
-          .setColor(0x57F287)
-          .setTitle('📩 DM Sent')
-          .setDescription(`Staff sent a DM to **${targetUser.tag}** (${targetUser.id})`)
-          .addFields(
-            { name: '📝 Message', value: message.substring(0, 1000), inline: false },
-            { name: '👤 Sent by', value: `${interaction.user.tag} (${interaction.user.id})`, inline: true },
-            { name: '🔒 Anonymous', value: anonymous ? '✅ Yes' : '❌ No', inline: true }
-          )
-          .setTimestamp();
-        await logChannel.send({ embeds: [logEmbed] });
+        const logMessage =
+          `📩 **DM Sent**\n` +
+          `**To:** ${targetUser.tag} (${targetUser.id})\n` +
+          `**Message:** ${message.substring(0, 1000)}\n` +
+          `**Sent by:** ${interaction.user.tag} (${interaction.user.id})\n` +
+          `**Anonymous:** ${anonymous ? '✅ Yes' : '❌ No'}`;
+
+        await logChannel.send(logMessage);
       }
 
       // ─── RESPUESTA AL STAFF ────────────────────────────────────────────
 
       await InteractionHelper.safeEditReply(interaction, {
-        embeds: [successEmbed('DM Sent', `Successfully sent a message to **${targetUser.tag}**.`)],
+        content: `✅ DM sent to **${targetUser.tag}** (${targetUser.id})`,
       });
 
       logger.info(`[DM] ${interaction.user.tag} sent DM to ${targetUser.tag} (anonymous: ${anonymous})`);
@@ -147,12 +150,12 @@ export default {
 
       if (error.code === 50007) {
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [errorEmbed('Error', `Could not send a DM to that user. They may have DMs disabled.`)],
+          content: '❌ Could not send DM. The user may have DMs disabled.',
         });
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        embeds: [errorEmbed('Error', `Failed to send DM: ${error.message}`)],
+        content: `❌ An error occurred: ${error.message}`,
       });
     }
   },
