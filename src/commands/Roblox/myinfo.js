@@ -41,7 +41,8 @@ function loadDB() {
 function getUser(username) {
   const db = loadDB();
   const key = username.toLowerCase();
-  if (!db[key]) db[key] = { username, trained: false, warnings: 0, blacklisted: false, blacklistReason: null };
+  // CAMBIO IMPORTANTE: Inicializamos 'warnings' como un array vacío [] en lugar de 0
+  if (!db[key]) db[key] = { username, trained: false, warnings: [], blacklisted: false, blacklistReason: null };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
   return db[key];
 }
@@ -49,7 +50,7 @@ function getUser(username) {
 function saveUser(username, data) {
   const db = loadDB();
   const key = username.toLowerCase();
-  db[key] = { ...(db[key] || { username, trained: false, warnings: 0 }), ...data };
+  db[key] = { ...(db[key] || { username, trained: false, warnings: [] }), ...data };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
@@ -91,7 +92,7 @@ export default {
       }
 
       const robloxId = bloxlinkData.robloxID;
-      
+
       // ✅ Obtener nombre usando bloxlink.js
       let robloxUsername = bloxlinkData.primaryAccount || null;
       if (!robloxUsername || robloxUsername === 'Unknown' || robloxUsername === 'null') {
@@ -124,7 +125,23 @@ export default {
       }
 
       const trainedText = userData.trained ? '✅ Trained' : '❌ Untrained';
-      const warningsText = userData.warnings > 0 ? `⚠️ ${userData.warnings}` : 'None';
+
+      // CAMBIO: Generar el texto de las advertencias con sus razones
+      let warningsText = 'None';
+      if (userData.warnings && userData.warnings.length > 0) {
+        // Tomamos solo las últimas 5 advertencias para que no se vea gigante el embed
+        const lastWarns = userData.warnings.slice(-5).reverse();
+        
+        warningsText = lastWarns.map(w => 
+          `⚠️ **#${w.id}** - ${w.reason} *(by ${w.moderator})*`
+        ).join('\n');
+        
+        // Si hay más de 5, avisamos
+        if (userData.warnings.length > 5) {
+          warningsText += `\n...and ${userData.warnings.length - 5} more warnings.`;
+        }
+      }
+
       const blacklistText = userData.blacklisted
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
