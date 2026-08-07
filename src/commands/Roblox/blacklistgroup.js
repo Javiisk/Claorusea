@@ -64,7 +64,7 @@ function generateBlacklistEmbed(groups) {
   return new EmbedBuilder()
     .setTitle('Adoresa Blacklisted Groups')
     .setDescription(description)
-    .setColor(0xFF0000)
+    .setColor(3F3F3F)
     .setTimestamp();
 }
 
