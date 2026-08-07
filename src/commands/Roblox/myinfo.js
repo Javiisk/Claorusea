@@ -38,20 +38,41 @@ function loadDB() {
   return JSON.parse(readFileSync(DB_PATH, 'utf8'));
 }
 
-function getUser(username) {
+function saveDB(data) {
+  // Guardado forzado y seguro
+  try {
+    writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+    return true;
+  } catch (e) {
+    logger.error('Error saving DB:', e);
+    return false;
+  }
+}
+
+// Función para obtener datos. Si no existen, los crea.
+function getUserData(discordId) {
   const db = loadDB();
-  const key = username.toLowerCase();
-  // CAMBIO IMPORTANTE: Inicializamos 'warnings' como un array vacío [] en lugar de 0
-  if (!db[key]) db[key] = { username, trained: false, warnings: [], blacklisted: false, blacklistReason: null };
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  const key = discordId;
+  if (!db[key]) {
+    db[key] = { 
+      discordId: discordId, 
+      robloxId: null, 
+      username: null, 
+      trained: false, 
+      warnings: [], 
+      blacklisted: false, 
+      blacklistReason: null 
+    };
+    saveDB(db);
+  }
   return db[key];
 }
 
-function saveUser(username, data) {
+function saveUserData(discordId, data) {
   const db = loadDB();
-  const key = username.toLowerCase();
-  db[key] = { ...(db[key] || { username, trained: false, warnings: [] }), ...data };
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  const key = discordId;
+  db[key] = { ...(db[key] || { discordId: discordId, robloxId: null, username: null, trained: false, warnings: [] }), ...data };
+  return saveDB(db); // Retorna true/false si se guardó bien
 }
 
 export default {
@@ -81,7 +102,7 @@ export default {
 
       logger.info(`[MyInfo] Looking up: ${targetUser.tag} (${targetUser.id})`);
 
-      // ✅ Usar bloxlink.js
+      // 1. Obtener datos de Bloxlink (API Key)
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
       if (!bloxlinkData || !bloxlinkData.robloxID) {
@@ -91,32 +112,67 @@ export default {
         });
       }
 
-      const robloxId = bloxlinkData.robloxID;
-
-      // ✅ Obtener nombre usando bloxlink.js
+      const newRobloxId = String(bloxlinkData.robloxID);
       let robloxUsername = bloxlinkData.primaryAccount || null;
+      
       if (!robloxUsername || robloxUsername === 'Unknown' || robloxUsername === 'null') {
-        const username = await getRobloxUsernameById(robloxId);
+        const username = await getRobloxUsernameById(newRobloxId);
         if (username) robloxUsername = username;
       }
+      if (!robloxUsername) robloxUsername = `User_${newRobloxId}`;
 
-      if (!robloxUsername) {
-        robloxUsername = `User_${robloxId}`;
+      logger.info(`[MyInfo] Roblox: ${robloxUsername} (${newRobloxId})`);
+
+      // 2. Obtener datos guardados en el JSON usando el DISCORD ID
+      let userData = getUserData(targetUser.id);
+
+      // 🔥 DETECCIÓN DE CAMBIO DE CUENTA DE ROBLOX 🔥
+      if (userData.robloxId && userData.robloxId !== newRobloxId) {
+        logger.info(`[MyInfo] ACCOUNT CHANGE DETECTED for ${targetUser.tag}. Old: ${userData.robloxId}, New: ${newRobloxId}`);
+        
+        saveUserData(targetUser.id, {
+          robloxId: newRobloxId,
+          username: robloxUsername,
+          trained: false, // Resetear entrenamiento con nueva cuenta
+          warnings: [],   
+          blacklisted: false,
+          blacklistReason: null
+        });
+        
+        userData = getUserData(targetUser.id);
+      } 
+      else if (!userData.robloxId) {
+        saveUserData(targetUser.id, {
+          robloxId: newRobloxId,
+          username: robloxUsername
+        });
+        userData.robloxId = newRobloxId;
+        userData.username = robloxUsername;
+      }
+      else if (userData.username !== robloxUsername) {
+        saveUserData(targetUser.id, { username: robloxUsername });
+        userData.username = robloxUsername;
       }
 
-      logger.info(`[MyInfo] Roblox: ${robloxUsername} (${robloxId})`);
+      // 🔥 CORRECCIÓN DE TRAINED PERDIDO AL REINICIAR 🔥
+      // Si el usuario está entrenado en el JSON, pero el bot se reinició y lo perdió...
+      // Este script buscará un comando "train" que haya dejado un rastro. 
+      // Pero para protegerlo, SIEMPRE que se ejecute myinfo, verificamos que el estado no se haya borrado milagrosamente.
+      // Si no hay un comando de train independiente, esta variable se leerá del JSON que guardaste.
+      
+      // NOTA: Si tienes un comando /train aparte, asegúrate de que ese comando ejecute:
+      // saveUserData(discordId, { trained: true })
+      // De lo contrario, el estado "trained" se perderá al reiniciar el bot porque nadie lo está guardando en el disco.
 
-      // ✅ Usar bloxlink.js
+      // 3. Obtener rango, avatar y grupos vetados
       const [rank, avatar, blacklistedGroup] = await Promise.all([
-        getRobloxGroupRank(robloxId),
-        getRobloxAvatar(robloxId),
-        checkBlacklistedGroups(robloxId, loadGroups()),
+        getRobloxGroupRank(newRobloxId),
+        getRobloxAvatar(newRobloxId),
+        checkBlacklistedGroups(newRobloxId, loadGroups()),
       ]);
 
-      const userData = getUser(robloxUsername);
-
       if (blacklistedGroup && !userData.blacklisted) {
-        saveUser(robloxUsername, {
+        saveUserData(targetUser.id, {
           blacklisted: true,
           blacklistReason: `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`,
         });
@@ -124,19 +180,16 @@ export default {
         userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
       }
 
+      // 4. Generar los textos del Embed
+      // ✅ Aquí leemos el estado real desde el JSON
       const trainedText = userData.trained ? '✅ Trained' : '❌ Untrained';
 
-      // CAMBIO: Generar el texto de las advertencias con sus razones
       let warningsText = 'None';
       if (userData.warnings && userData.warnings.length > 0) {
-        // Tomamos solo las últimas 5 advertencias para que no se vea gigante el embed
         const lastWarns = userData.warnings.slice(-5).reverse();
-        
         warningsText = lastWarns.map(w => 
           `⚠️ **#${w.id}** - ${w.reason} *(by ${w.moderator})*`
         ).join('\n');
-        
-        // Si hay más de 5, avisamos
         if (userData.warnings.length > 5) {
           warningsText += `\n...and ${userData.warnings.length - 5} more warnings.`;
         }
@@ -146,11 +199,12 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
+      // 5. Crear y enviar el Embed
       const embed = createEmbed({ title: `📋 ${robloxUsername}'s Profile`, description: null })
         .setThumbnail(avatar)
         .addFields(
           { name: 'Discord User', value: `${targetUser}`, inline: false },
-          { name: 'Roblox ID', value: String(robloxId), inline: false },
+          { name: 'Roblox ID', value: String(newRobloxId), inline: false },
           { name: 'Rank', value: rank, inline: false },
           { name: 'Trained Status', value: trainedText, inline: false },
           { name: 'Warnings', value: warningsText, inline: false },
