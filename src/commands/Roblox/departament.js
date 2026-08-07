@@ -106,28 +106,17 @@ async function handleChoose(interaction) {
       .setTitle('📋 Department Choice')
       .setDescription(
         'Greetings! Before your official HR journey begins, you are required to select a department.\n\n' +
-        'Each department handles different materials. However, in case assistance is required in the other department, ' +
-        'another department member may assist even if it is outside of their department.'
+        'For more information about each department, please check the dedicated channel.'
       )
       .addFields(
         {
           name: '👥 Staffing',
-          value:
-            'Handles anything related to staffing, including:\n' +
-            '• Weekly staff reforms (promotions, demotions, staff of the week)\n' +
-            '• Tickets and server/in-game moderation\n' +
-            '• Selecting new MR and HR team members\n' +
-            '• Primal training host for the department',
+          value: 'Select this department to join the Staffing team.',
           inline: false,
         },
         {
           name: '🎪 Outreach',
-          value:
-            'Main role is to handle staff and non-staff events, including:\n' +
-            '• Events and daily activities\n' +
-            '• Chat revives\n' +
-            '• Final say over Discord moderation\n' +
-            '• In-game promotions and community engagement',
+          value: 'Select this department to join the Outreach team.',
           inline: false,
         }
       )
@@ -141,12 +130,12 @@ async function handleChoose(interaction) {
         .addOptions(
           new StringSelectMenuOptionBuilder()
             .setLabel('👥 Staffing')
-            .setDescription('Handle staff reforms, tickets, and moderation')
+            .setDescription('Join the Staffing department')
             .setValue('Staffing')
             .setEmoji('👥'),
           new StringSelectMenuOptionBuilder()
             .setLabel('🎪 Outreach')
-            .setDescription('Handle events, activities, and community engagement')
+            .setDescription('Join the Outreach department')
             .setValue('Outreach')
             .setEmoji('🎪')
         )
@@ -170,7 +159,6 @@ async function handleChoose(interaction) {
       departments[userId] = selected;
       saveDepartments(departments);
 
-      // Asignar rol correcto
       const roleId = selected === 'Staffing' ? STAFFING_ROLE_ID : OUTREACH_ROLE_ID;
       const role = interaction.guild.roles.cache.get(roleId);
       if (role) {
@@ -333,7 +321,6 @@ async function handleReset(interaction) {
     delete departments[userId];
     saveDepartments(departments);
 
-    // Quitar rol
     const roleId = oldDept === 'Staffing' ? STAFFING_ROLE_ID : OUTREACH_ROLE_ID;
     const role = interaction.guild.roles.cache.get(roleId);
     if (role) {
