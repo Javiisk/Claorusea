@@ -106,17 +106,27 @@ async function handleChoose(interaction) {
       .setTitle('📋 Department Choice')
       .setDescription(
         'Greetings! Before your official HR journey begins, you are required to select a department.\n\n' +
-        'For more information about each department, please check the dedicated channel.'
+        'Each department handles different materials. However, in case assistance is required in the other department, ' +
+        'another department member may assist even if it is outside of their department.'
       )
       .addFields(
         {
           name: '👥 Staffing',
-          value: 'Select this department to join the Staffing team.',
+          value:
+            'The Staffing department handles anything related to **staffing**. ' +
+            'Their role is to handle the weekly **staff reforms**, including promotions, demotions and staff of the week. ' +
+            'This department also handles **tickets of any kind and server/in-game moderation**. ' +
+            'This department also handles selecting new members for the MR and HR team. ' +
+            'This department is the primal training hoster department, however a staffing department member may host one if no Supervision department member is available.',
           inline: false,
         },
         {
           name: '🎪 Outreach',
-          value: 'Select this department to join the Outreach team.',
+          value:
+            'The Outreach department main role is to handle staff and non-staff events, to ensure the community is alive. ' +
+            'They are responsible for **handling events, daily activities, and chat revives**. ' +
+            'This department has the final say over **Discord moderation**, as they do not handle reforms, you will handle **in-game promotions and supervision**. ' +
+            'This department handles welcoming new members, wherever that would be LR, MR or HR to ensure everyone feels welcomed.',
           inline: false,
         }
       )
@@ -130,12 +140,12 @@ async function handleChoose(interaction) {
         .addOptions(
           new StringSelectMenuOptionBuilder()
             .setLabel('👥 Staffing')
-            .setDescription('Join the Staffing department')
+            .setDescription('Staff reforms, tickets, moderation')
             .setValue('Staffing')
             .setEmoji('👥'),
           new StringSelectMenuOptionBuilder()
             .setLabel('🎪 Outreach')
-            .setDescription('Join the Outreach department')
+            .setDescription('Events, activities, community engagement')
             .setValue('Outreach')
             .setEmoji('🎪')
         )
