@@ -51,7 +51,7 @@ function generateBlacklistEmbed(groups) {
   });
 
   description += `\n> **All the blacklisted groups mentioned were created by Geisha except Empyreum, which was gifted to Geisha! If geisha sold you one of these you can appeal! Any other community created by a geisha will automatically be blacklisted.**\n`;
-  description += `>-# Other blacklist not owned by geisha.\n\n`;
+  description += `> -# Other blacklist not owned by geisha.\n\n`;
 
   // Bloque 2: Otros grupos
   otherGroups.forEach(g => {
@@ -59,7 +59,7 @@ function generateBlacklistEmbed(groups) {
     description += `> *${g.name}* - **${status}**\n`;
   });
 
-  description += `\n>-# Leave this communities to be able to freely play our game and its future games, note that we have a professional moderation system if detects you are evading blacklist or evading ban you will be Immediately perm banned from server, reasons of blacklists on tickets.`;
+  description += `\n> -# Leave this communities to be able to freely play our game and its future games, note that we have a professional moderation system if detects you are evading blacklist or evading ban you will be Immediately perm banned from server, reasons of blacklists on tickets.`;
 
   return new EmbedBuilder()
     .setTitle('Adoresa Blacklisted Groups')
