@@ -23,10 +23,11 @@ function loadDB() {
   return JSON.parse(readFileSync(DB_PATH, 'utf8'));
 }
 
-function saveUser(username, data) {
+// 🔥 IMPORTANTE: Guardamos usando el DISCORD ID como clave
+function saveUserData(discordId, data) {
   const db = loadDB();
-  const key = username.toLowerCase();
-  db[key] = { ...(db[key] || { username, trained: false, warnings: 0, blacklisted: false }), ...data };
+  const key = discordId;
+  db[key] = { ...(db[key] || { discordId: discordId, robloxId: null, username: null, trained: false, warnings: [], blacklisted: false, blacklistReason: null }), ...data };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
@@ -71,10 +72,18 @@ export default {
       }
 
       const robloxUsername = userInfo.username;
-      const robloxId = userInfo.id;
+      const robloxId = String(userInfo.id || userInfo.robloxID);
 
+      // 🔥 Guardamos usando el Discord ID, y actualizamos el Roblox ID y nombre
       if (!reason) {
-        saveUser(robloxUsername, { blacklisted: false, blacklistReason: null });
+        // QUITAR BLACKLIST
+        saveUserData(targetUser.id, { 
+          blacklisted: false, 
+          blacklistReason: null,
+          robloxId: robloxId,
+          username: robloxUsername
+        });
+        
         const embed = createEmbed({ title: '✅ Blacklist Removed', description: null })
           .setDescription(`**${robloxUsername}** has been removed from the blacklist.`)
           .addFields(
@@ -86,7 +95,14 @@ export default {
         return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
       }
 
-      saveUser(robloxUsername, { blacklisted: true, blacklistReason: reason });
+      // PONER BLACKLIST
+      saveUserData(targetUser.id, { 
+        blacklisted: true, 
+        blacklistReason: reason,
+        robloxId: robloxId,
+        username: robloxUsername
+      });
+
       const embed = createEmbed({ title: '🚫 User Blacklisted', description: null })
         .setDescription(`**${robloxUsername}** has been blacklisted.\n**Reason:** ${reason}`)
         .addFields(
