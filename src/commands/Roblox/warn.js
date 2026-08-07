@@ -56,24 +56,30 @@ export default {
         });
       }
 
-      const robloxId = bloxlinkData.robloxID;
+      const robloxId = String(bloxlinkData.robloxID);
       const robloxUsername = bloxlinkData.primaryAccount || `User_${robloxId}`;
 
+      // Cargar la base de datos usando el DISCORD ID como clave
       const db = loadDB();
-      const key = robloxUsername.toLowerCase();
+      const key = targetUser.id; // <-- CAMBIO: Usamos el Discord ID
 
-      // Si no existe, creamos el objeto con un array vacío de warnings
       if (!db[key]) {
         db[key] = { 
+          discordId: targetUser.id,
+          robloxId: robloxId,
           username: robloxUsername, 
           trained: false, 
-          warnings: [], // <-- CAMBIO: ahora es un array
+          warnings: [], 
           blacklisted: false, 
           blacklistReason: null 
         };
+      } else {
+        // Asegurarnos de que el Roblox ID en el JSON coincida con el actual
+        db[key].robloxId = robloxId;
+        db[key].username = robloxUsername;
       }
 
-      // Agregamos la nueva advertencia al array
+      // Agregar la nueva advertencia al array
       const newWarn = {
         id: db[key].warnings.length + 1,
         reason: reason,
