@@ -23,10 +23,11 @@ function loadDB() {
   return JSON.parse(readFileSync(DB_PATH, 'utf8'));
 }
 
-function saveUser(username, data) {
+// 🔥 IMPORTANTE: Ahora guardamos usando el DISCORD ID como clave
+function saveUserData(discordId, data) {
   const db = loadDB();
-  const key = username.toLowerCase();
-  db[key] = { ...(db[key] || { username, trained: false, warnings: 0, blacklisted: false }), ...data };
+  const key = discordId; // Usamos el Discord ID directamente
+  db[key] = { ...(db[key] || { discordId: discordId, robloxId: null, username: null, trained: false, warnings: [], blacklisted: false, blacklistReason: null }), ...data };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
@@ -64,8 +65,14 @@ export default {
       }
 
       const robloxUsername = userInfo.username;
+      const robloxId = String(userInfo.id || userInfo.robloxID); // Asegurarnos de tener el ID
 
-      saveUser(robloxUsername, { trained: true });
+      // 🔥 Guardamos usando el Discord ID, y actualizamos también el Roblox ID y nombre
+      saveUserData(targetUser.id, { 
+        trained: true, 
+        robloxId: robloxId, 
+        username: robloxUsername 
+      });
 
       const embed = createEmbed({ title: '✅ User Trained', description: null })
         .setDescription(`**${robloxUsername}** (${targetUser.tag}) has been marked as **Trained**.`)
