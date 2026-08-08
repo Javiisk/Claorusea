@@ -11,7 +11,7 @@ import {
   getRobloxGroupRank,
   getRobloxAvatar,
   checkBlacklistedGroups
-} from './bloxlink.js';
+} from '../../utils/bloxlink.js';  // ✅ CORREGIDO
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
@@ -37,7 +37,6 @@ function loadDB() {
 }
 
 function saveDB(data) {
-  // Guardado forzado y seguro
   try {
     writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
     return true;
@@ -47,7 +46,6 @@ function saveDB(data) {
   }
 }
 
-// Función para obtener datos. Si no existen, los crea.
 function getUserData(discordId) {
   const db = loadDB();
   const key = discordId;
@@ -70,7 +68,7 @@ function saveUserData(discordId, data) {
   const db = loadDB();
   const key = discordId;
   db[key] = { ...(db[key] || { discordId: discordId, robloxId: null, username: null, trained: false, warnings: [] }), ...data };
-  return saveDB(db); // Retorna true/false si se guardó bien
+  return saveDB(db);
 }
 
 export default {
@@ -100,7 +98,6 @@ export default {
 
       logger.info(`[MyInfo] Looking up: ${targetUser.tag} (${targetUser.id})`);
 
-      // 1. Obtener datos de Bloxlink (API Key)
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
       if (!bloxlinkData || !bloxlinkData.robloxID) {
@@ -112,7 +109,7 @@ export default {
 
       const newRobloxId = String(bloxlinkData.robloxID);
       let robloxUsername = bloxlinkData.primaryAccount || null;
-      
+
       if (!robloxUsername || robloxUsername === 'Unknown' || robloxUsername === 'null') {
         const username = await getRobloxUsernameById(newRobloxId);
         if (username) robloxUsername = username;
@@ -121,22 +118,20 @@ export default {
 
       logger.info(`[MyInfo] Roblox: ${robloxUsername} (${newRobloxId})`);
 
-      // 2. Obtener datos guardados en el JSON usando el DISCORD ID
       let userData = getUserData(targetUser.id);
 
-      // 🔥 DETECCIÓN DE CAMBIO DE CUENTA DE ROBLOX 🔥
       if (userData.robloxId && userData.robloxId !== newRobloxId) {
         logger.info(`[MyInfo] ACCOUNT CHANGE DETECTED for ${targetUser.tag}. Old: ${userData.robloxId}, New: ${newRobloxId}`);
-        
+
         saveUserData(targetUser.id, {
           robloxId: newRobloxId,
           username: robloxUsername,
-          trained: false, // Resetear entrenamiento con nueva cuenta
+          trained: false,
           warnings: [],   
           blacklisted: false,
           blacklistReason: null
         });
-        
+
         userData = getUserData(targetUser.id);
       } 
       else if (!userData.robloxId) {
@@ -152,17 +147,6 @@ export default {
         userData.username = robloxUsername;
       }
 
-      // 🔥 CORRECCIÓN DE TRAINED PERDIDO AL REINICIAR 🔥
-      // Si el usuario está entrenado en el JSON, pero el bot se reinició y lo perdió...
-      // Este script buscará un comando "train" que haya dejado un rastro. 
-      // Pero para protegerlo, SIEMPRE que se ejecute myinfo, verificamos que el estado no se haya borrado milagrosamente.
-      // Si no hay un comando de train independiente, esta variable se leerá del JSON que guardaste.
-      
-      // NOTA: Si tienes un comando /train aparte, asegúrate de que ese comando ejecute:
-      // saveUserData(discordId, { trained: true })
-      // De lo contrario, el estado "trained" se perderá al reiniciar el bot porque nadie lo está guardando en el disco.
-
-      // 3. Obtener rango, avatar y grupos vetados
       const [rank, avatar, blacklistedGroup] = await Promise.all([
         getRobloxGroupRank(newRobloxId),
         getRobloxAvatar(newRobloxId),
@@ -178,8 +162,6 @@ export default {
         userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
       }
 
-      // 4. Generar los textos del Embed
-      // ✅ Aquí leemos el estado real desde el JSON
       const trainedText = userData.trained ? '✅ Trained' : '❌ Untrained';
 
       let warningsText = 'None';
@@ -197,7 +179,6 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // 5. Crear y enviar el Embed
       const embed = createEmbed({ title: `📋 ${robloxUsername}'s Profile`, description: null })
         .setThumbnail(avatar)
         .addFields(
