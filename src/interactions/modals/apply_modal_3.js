@@ -1,7 +1,6 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-
-const tempAnswers = new Map();
+import { tempAnswers } from '../../utils/applicationStore.js';
 
 export default {
   customId: 'apply_modal_3',
@@ -25,7 +24,6 @@ export default {
         .setCustomId('apply_modal_4')
         .setTitle('📋 Staff Application (4/4)');
 
-      // 16. Accept staff rules & no abuse?
       const q16 = new TextInputBuilder()
         .setCustomId('q16_rules')
         .setLabel('16. Accept staff rules & no abuse?')
@@ -33,7 +31,6 @@ export default {
         .setRequired(true)
         .setPlaceholder('Yes / No');
 
-      // 17. Example of announcements?
       const q17 = new TextInputBuilder()
         .setCustomId('q17_announcements')
         .setLabel('17. Example of announcements?')
@@ -42,7 +39,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 18. What is this work for you?
       const q18 = new TextInputBuilder()
         .setCustomId('q18_work_meaning')
         .setLabel('18. What is this work for you?')
@@ -51,7 +47,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 19. Worked in similar places?
       const q19 = new TextInputBuilder()
         .setCustomId('q19_previous_work')
         .setLabel('19. Worked in similar places?')
@@ -59,7 +54,6 @@ export default {
         .setRequired(true)
         .setPlaceholder('Yes / No');
 
-      // 20. Which communities? (N/A if no)
       const q20 = new TextInputBuilder()
         .setCustomId('q20_communities')
         .setLabel('20. Which communities? (N/A if no)')
@@ -68,7 +62,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(500);
 
-      // 21. Questions before submitting?
       const q21 = new TextInputBuilder()
         .setCustomId('q21_questions')
         .setLabel('21. Questions before submitting?')
