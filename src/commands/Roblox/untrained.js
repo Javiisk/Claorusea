@@ -5,7 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
@@ -23,10 +23,9 @@ function loadDB() {
   return JSON.parse(readFileSync(DB_PATH, 'utf8'));
 }
 
-// 🔥 IMPORTANTE: Ahora guardamos usando el DISCORD ID como clave
 function saveUserData(discordId, data) {
   const db = loadDB();
-  const key = discordId; // Usamos el Discord ID directamente
+  const key = discordId;
   db[key] = { ...(db[key] || { discordId: discordId, robloxId: null, username: null, trained: false, warnings: [], blacklisted: false, blacklistReason: null }), ...data };
   writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
@@ -67,7 +66,6 @@ export default {
       const robloxUsername = userInfo.username;
       const robloxId = String(userInfo.id || userInfo.robloxID);
 
-      // 🔥 Guardamos usando el Discord ID, y actualizamos también el Roblox ID y nombre
       saveUserData(targetUser.id, { 
         trained: false, 
         robloxId: robloxId, 
