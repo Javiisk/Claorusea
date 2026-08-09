@@ -9,12 +9,14 @@ export default {
 
   async execute(interaction) {
     try {
+      // ✅ PRIMERO: Deferir la respuesta para ganar tiempo
+      await interaction.deferReply({ ephemeral: true });
+
       // Verificar si el usuario tiene Roblox vinculado
       const userInfo = await getRobloxUserInfoByDiscord(interaction.user.id);
       if (!userInfo) {
-        return await interaction.reply({
+        return await interaction.editReply({
           content: '❌ You need to have a Roblox account linked in this server to apply.',
-          ephemeral: true,
         });
       }
 
@@ -71,14 +73,21 @@ export default {
 
       modal.addComponents(row1, row2, row3, row4, row5);
 
+      // ✅ Mostrar el modal (reemplaza la respuesta deferida)
       await interaction.showModal(modal);
 
     } catch (error) {
       logger.error('Apply command error:', error);
-      await interaction.reply({
-        content: `❌ An error occurred: ${error.message}`,
-        ephemeral: true,
-      });
+      try {
+        await interaction.editReply({
+          content: `❌ An error occurred: ${error.message}`,
+        });
+      } catch {
+        await interaction.reply({
+          content: `❌ An error occurred: ${error.message}`,
+          ephemeral: true,
+        });
+      }
     }
   },
 };
