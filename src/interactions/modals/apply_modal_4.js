@@ -1,6 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 import { tempAnswers, clearApplication } from '../../utils/applicationStore.js';
 
 const APPLICATIONS_CHANNEL_ID = process.env.APPLICATIONS_CHANNEL_ID || '1504301603262566440';
@@ -29,15 +28,12 @@ export default {
       const allAnswers = tempAnswers.get(interaction.user.id) || {};
       Object.assign(allAnswers, answers4);
 
-      const userInfo = await getRobloxUserInfoByDiscord(interaction.user.id);
-
       const embed = new EmbedBuilder()
         .setColor(0xF1C40F)
         .setTitle('📋 Staff Application')
         .addFields(
           { name: '👤 Applicant', value: `${interaction.user} (${interaction.user.id})`, inline: false },
           { name: '🎮 Roblox Username', value: allAnswers.q1 || 'Not provided', inline: true },
-          { name: '🆔 Roblox ID', value: userInfo?.id ? String(userInfo.id) : 'Not linked', inline: true },
           { name: '\u200B', value: '\u200B', inline: false },
           { name: '2. Why apply?', value: allAnswers.q2 || 'Not provided', inline: false },
           { name: '3. Why better than others?', value: allAnswers.q3 || 'Not provided', inline: false },
@@ -82,10 +78,12 @@ export default {
 
     } catch (error) {
       logger.error('Apply final modal error:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while submitting your application.',
-        ephemeral: true,
-      });
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: '❌ An error occurred while submitting your application.',
+          ephemeral: true,
+        });
+      }
     }
   },
 };
