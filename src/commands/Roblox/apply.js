@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 
 export default {
