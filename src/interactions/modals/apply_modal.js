@@ -1,7 +1,6 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-
-const tempAnswers = new Map();
+import { tempAnswers } from '../../utils/applicationStore.js';
 
 export default {
   customId: 'apply_modal',
@@ -23,7 +22,6 @@ export default {
         .setCustomId('apply_modal_2')
         .setTitle('📋 Staff Application (2/4)');
 
-      // 6. Why should we hire you?
       const q6 = new TextInputBuilder()
         .setCustomId('q6_hire')
         .setLabel('6. Why should we hire you?')
@@ -32,7 +30,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 7. Why not lie to high ranks?
       const q7 = new TextInputBuilder()
         .setCustomId('q7_lie')
         .setLabel('7. Why not lie to high ranks?')
@@ -41,7 +38,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 8. What does staff do for you?
       const q8 = new TextInputBuilder()
         .setCustomId('q8_staff_role')
         .setLabel('8. What does staff do for you?')
@@ -50,7 +46,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 9. What if you don't pass?
       const q9 = new TextInputBuilder()
         .setCustomId('q9_not_pass')
         .setLabel('9. What if you don\'t pass?')
@@ -59,7 +54,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 10. What after passing?
       const q10 = new TextInputBuilder()
         .setCustomId('q10_after_pass')
         .setLabel('10. What after passing?')
