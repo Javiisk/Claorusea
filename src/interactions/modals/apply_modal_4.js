@@ -1,9 +1,9 @@
 import { EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
+import { tempAnswers, clearApplication } from '../../utils/applicationStore.js';
 
 const APPLICATIONS_CHANNEL_ID = process.env.APPLICATIONS_CHANNEL_ID || '1504301603262566440';
-const tempAnswers = new Map();
 
 export default {
   customId: 'apply_modal_4',
@@ -48,7 +48,7 @@ export default {
           { name: '8. What staff does?', value: allAnswers.q8 || 'Not provided', inline: false },
           { name: '9. If you don\'t pass?', value: allAnswers.q9 || 'Not provided', inline: false },
           { name: '10. After passing?', value: allAnswers.q10 || 'Not provided', inline: false },
-          { name: '11. Trolling player?', value: allAnswers.q11 || 'Not provided', inline: false },
+          { name: '11. Player trolling/disrespectful?', value: allAnswers.q11 || 'Not provided', inline: false },
           { name: '12. Exploits?', value: allAnswers.q12 || 'Not provided', inline: false },
           { name: '13. Staff abuse?', value: allAnswers.q13 || 'Not provided', inline: false },
           { name: '14. Staff disrespect?', value: allAnswers.q14 || 'Not provided', inline: false },
@@ -71,7 +71,8 @@ export default {
         });
       }
 
-      tempAnswers.delete(interaction.user.id);
+      // ✅ Limpiar datos temporales
+      clearApplication(interaction.user.id);
 
       await interaction.reply({
         content: '✅ Your staff application has been submitted successfully!\n\n📌 Staff will review your application shortly.',
