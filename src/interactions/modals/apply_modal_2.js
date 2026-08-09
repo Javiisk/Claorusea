@@ -76,10 +76,12 @@ export default {
 
     } catch (error) {
       logger.error('Apply modal 2 error:', error);
-      await interaction.reply({
-        content: '❌ An error occurred.',
-        ephemeral: true,
-      });
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: '❌ An error occurred.',
+          ephemeral: true,
+        });
+      }
     }
   },
 };
