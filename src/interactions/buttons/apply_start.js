@@ -1,11 +1,16 @@
+// src/interactions/buttons/apply_start/apply_start.js
+
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
-import { logger } from '../../utils/logger.js';
-import { tempAnswers } from '../../utils/applicationStore.js';
+import { logger } from '../../../utils/logger.js';
+import { tempAnswers } from '../../../utils/applicationStore.js';
 
 export default {
   customId: 'apply_start',
   async execute(interaction) {
     try {
+      // Deferir la respuesta del botón
+      await interaction.deferReply({ ephemeral: true });
+
       // Limpiar respuestas anteriores
       tempAnswers.delete(interaction.user.id);
 
@@ -63,11 +68,19 @@ export default {
 
     } catch (error) {
       logger.error('Apply start error:', error);
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({
-          content: '❌ An error occurred. Please try again.',
-          ephemeral: true,
-        });
+      try {
+        if (interaction.deferred) {
+          await interaction.editReply({
+            content: '❌ An error occurred. Please try again.',
+          });
+        } else {
+          await interaction.reply({
+            content: '❌ An error occurred. Please try again.',
+            ephemeral: true,
+          });
+        }
+      } catch (e) {
+        console.error('Failed to send error:', e);
       }
     }
   },
