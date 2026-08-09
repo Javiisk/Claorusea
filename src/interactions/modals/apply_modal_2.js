@@ -19,52 +19,52 @@ export default {
       Object.assign(allAnswers, answers2);
       tempAnswers.set(interaction.user.id, allAnswers);
 
-      // ─── MODAL 3: Preguntas 11-15 ──────────────────────────────────────
+      // ─── MODAL 3 ──────────────────────────────────────────────────────────
 
       const modal3 = new ModalBuilder()
         .setCustomId('apply_modal_3')
         .setTitle('📋 Staff Application (3/4)');
 
-      // 11. What would you do if a player was trolling or being disrespectful?
+      // 11. What if a player is trolling/disrespectful?
       const q11 = new TextInputBuilder()
         .setCustomId('q11_trolling')
-        .setLabel('11. What would you do if a player was trolling or being disrespectful?')
+        .setLabel('11. What if a player is trolling/disrespectful?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 12. What would you do if a player was using exploits?
+      // 12. What if a player uses exploits?
       const q12 = new TextInputBuilder()
         .setCustomId('q12_exploits')
-        .setLabel('12. What would you do if a player was using exploits?')
+        .setLabel('12. What if a player uses exploits?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 13. What would you do if a staff member was abusing their power?
+      // 13. What if staff abuses power?
       const q13 = new TextInputBuilder()
         .setCustomId('q13_staff_abuse')
-        .setLabel('13. What would you do if a staff member was abusing their power?')
+        .setLabel('13. What if staff abuses power?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 14. What would you do if a staff member was being disrespectful?
+      // 14. What if staff is disrespectful?
       const q14 = new TextInputBuilder()
         .setCustomId('q14_staff_disrespect')
-        .setLabel('14. What would you do if a staff member was being disrespectful?')
+        .setLabel('14. What if staff is disrespectful?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 15. What would you do if an HR was being disrespectful or abusing their power?
+      // 15. What if HR abuses power/is disrespectful?
       const q15 = new TextInputBuilder()
         .setCustomId('q15_hr_abuse')
-        .setLabel('15. What would you do if an HR was being disrespectful or abusing their power?')
+        .setLabel('15. What if HR abuses power/is disrespectful?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
