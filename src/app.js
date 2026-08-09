@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
+import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +17,10 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.DirectMessages, // ✅ Added to read DMs
+    GatewayIntentBits.DirectMessageReactions, // ✅ Added for DM reactions (optional)
   ],
+  partials: ['CHANNEL'], // ✅ Added to receive DM messages
 });
 
 client.commands = new Collection();
@@ -26,7 +30,7 @@ client.commands = new Collection();
 async function loadCommands() {
   const commands = [];
   const foldersPath = path.join(__dirname, 'commands');
-  
+
   if (!fs.existsSync(foldersPath)) {
     console.log('⚠️ No commands folder found.');
     return commands;
@@ -86,11 +90,17 @@ function startWebServer() {
   const port = process.env.PORT || 3000;
 
   app.get('/', (req, res) => {
-    res.send('Bot is alive!');
+    res.send('Bot is alive! 🤖');
   });
 
   app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      commands: client.commands.size,
+      guilds: client.guilds.cache.size
+    });
   });
 
   app.listen(port, () => {
@@ -102,6 +112,7 @@ function startWebServer() {
 
 client.once('ready', async () => {
   console.log(`✅ Bot connected as ${client.user.tag}`);
+  console.log(`📊 Bot is in ${client.guilds.cache.size} guilds`);
 
   startWebServer();
 
@@ -110,6 +121,8 @@ client.once('ready', async () => {
 
   console.log(`🎯 ${client.commands.size} commands ready to use.`);
 });
+
+// ─── INTERACTION CREATE ──────────────────────────────────────────────────
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
@@ -134,6 +147,12 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
+// ─── DM MESSAGE HANDLER ──────────────────────────────────────────────────
+
+client.on('messageCreate', async (message) => {
+  await handleDM(client, message);
+});
+
 // ─── GLOBAL ERROR HANDLERS ──────────────────────────────────────────────
 
 process.on('uncaughtException', (error) => {
@@ -142,6 +161,20 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason) => {
   console.error('❌ Unhandled Rejection:', reason);
+});
+
+// ─── MANEJO DE SEÑALES ──────────────────────────────────────────────────
+
+process.on('SIGTERM', () => {
+  console.log('⚠️ SIGTERM received, shutting down gracefully...');
+  client.destroy();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('⚠️ SIGINT received, shutting down gracefully...');
+  client.destroy();
+  process.exit(0);
 });
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────
