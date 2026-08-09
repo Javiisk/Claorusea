@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -9,17 +8,6 @@ export default {
 
   async execute(interaction) {
     try {
-      // ✅ PRIMERO: Deferir la respuesta para ganar tiempo
-      await interaction.deferReply({ ephemeral: true });
-
-      // Verificar si el usuario tiene Roblox vinculado
-      const userInfo = await getRobloxUserInfoByDiscord(interaction.user.id);
-      if (!userInfo) {
-        return await interaction.editReply({
-          content: '❌ You need to have a Roblox account linked in this server to apply.',
-        });
-      }
-
       // ─── MODAL 1: Preguntas 1-5 ──────────────────────────────────────────
 
       const modal = new ModalBuilder()
@@ -31,7 +19,6 @@ export default {
         .setLabel('1. What is your Roblox username?')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setValue(userInfo.username || '')
         .setPlaceholder('Enter your Roblox username...');
 
       const q2 = new TextInputBuilder()
@@ -73,16 +60,11 @@ export default {
 
       modal.addComponents(row1, row2, row3, row4, row5);
 
-      // ✅ Mostrar el modal (reemplaza la respuesta deferida)
       await interaction.showModal(modal);
 
     } catch (error) {
       logger.error('Apply command error:', error);
-      try {
-        await interaction.editReply({
-          content: `❌ An error occurred: ${error.message}`,
-        });
-      } catch {
+      if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({
           content: `❌ An error occurred: ${error.message}`,
           ephemeral: true,
