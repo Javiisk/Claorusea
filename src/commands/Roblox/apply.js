@@ -1,3 +1,5 @@
+// src/commands/Roblox/apply.js
+
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 
@@ -8,14 +10,14 @@ export default {
 
   async execute(interaction) {
     try {
-      // Intentar enviar DM
+      await interaction.deferReply({ ephemeral: true });
+
       let dmChannel;
       try {
         dmChannel = await interaction.user.createDM();
       } catch {
-        return await interaction.reply({
+        return await interaction.editReply({
           content: '❌ I cannot send you a DM. Please enable DMs from server members and try again.',
-          ephemeral: true,
         });
       }
 
@@ -35,9 +37,10 @@ export default {
         .setFooter({ text: 'Your answers will be reviewed by staff' })
         .setTimestamp();
 
+      // ✅ Incluir userId en el customId para que el handler sepa quién es
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId('apply_start')
+          .setCustomId(`apply_start:${interaction.user.id}`)
           .setLabel('📝 Start Application')
           .setStyle(ButtonStyle.Primary)
           .setEmoji('📋')
@@ -45,20 +48,27 @@ export default {
 
       await dmChannel.send({ embeds: [embed], components: [row] });
 
-      await interaction.reply({
+      await interaction.editReply({
         content: '✅ I\'ve sent you a DM with the application link! Check your DMs.',
-        ephemeral: true,
       });
 
       logger.info(`[Apply] ${interaction.user.tag} started an application`);
 
     } catch (error) {
       logger.error('Apply command error:', error);
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({
-          content: `❌ An error occurred: ${error.message}`,
-          ephemeral: true,
-        });
+      try {
+        if (interaction.deferred) {
+          await interaction.editReply({
+            content: `❌ An error occurred: ${error.message}`,
+          });
+        } else {
+          await interaction.reply({
+            content: `❌ An error occurred: ${error.message}`,
+            ephemeral: true,
+          });
+        }
+      } catch (e) {
+        console.error('Failed to send error:', e);
       }
     }
   },
