@@ -1,7 +1,6 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-
-const tempAnswers = new Map();
+import { tempAnswers } from '../../utils/applicationStore.js';
 
 export default {
   customId: 'apply_modal_2',
@@ -25,16 +24,15 @@ export default {
         .setCustomId('apply_modal_3')
         .setTitle('📋 Staff Application (3/4)');
 
-      // 11. What if a player is trolling/disrespectful?
+      // ✅ Pregunta 11 acortada
       const q11 = new TextInputBuilder()
         .setCustomId('q11_trolling')
-        .setLabel('11. What if a player is trolling/disrespectful?')
+        .setLabel('11. Player trolling/disrespectful?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 12. What if a player uses exploits?
       const q12 = new TextInputBuilder()
         .setCustomId('q12_exploits')
         .setLabel('12. What if a player uses exploits?')
@@ -43,7 +41,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 13. What if staff abuses power?
       const q13 = new TextInputBuilder()
         .setCustomId('q13_staff_abuse')
         .setLabel('13. What if staff abuses power?')
@@ -52,7 +49,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 14. What if staff is disrespectful?
       const q14 = new TextInputBuilder()
         .setCustomId('q14_staff_disrespect')
         .setLabel('14. What if staff is disrespectful?')
@@ -61,10 +57,10 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 15. What if HR abuses power/is disrespectful?
+      // ✅ Pregunta 15 acortada
       const q15 = new TextInputBuilder()
         .setCustomId('q15_hr_abuse')
-        .setLabel('15. What if HR abuses power/is disrespectful?')
+        .setLabel('15. HR abuse/disrespect?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
