@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ Ruta actualizada
 
 const GAMEPASS_ID = '1889164521';
 
@@ -58,7 +58,7 @@ export default {
     try {
       const targetUser = interaction.options.getUser('user');
 
-      // ✅ Obtener Roblox info desde Bloxlink
+      // ✅ Obtener Roblox info desde Bloxlink (desde utils/)
       const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
 
       if (!userInfo) {
