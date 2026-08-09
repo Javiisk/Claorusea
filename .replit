@@ -59,7 +59,3 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "cloudrun"
-
-# ⭐ ESTO ES LO QUE FALTABA PARA QUE PUBLIQUE BIEN ⭐
-[interpreter]
-entrypoint = "src/app.js"
