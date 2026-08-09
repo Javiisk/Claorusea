@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, But
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ Ruta actualizada
 
 const LOG_CHANNEL_ID = '1518724147763740784';
 
@@ -52,7 +52,7 @@ export default {
       const reason = interaction.options.getString('reason');
       const notes = interaction.options.getString('notes') || 'None';
 
-      // ✅ Obtener Roblox info desde Bloxlink
+      // ✅ Obtener Roblox info desde Bloxlink (desde utils/)
       const userInfo = await getRobloxUserInfoByDiscord(discordUser.id);
 
       if (!userInfo) {
