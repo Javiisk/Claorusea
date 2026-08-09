@@ -5,7 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
@@ -63,7 +63,6 @@ export default {
       const targetUser = interaction.options.getUser('user');
       const warnings = interaction.options.getInteger('warnings');
 
-      // ✅ Obtener Roblox info desde Bloxlink
       const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
 
       if (!userInfo) {
