@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
 
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const UNIVERSE_ID = process.env.UNIVERSE_ID;
@@ -12,7 +12,7 @@ const OPENCLOUD_API_KEY = process.env.ROBLOX_API_KEY;
 async function getPlaytimeFromDataStore(robloxId) {
     try {
         const url = `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/user-data-stores/Playtime/entries/user-${robloxId}`;
-        
+
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -56,7 +56,7 @@ function formatPlaytime(seconds) {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+
     if (hours > 0) {
         return `${hours}h ${minutes}m ${secs}s`;
     } else if (minutes > 0) {
@@ -75,7 +75,6 @@ export default {
         .setDMPermission(true),
 
     async execute(interaction) {
-        // ✅ Mensaje privado (ephemeral)
         await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
         try {
@@ -93,7 +92,7 @@ export default {
             const robloxUsername = userInfo.username;
 
             const playtimeResult = await getPlaytimeFromDataStore(robloxId);
-            
+
             if (!playtimeResult.success) {
                 return await InteractionHelper.safeEditReply(interaction, {
                     content: `❌ Could not fetch playtime data for **${robloxUsername}**.`,
@@ -103,8 +102,6 @@ export default {
             const rank = await getRobloxGroupRank(robloxId);
             const formattedTime = formatPlaytime(playtimeResult.playtime);
             const hoursDecimal = (playtimeResult.playtime / 3600).toFixed(1);
-
-            // ─── CREAR EMBED ──────────────────────────────────────────────
 
             const embed = new EmbedBuilder()
                 .setColor(0x5865F2)
