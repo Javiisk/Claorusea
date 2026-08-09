@@ -24,7 +24,6 @@ export default {
         .setCustomId('apply_modal_3')
         .setTitle('📋 Staff Application (3/4)');
 
-      // ✅ Pregunta 11 acortada
       const q11 = new TextInputBuilder()
         .setCustomId('q11_trolling')
         .setLabel('11. Player trolling/disrespectful?')
@@ -57,7 +56,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // ✅ Pregunta 15 acortada
       const q15 = new TextInputBuilder()
         .setCustomId('q15_hr_abuse')
         .setLabel('15. HR abuse/disrespect?')
