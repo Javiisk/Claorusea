@@ -7,8 +7,6 @@ export default {
   customId: 'apply_modal',
   async execute(interaction) {
     try {
-      // ─── OBTENER RESPUESTAS ────────────────────────────────────────────
-
       const answers = {
         q1: interaction.fields.getTextInputValue('q1_roblox'),
         q2: interaction.fields.getTextInputValue('q2_why_apply'),
@@ -19,7 +17,7 @@ export default {
 
       tempAnswers.set(interaction.user.id, answers);
 
-      // ─── MODAL 2: Preguntas 6-10 ──────────────────────────────────────
+      // ─── MODAL 2 ──────────────────────────────────────────────────────────
 
       const modal2 = new ModalBuilder()
         .setCustomId('apply_modal_2')
@@ -34,37 +32,37 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 7. Why shouldn't you lie to the high ranks?
+      // 7. Why not lie to high ranks?
       const q7 = new TextInputBuilder()
         .setCustomId('q7_lie')
-        .setLabel('7. Why shouldn\'t you lie to the high ranks?')
+        .setLabel('7. Why not lie to high ranks?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 8. For you, what does the staff do?
+      // 8. What does staff do for you?
       const q8 = new TextInputBuilder()
         .setCustomId('q8_staff_role')
-        .setLabel('8. For you, what does the staff do?')
+        .setLabel('8. What does staff do for you?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 9. What will you do if you don't pass?
+      // 9. What if you don't pass?
       const q9 = new TextInputBuilder()
         .setCustomId('q9_not_pass')
-        .setLabel('9. What will you do if you don\'t pass?')
+        .setLabel('9. What if you don\'t pass?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 10. What would you do if you pass the applications?
+      // 10. What after passing?
       const q10 = new TextInputBuilder()
         .setCustomId('q10_after_pass')
-        .setLabel('10. What would you do if you pass the applications?')
+        .setLabel('10. What after passing?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
