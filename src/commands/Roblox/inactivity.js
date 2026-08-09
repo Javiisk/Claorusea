@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -178,7 +178,7 @@ export default {
       // ✅ Buscar el rango por NOMBRE (con emoji y espacio)
       const roles = await getGroupRoles();
       const hiatusRole = roles.find(r => r.name === HIATUS_RANK_NAME);
-      
+
       if (!hiatusRole) {
         logger.error(`[Inactivity] Rank "${HIATUS_RANK_NAME}" not found. Available: ${roles.map(r => r.name).join(', ')}`);
         return await InteractionHelper.safeEditReply(interaction, {
