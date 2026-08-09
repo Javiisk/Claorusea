@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 
 export default {
@@ -8,59 +8,49 @@ export default {
 
   async execute(interaction) {
     try {
-      // ─── MODAL 1: Preguntas 1-5 ──────────────────────────────────────────
+      // Intentar enviar DM
+      let dmChannel;
+      try {
+        dmChannel = await interaction.user.createDM();
+      } catch {
+        return await interaction.reply({
+          content: '❌ I cannot send you a DM. Please enable DMs from server members and try again.',
+          ephemeral: true,
+        });
+      }
 
-      const modal = new ModalBuilder()
-        .setCustomId('apply_modal')
-        .setTitle('📋 Staff Application (1/4)');
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('📋 Staff Application')
+        .setDescription('Click the button below to start your staff application.\n\n'
+          + '📌 You will need to answer **21 questions** across **4 steps**.\n'
+          + '⏱️ The application takes about 5-10 minutes to complete.\n\n'
+          + '⚠️ Please answer all questions honestly and thoroughly.')
+        .addFields(
+          { name: '📝 Questions 1-5', value: 'Basic information', inline: true },
+          { name: '📝 Questions 6-10', value: 'Motivation & goals', inline: true },
+          { name: '📝 Questions 11-15', value: 'Scenario handling', inline: true },
+          { name: '📝 Questions 16-21', value: 'Final questions', inline: true }
+        )
+        .setFooter({ text: 'Your answers will be reviewed by staff' })
+        .setTimestamp();
 
-      const q1 = new TextInputBuilder()
-        .setCustomId('q1_roblox')
-        .setLabel('1. What is your Roblox username?')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setPlaceholder('Enter your Roblox username...');
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('apply_start')
+          .setLabel('📝 Start Application')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('📋')
+      );
 
-      const q2 = new TextInputBuilder()
-        .setCustomId('q2_why_apply')
-        .setLabel('2. Why do you want to apply here?')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(true)
-        .setPlaceholder('Answer here...')
-        .setMaxLength(1000);
+      await dmChannel.send({ embeds: [embed], components: [row] });
 
-      const q3 = new TextInputBuilder()
-        .setCustomId('q3_better')
-        .setLabel('3. Why are you better than others?')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(true)
-        .setPlaceholder('Answer here...')
-        .setMaxLength(1000);
+      await interaction.reply({
+        content: '✅ I\'ve sent you a DM with the application link! Check your DMs.',
+        ephemeral: true,
+      });
 
-      const q4 = new TextInputBuilder()
-        .setCustomId('q4_active')
-        .setLabel('4. How active are you? (1-10)')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setPlaceholder('1-10');
-
-      const q5 = new TextInputBuilder()
-        .setCustomId('q5_advantages')
-        .setLabel('5. What are your disadvantages/advantages?')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(true)
-        .setPlaceholder('Answer here...')
-        .setMaxLength(1000);
-
-      const row1 = new ActionRowBuilder().addComponents(q1);
-      const row2 = new ActionRowBuilder().addComponents(q2);
-      const row3 = new ActionRowBuilder().addComponents(q3);
-      const row4 = new ActionRowBuilder().addComponents(q4);
-      const row5 = new ActionRowBuilder().addComponents(q5);
-
-      modal.addComponents(row1, row2, row3, row4, row5);
-
-      await interaction.showModal(modal);
+      logger.info(`[Apply] ${interaction.user.tag} started an application`);
 
     } catch (error) {
       logger.error('Apply command error:', error);
