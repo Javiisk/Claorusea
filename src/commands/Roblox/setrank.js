@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ Ruta actualizada
 
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
@@ -89,7 +89,7 @@ export default {
       const targetUser = interaction.options.getUser('user');
       const rankInput = interaction.options.getString('rank');
 
-      // ✅ Obtener Roblox info desde Bloxlink
+      // ✅ Obtener Roblox info desde Bloxlink (desde utils/)
       const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
 
       if (!userInfo) {
