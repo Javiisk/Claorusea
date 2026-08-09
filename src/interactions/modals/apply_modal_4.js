@@ -71,7 +71,6 @@ export default {
         });
       }
 
-      // ✅ Limpiar datos temporales
       clearApplication(interaction.user.id);
 
       await interaction.reply({
