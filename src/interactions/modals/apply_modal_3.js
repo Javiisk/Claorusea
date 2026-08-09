@@ -19,24 +19,24 @@ export default {
       Object.assign(allAnswers, answers3);
       tempAnswers.set(interaction.user.id, allAnswers);
 
-      // ─── MODAL 4: Preguntas 16-21 ──────────────────────────────────────
+      // ─── MODAL 4 ──────────────────────────────────────────────────────────
 
       const modal4 = new ModalBuilder()
         .setCustomId('apply_modal_4')
         .setTitle('📋 Staff Application (4/4)');
 
-      // 16. Do you accept the staff rules and that you will not abuse your power?
+      // 16. Accept staff rules & no abuse?
       const q16 = new TextInputBuilder()
         .setCustomId('q16_rules')
-        .setLabel('16. Do you accept the staff rules and that you will not abuse your power?')
+        .setLabel('16. Accept staff rules & no abuse?')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder('Yes / No');
 
-      // 17. Provide an example of your announcements.
+      // 17. Example of announcements?
       const q17 = new TextInputBuilder()
         .setCustomId('q17_announcements')
-        .setLabel('17. Provide an example of your announcements.')
+        .setLabel('17. Example of announcements?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
@@ -51,27 +51,27 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 19. Have you worked in places like this?
+      // 19. Worked in similar places?
       const q19 = new TextInputBuilder()
         .setCustomId('q19_previous_work')
-        .setLabel('19. Have you worked in places like this?')
+        .setLabel('19. Worked in similar places?')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder('Yes / No');
 
-      // 20. If you answered yes, tell us which communities you've worked in! If no, write N/A.
+      // 20. Which communities? (N/A if no)
       const q20 = new TextInputBuilder()
         .setCustomId('q20_communities')
-        .setLabel('20. If yes, which communities? (N/A if no)')
+        .setLabel('20. Which communities? (N/A if no)')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setPlaceholder('Answer here...')
         .setMaxLength(500);
 
-      // 21. Any questions before submitting your application?
+      // 21. Questions before submitting?
       const q21 = new TextInputBuilder()
         .setCustomId('q21_questions')
-        .setLabel('21. Any questions before submitting your application?')
+        .setLabel('21. Questions before submitting?')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(false)
         .setPlaceholder('Ask anything...')
