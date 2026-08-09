@@ -5,7 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ Ruta actualizada
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
@@ -62,7 +62,7 @@ export default {
       const targetUser = interaction.options.getUser('user');
       const reason = interaction.options.getString('reason');
 
-      // ✅ Obtener Roblox info desde Bloxlink
+      // ✅ Obtener Roblox info desde Bloxlink (desde utils/)
       const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
 
       if (!userInfo) {
@@ -83,7 +83,7 @@ export default {
           robloxId: robloxId,
           username: robloxUsername
         });
-        
+
         const embed = createEmbed({ title: '✅ Blacklist Removed', description: null })
           .setDescription(`**${robloxUsername}** has been removed from the blacklist.`)
           .addFields(
