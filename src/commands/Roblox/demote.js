@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from './bloxlink.js';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
 
 const LOG_CHANNEL_ID = '1504301603262566440';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
