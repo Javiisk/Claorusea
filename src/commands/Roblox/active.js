@@ -5,6 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ AGREGADO
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const INACTIVITY_PATH = join(__dirname, '../../../inactivity-data.json');
@@ -105,7 +106,7 @@ export default {
 
       // Cargar datos de inactividad
       const inactivityData = loadInactivity();
-      
+
       // Buscar al usuario por Discord ID
       let foundKey = null;
       let foundData = null;
