@@ -25,7 +25,6 @@ export default {
         .setCustomId('apply_modal')
         .setTitle('📋 Staff Application (1/4)');
 
-      // 1. What is your Roblox username?
       const q1 = new TextInputBuilder()
         .setCustomId('q1_roblox')
         .setLabel('1. What is your Roblox username?')
@@ -34,7 +33,6 @@ export default {
         .setValue(userInfo.username || '')
         .setPlaceholder('Enter your Roblox username...');
 
-      // 2. Why do you want to apply here?
       const q2 = new TextInputBuilder()
         .setCustomId('q2_why_apply')
         .setLabel('2. Why do you want to apply here?')
@@ -43,7 +41,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 3. Why are you better than others? (ACORTADO)
       const q3 = new TextInputBuilder()
         .setCustomId('q3_better')
         .setLabel('3. Why are you better than others?')
@@ -52,7 +49,6 @@ export default {
         .setPlaceholder('Answer here...')
         .setMaxLength(1000);
 
-      // 4. How active are you? (1-10)
       const q4 = new TextInputBuilder()
         .setCustomId('q4_active')
         .setLabel('4. How active are you? (1-10)')
@@ -60,7 +56,6 @@ export default {
         .setRequired(true)
         .setPlaceholder('1-10');
 
-      // 5. What are your disadvantages and advantages?
       const q5 = new TextInputBuilder()
         .setCustomId('q5_advantages')
         .setLabel('5. What are your disadvantages/advantages?')
