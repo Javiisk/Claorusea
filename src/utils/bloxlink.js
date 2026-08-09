@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger.js';
+import { logger } from './logger.js'; // ✅ Misma carpeta
 
 const BLOXLINK_API_KEY = process.env.BLOXLINK_API_KEY;
 const GUILD_ID = process.env.GUILD_ID;
@@ -179,4 +179,4 @@ export async function getRobloxUserInfoByDiscord(discordId) {
     avatar: await getRobloxAvatar(userId),
     rank: await getRobloxGroupRank(userId),
   };
-      }
+}
