@@ -4,7 +4,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getRobloxUserByDiscord } from './bloxlink.js';
+import { getRobloxUserByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
@@ -49,7 +49,7 @@ export default {
 
     try {
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
-      
+
       if (!bloxlinkData || !bloxlinkData.robloxID) {
         return await InteractionHelper.safeEditReply(interaction, {
           content: `❌ **${targetUser.tag}** does not have a Roblox account linked. Cannot add the warning.`,
@@ -59,9 +59,8 @@ export default {
       const robloxId = String(bloxlinkData.robloxID);
       const robloxUsername = bloxlinkData.primaryAccount || `User_${robloxId}`;
 
-      // Cargar la base de datos usando el DISCORD ID como clave
       const db = loadDB();
-      const key = targetUser.id; // <-- CAMBIO: Usamos el Discord ID
+      const key = targetUser.id;
 
       if (!db[key]) {
         db[key] = { 
@@ -74,25 +73,22 @@ export default {
           blacklistReason: null 
         };
       } else {
-        // Asegurarnos de que el Roblox ID en el JSON coincida con el actual
         db[key].robloxId = robloxId;
         db[key].username = robloxUsername;
       }
 
-      // Agregar la nueva advertencia al array
       const newWarn = {
         id: db[key].warnings.length + 1,
         reason: reason,
         moderator: interaction.user.tag,
         date: new Date().toISOString()
       };
-      
+
       db[key].warnings.push(newWarn);
       saveDB(db);
 
       logger.info(`[Warn] ${targetUser.tag} (${robloxUsername}) warned. Total: ${db[key].warnings.length}. Reason: ${reason}`);
 
-      // DM Notification
       const dmEmbed = new EmbedBuilder()
         .setColor(0xFF0000)
         .setTitle('⚠️ You have received a warning')
@@ -113,7 +109,6 @@ export default {
         logger.warn(`[Warn] Could not send DM to ${targetUser.tag}. DMs are closed.`);
       }
 
-      // Public Reply
       const successEmbed = new EmbedBuilder()
         .setColor(0xFFA500)
         .setTitle('✅ Warning Applied')
