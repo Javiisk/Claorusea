@@ -228,7 +228,7 @@ function startChecker(client) {
 export default {
   data: new SlashCommandBuilder()
     .setName('inactivity')
-    .setDescription('<:EventIcon:1502787131611938947> Register an inactivity notice')
+    .setDescription('Register an inactivity notice')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user')
