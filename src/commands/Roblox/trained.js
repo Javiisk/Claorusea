@@ -5,7 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CAMBIADO
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
@@ -72,7 +72,11 @@ export default {
         username: robloxUsername 
       });
 
-      const embed = createEmbed({ title: '✅ User Trained', description: null })
+      // ✅ EMBED CON EMOJI PERSONALIZADO
+      const embed = createEmbed({ 
+        title: '<:VerifiedIcon:1502787139845230622> User Trained', 
+        description: null 
+      })
         .setDescription(`**${robloxUsername}** (${targetUser.tag}) has been marked as **Trained**.`)
         .setColor(0x57F287)
         .setTimestamp();
