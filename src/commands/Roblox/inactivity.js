@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -14,7 +14,6 @@ const LOG_CHANNEL_ID = '1518037992927789126';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 
-// ✅ NOMBRE EXACTO DEL RANGO (con emoji y espacio)
 const HIATUS_RANK_NAME = '❗ Abandoned';
 
 const ALLOWED_ROLES = [
@@ -110,7 +109,7 @@ async function setRankByRoleId(userId, roleId) {
 export default {
   data: new SlashCommandBuilder()
     .setName('inactivity')
-    .setDescription('Register an inactivity notice 🚀')
+    .setDescription('<:EventIcon:1502787131611938947> Register an inactivity notice')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user')
@@ -168,27 +167,22 @@ export default {
         });
       }
 
-      // ✅ Verificar si ya está en el rango "❗ Abandoned"
       if (currentRank.name === HIATUS_RANK_NAME) {
         return await InteractionHelper.safeEditReply(interaction, {
           content: `⚠️ **${robloxUsername}** is already in **${HIATUS_RANK_NAME}**.`,
         });
       }
 
-      // ✅ Buscar el rango por NOMBRE (con emoji y espacio)
       const roles = await getGroupRoles();
       const hiatusRole = roles.find(r => r.name === HIATUS_RANK_NAME);
 
       if (!hiatusRole) {
-        logger.error(`[Inactivity] Rank "${HIATUS_RANK_NAME}" not found. Available: ${roles.map(r => r.name).join(', ')}`);
+        logger.error(`[Inactivity] Rank "${HIATUS_RANK_NAME}" not found.`);
         return await InteractionHelper.safeEditReply(interaction, {
           content: `❌ Rank "${HIATUS_RANK_NAME}" not found in the group.`,
         });
       }
 
-      logger.info(`[Inactivity] Found hiatus role: ${hiatusRole.name} (ID: ${hiatusRole.id})`);
-
-      // ✅ Cambiar al rango "❗ Abandoned"
       const result = await setRankByRoleId(robloxId, hiatusRole.id);
       if (!result.success) {
         return await InteractionHelper.safeEditReply(interaction, {
@@ -196,7 +190,6 @@ export default {
         });
       }
 
-      // Guardar en JSON
       const inactivityData = loadInactivity();
       const key = String(robloxId);
 
@@ -229,34 +222,56 @@ export default {
       };
       saveInactivity(inactivityData);
 
-      // ─── EMBEDS ────────────────────────────────────────────────────────────
+      // ─── LOG EMBED ────────────────────────────────────────────────────────────
 
       const logEmbed = new EmbedBuilder()
-        .setTitle('🔔 Inactivity Notice')
-        .setColor(0xF1C40F)
-        .setDescription(`**${robloxUsername}** has been placed on **${hiatusRole.name}** until **${endDate}**.`)
+        .setTitle('<:EventIcon:1502787131611938947> Inactivity Logs')
+        .setColor(0x808080)
+        .setDescription(`<@${interaction.user.id}> has registered an inactivity notice of **${robloxUsername}**! Information about this inactivity notice:`)
         .addFields(
-          { name: '👤 Roblox User', value: robloxUsername, inline: true },
-          { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
-          { name: '📋 Discord User', value: `<@${discordUser.id}>`, inline: true },
-          { name: '📊 Previous Rank', value: currentRank.name, inline: true },
-          { name: '📌 Current Rank', value: hiatusRole.name, inline: true },
-          { name: '📅 Start Date', value: startDate, inline: true },
-          { name: '📅 End Date', value: endDate, inline: true },
-          { name: '📝 Reason', value: reason, inline: false },
-          { name: '👮 Registered by', value: `<@${interaction.user.id}>`, inline: false }
+          { name: '\u200B', value: `> **Roblox Username:** ${robloxUsername}`, inline: false },
+          { name: '\u200B', value: `> **Start of inactivity notice:** ${startDate}`, inline: false },
+          { name: '\u200B', value: `> **End of Inactivity Notice:** ${endDate}`, inline: false },
+          { name: '\u200B', value: `> **Reason of inactivity notice:** ${reason}`, inline: false },
+          { name: '\u200B', value: `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again and **inform** the staff why you received the bot's DM again.`, inline: false },
+          { name: '\u200B', value: `<:SurveyIcon:1502787137278312499> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`, inline: false },
         )
         .setTimestamp();
 
+      // ─── DM EMBED ────────────────────────────────────────────────────────────
+
       const dmEmbed = new EmbedBuilder()
-        .setTitle('🚀 Inactivity Notice')
-        .setColor(0x5865F2)
-        .setDescription(`Greetings, **${robloxUsername}**!`)
+        .setTitle('<:RocketIcon:1502787134669590599> 𓂃 Inactivity Period')
+        .setColor(0x808080)
+        .setDescription(`Greetings, **${robloxUsername}**! We are here to inform you that:`)
         .addFields(
-          { name: '📅 End Date', value: endDate, inline: true },
-          { name: '📊 Rank', value: hiatusRole.name, inline: true },
-          { name: '📝 Reason', value: reason, inline: false },
-          { name: '\u200B', value: '⚠️ If you didn\'t request this, ping a **Domain+** to correct this.', inline: false }
+          { 
+            name: '\u200B', 
+            value: `> Your inactivity have been logged and will end in **${endDate}**`, 
+            inline: false 
+          },
+          { 
+            name: '\u200B', 
+            value: 'Enjoy your break!', 
+            inline: false 
+          },
+          { 
+            name: '\u200B', 
+            value: '<:WarningIcon:1518051573069123728> • If you didn\'t request an inactivity notice, please ping a **Domain+** to correct this.', 
+            inline: false 
+          },
+        )
+        .setTimestamp();
+
+      // ─── CONFIRM EMBED ──────────────────────────────────────────────────────
+
+      const confirmEmbed = new EmbedBuilder()
+        .setTitle('<:VerifiedIcon:1502787139845230622> Inactivity Registered')
+        .setColor(0x808080)
+        .setDescription(`**${robloxUsername}** has been placed on **${hiatusRole.name}** until **${endDate}**.`)
+        .addFields(
+          { name: '<:AddIcon:1538060207396098130> Moderator', value: `<@${interaction.user.id}>`, inline: false },
+          { name: '📅 Processed', value: new Date().toLocaleString(), inline: false },
         )
         .setTimestamp();
 
@@ -266,11 +281,6 @@ export default {
       try {
         await discordUser.send({ embeds: [dmEmbed] });
       } catch {}
-
-      const confirmEmbed = createEmbed({ title: '✅ Inactivity Registered', description: null })
-        .setDescription(`**${robloxUsername}** has been placed on **${hiatusRole.name}** until **${endDate}**.`)
-        .setColor(0x57F287)
-        .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [confirmEmbed] });
 
