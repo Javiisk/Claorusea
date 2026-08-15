@@ -104,12 +104,131 @@ async function setRankByRoleId(userId, roleId) {
   }
 }
 
+// ─── CHECK EXPIRED INACTIVITY ─────────────────────────────────────────────
+
+async function checkExpiredInactivity(client) {
+  const inactivityData = loadInactivity();
+  const now = Date.now();
+  let updated = false;
+
+  for (const [key, entry] of Object.entries(inactivityData)) {
+    if (entry.status === 'completed' || !entry.endTimestamp) continue;
+
+    if (now >= entry.endTimestamp) {
+      logger.info(`[Inactivity] ⏰ Expired inactivity for ${entry.robloxUsername} (ID: ${entry.robloxId})`);
+
+      const currentRank = await getCurrentRank(entry.robloxId);
+      
+      if (!currentRank) {
+        logger.warn(`[Inactivity] ${entry.robloxUsername} is not in the group anymore. Marking as completed.`);
+        entry.status = 'completed';
+        updated = true;
+        continue;
+      }
+
+      if (currentRank.name === HIATUS_RANK_NAME) {
+        const previousRankId = entry.previousRank?.id;
+        
+        if (previousRankId) {
+          const result = await setRankByRoleId(entry.robloxId, previousRankId);
+          
+          if (result.success) {
+            logger.info(`[Inactivity] ✅ Restored ${entry.robloxUsername} to rank: ${entry.previousRank.name}`);
+            
+            try {
+              const user = await client.users.fetch(entry.discordId);
+              const dmEmbed = new EmbedBuilder()
+                .setTitle('<:RocketIcon:1502787134669590599> 𓂃 Inactivity Period')
+                .setColor(0x808080)
+                .setDescription(`Greetings, **${entry.robloxUsername}**! We are here to inform you that:`)
+                .addFields(
+                  { 
+                    name: '\u200B', 
+                    value: 'Your inactivity period has officially ended.\n> Your inactivity period ended, and your original rank was restored.', 
+                    inline: false 
+                  },
+                  { 
+                    name: '\u200B', 
+                    value: '<:WarningIcon:1518051573069123728> • If you were not meant to become active yet or get the incorrect rank please ping a **Domain+** to correct this.', 
+                    inline: false 
+                  },
+                )
+                .setTimestamp();
+              await user.send({ embeds: [dmEmbed] });
+            } catch (dmError) {
+              logger.warn(`[Inactivity] Could not send DM to ${entry.robloxUsername}:`, dmError.message);
+            }
+
+            try {
+              const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
+              if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                  .setTitle('<:EventIcon:1502787131611938947> Inactivity Ended')
+                  .setColor(0x808080)
+                  .setDescription(`**${entry.robloxUsername}** inactivity period has ended.`)
+                  .addFields(
+                    { name: '\u200B', value: `> **Roblox Username:** ${entry.robloxUsername}`, inline: false },
+                    { name: '\u200B', value: `> **Restored Rank:** ${entry.previousRank?.name || 'Unknown'}`, inline: false },
+                    { name: '\u200B', value: `> **End Date:** ${entry.endDate}`, inline: false },
+                  )
+                  .setTimestamp();
+                await logChannel.send({ embeds: [logEmbed] });
+              }
+            } catch (logError) {
+              logger.error('[Inactivity] Failed to send log:', logError);
+            }
+
+            entry.status = 'completed';
+            updated = true;
+          } else {
+            logger.error(`[Inactivity] ❌ Failed to restore ${entry.robloxUsername}: ${result.error}`);
+          }
+        } else {
+          logger.warn(`[Inactivity] No previous rank found for ${entry.robloxUsername}`);
+          entry.status = 'completed';
+          updated = true;
+        }
+      } else {
+        logger.info(`[Inactivity] ${entry.robloxUsername} is no longer in hiatus rank. Marking as completed.`);
+        entry.status = 'completed';
+        updated = true;
+      }
+    }
+  }
+
+  if (updated) {
+    saveInactivity(inactivityData);
+    logger.info('[Inactivity] ✅ Expired inactivity entries processed and saved.');
+  }
+}
+
+// ─── INICIAR CHECKER AUTOMÁTICAMENTE ──────────────────────────────────────
+
+let checkerInitialized = false;
+
+function startChecker(client) {
+  if (checkerInitialized) return;
+  checkerInitialized = true;
+
+  // Ejecutar cada hora
+  setInterval(() => {
+    checkExpiredInactivity(client);
+  }, 60 * 60 * 1000);
+
+  // Ejecutar una vez al inicio (después de 5 segundos)
+  setTimeout(() => {
+    checkExpiredInactivity(client);
+  }, 5000);
+
+  logger.info('[Inactivity] ✅ Auto-checker started (runs every hour)');
+}
+
 // ─── COMANDO ────────────────────────────────────────────────────────────────
 
 export default {
   data: new SlashCommandBuilder()
     .setName('inactivity')
-    .setDescription('Register an inactivity notice')
+    .setDescription('<:EventIcon:1502787131611938947> Register an inactivity notice')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user')
@@ -221,6 +340,10 @@ export default {
         status: 'active',
       };
       saveInactivity(inactivityData);
+
+      // ─── INICIAR CHECKER SI NO ESTÁ INICIADO ──────────────────────────────
+
+      startChecker(interaction.client);
 
       // ─── LOG EMBED ────────────────────────────────────────────────────────────
 
