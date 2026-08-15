@@ -109,7 +109,7 @@ async function setRankByRoleId(userId, roleId) {
 export default {
   data: new SlashCommandBuilder()
     .setName('inactivity')
-    .setDescription('<:EventIcon:1502787131611938947> Register an inactivity notice')
+    .setDescription('Register an inactivity notice')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user')
@@ -229,12 +229,21 @@ export default {
         .setColor(0x808080)
         .setDescription(`<@${interaction.user.id}> has registered an inactivity notice of **${robloxUsername}**! Information about this inactivity notice:`)
         .addFields(
-          { name: '\u200B', value: `> **Roblox Username:** ${robloxUsername}`, inline: false },
-          { name: '\u200B', value: `> **Start of inactivity notice:** ${startDate}`, inline: false },
-          { name: '\u200B', value: `> **End of Inactivity Notice:** ${endDate}`, inline: false },
-          { name: '\u200B', value: `> **Reason of inactivity notice:** ${reason}`, inline: false },
-          { name: '\u200B', value: `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again and **inform** the staff why you received the bot's DM again.`, inline: false },
-          { name: '\u200B', value: `<:SurveyIcon:1502787137278312499> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`, inline: false },
+          { 
+            name: '\u200B', 
+            value: `> **Roblox Username:** ${robloxUsername}\n> **Start of inactivity notice:** ${startDate}\n> **End of Inactivity Notice:** ${endDate}\n> **Reason of inactivity notice:** ${reason}`, 
+            inline: false 
+          },
+          { 
+            name: '\u200B', 
+            value: `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again and **inform** the staff why you received the bot's DM again.`, 
+            inline: false 
+          },
+          { 
+            name: '\u200B', 
+            value: `<:SurveyIcon:1502787137278312499> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`, 
+            inline: false 
+          },
         )
         .setTimestamp();
 
