@@ -72,7 +72,7 @@ async function setRankById(userId, rankNumber) {
 export default {
   data: new SlashCommandBuilder()
     .setName('acceptresign')
-    .setDescription('<:VerifiedIcon:1502787139845230622> Accept a pending resignation')
+    .setDescription('Accept a pending resignation')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user whose resignation to accept')
