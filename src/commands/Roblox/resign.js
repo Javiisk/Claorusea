@@ -4,6 +4,9 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 
 const LOG_CHANNEL_ID = '1518724147763740784';
+const GROUP_ID = process.env.ROBLOX_GROUP_ID;
+const API_KEY = process.env.ROBLOX_API_KEY;
+const ESTEEMED_DENIZEN_RANK = 2;
 
 const ALLOWED_ROLES = [
   '1505671318262255616',
@@ -16,6 +19,62 @@ const ALLOWED_ROLES = [
 
 // Store pending resignations
 const pendingResignations = new Map();
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+async function getGroupRoles() {
+  try {
+    const res = await fetch(`https://groups.roblox.com/v1/groups/${GROUP_ID}/roles`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.roles || [];
+  } catch {
+    return [];
+  }
+}
+
+async function setRankById(userId, rankNumber) {
+  try {
+    const roles = await getGroupRoles();
+    const role = roles.find(r => r.rank === rankNumber);
+    if (!role) return { success: false, error: `Rank ${rankNumber} not found.` };
+
+    const res = await fetch(
+      `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships?filter=user=='users/${userId}'`,
+      { headers: { 'x-api-key': API_KEY } }
+    );
+    const data = await res.json();
+    let membership = data.groupMemberships?.[0];
+
+    if (!membership) {
+      const res2 = await fetch(
+        `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships?maxPageSize=1&filter=user==users/${userId}`,
+        { headers: { 'x-api-key': API_KEY } }
+      );
+      const data2 = await res2.json();
+      membership = data2.groupMemberships?.[0];
+      if (!membership) return { success: false, error: 'User is not in the group.' };
+    }
+
+    const membershipId = membership.path.split('/').pop();
+    const updateRes = await fetch(
+      `https://apis.roblox.com/cloud/v2/groups/${GROUP_ID}/memberships/${membershipId}`,
+      {
+        method: 'PATCH',
+        headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: `groups/${GROUP_ID}/roles/${role.id}` }),
+      }
+    );
+
+    if (updateRes.ok) return { success: true, roleName: role.name };
+    const err = await updateRes.json();
+    return { success: false, error: err.message || 'Failed.' };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── COMANDO PRINCIPAL ──────────────────────────────────────────────────────
 
 export default {
   data: new SlashCommandBuilder()
@@ -80,25 +139,21 @@ export default {
         timestamp: new Date(),
       });
 
-      // ✅ LOG EMBED - Con emojis personalizados
+      // ─── LOG EMBED ────────────────────────────────────────────────────────────
+
       const logEmbed = new EmbedBuilder()
-        .setTitle('<:EventIcon:1502787131611938947> Resignation Log')
+        .setTitle('<:EventIcon:1502787131611938947> Resignation Logs')
         .setColor(0x808080)
-        .setDescription(`<@${interaction.user.id}> has **logged** a resignation.`)
+        .setDescription(`<@${interaction.user.id}> has **logged** a resignation of **${robloxUsername}**! Information about this resignation:`)
         .addFields(
-          { name: '<:SurveyIcon:1502787137278312499> Roblox Username', value: robloxUsername, inline: false },
-          { name: '<:AddIcon:1538060207396098130> Discord Username', value: `<@${discordUser.id}>`, inline: false },
-          { name: '<:AddIcon:1538060207396098130> Discord ID', value: discordUser.id, inline: false },
-          { name: '<:SurveyIcon:1502787137278312499> Reason', value: reason, inline: false },
-          { name: ':PaperPlaneIcon: Notes', value: notes, inline: false },
           { 
             name: '\u200B', 
-            value: `<:WarningIcon:1518051573069123728> **Remember to read all the information and click the reject button if they entered incorrect information**`, 
+            value: `> **Roblox Username:** ${robloxUsername}\n> **Discord Username:** <@${discordUser.id}>\n> **Discord ID:** ${discordUser.id}\n> **Reason:** ${reason}\n> **Notes:** ${notes}`, 
             inline: false 
           },
           { 
             name: '\u200B', 
-            value: `<:WarningIcon:1518051573069123728> **Use /acceptresign ${resignationId}** or **/declineresign ${resignationId}** to process this resignation.**`, 
+            value: `<:WarningIcon:1518051573069123728> • Use /acceptresign ${resignationId} or /declineresign ${resignationId} to process this resignation.`, 
             inline: false 
           },
         )
@@ -140,7 +195,7 @@ export default {
       } catch { /* DMs disabled */ }
 
       await InteractionHelper.safeEditReply(interaction, { 
-        content: `✅ Resignation for **${robloxUsername}** has been logged in <#${LOG_CHANNEL_ID}>. Use \`/acceptresign ${resignationId}\` or \`/declineresign ${resignationId}\` to process it.` 
+        content: `✅ Resignation for **${robloxUsername}** has been logged in <#${LOG_CHANNEL_ID}>.` 
       });
 
     } catch (error) {
@@ -181,19 +236,12 @@ export const acceptResign = {
 
     pendingResignations.delete(id);
 
-    const embed = new EmbedBuilder()
-      .setTitle('<:VerifiedIcon:1502787139845230622> Resignation Accepted')
-      .setColor(0x808080)
-      .setDescription(`Resignation for **${resignation.robloxUsername}** has been **accepted**.`)
-      .addFields(
-        { name: '<:AddIcon:1538060207396098130> Moderator', value: `<@${interaction.user.id}>`, inline: false },
-        { name: '📅 Processed', value: new Date().toLocaleString(), inline: false },
-      )
-      .setTimestamp();
+    // ─── RANKEAR AL USUARIO A ESTEEMED DENIZEN ──────────────────────────────
 
-    await interaction.editReply({ embeds: [embed] });
+    const rankResult = await setRankById(parseInt(resignation.robloxId), ESTEEMED_DENIZEN_RANK);
 
-    // Notify the user
+    // ─── NOTIFICAR AL USUARIO ────────────────────────────────────────────────
+
     try {
       const user = await interaction.client.users.fetch(resignation.discordUserId);
       const dmEmbed = new EmbedBuilder()
@@ -202,6 +250,10 @@ export const acceptResign = {
         .setDescription(`Greetings, **${resignation.robloxUsername}**! We are here to inform you that:`)
         .addFields(
           { name: '\u200B', value: '> Your resignation has been **accepted**.', inline: false },
+          { name: '\u200B', value: rankResult.success 
+            ? `> You have been ranked to **${rankResult.roleName}**.` 
+            : `> ⚠️ Rank change failed: ${rankResult.error}`, 
+            inline: false },
           { name: '\u200B', value: '**Thank you for working with us and have a good day/night.**', inline: false },
           { name: '\u200B', value: '<:WarningIcon:1518051573069123728> • If you think this high rank made a **mistake**, ping a **Domain+**.', inline: false },
           { name: '\u200B', value: '<:WarningIcon:1518051573069123728> • If you didn\'t request a resignation, please ping a **Domain+** to correct this.', inline: false },
@@ -209,7 +261,30 @@ export const acceptResign = {
         )
         .setTimestamp();
       await user.send({ embeds: [dmEmbed] });
+      
+      // ─── LOG EN EL CANAL ────────────────────────────────────────────────────
+
+      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+      if (logChannel) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle('<:EventIcon:1502787131611938947> Resignation Logs')
+          .setColor(0x808080)
+          .setDescription(`<@${interaction.user.id}> has **accepted** the resignation of **${resignation.robloxUsername}**.`)
+          .addFields(
+            { 
+              name: '\u200B', 
+              value: `> **Roblox Username:** ${resignation.robloxUsername}\n> **Discord User:** <@${resignation.discordUserId}>\n> **New Rank:** ${rankResult.success ? rankResult.roleName : 'Failed'}\n> **Processed by:** <@${interaction.user.id}>`, 
+              inline: false 
+            },
+          )
+          .setTimestamp();
+        await logChannel.send({ embeds: [logEmbed] });
+      }
     } catch { /* DMs disabled */ }
+
+    await interaction.editReply({
+      content: `✅ Resignation for **${resignation.robloxUsername}** has been **accepted** and ranked to **${rankResult.success ? rankResult.roleName : 'Failed'}**.`,
+    });
 
     logger.info(`[Resign] ${interaction.user.tag} accepted resignation for ${resignation.robloxUsername}`);
   },
@@ -252,20 +327,8 @@ export const declineResign = {
 
     pendingResignations.delete(id);
 
-    const embed = new EmbedBuilder()
-      .setTitle('<:UnverifiedIcon:1502787138700443668> Resignation Declined')
-      .setColor(0x808080)
-      .setDescription(`Resignation for **${resignation.robloxUsername}** has been **declined**.`)
-      .addFields(
-        { name: '<:AddIcon:1538060207396098130> Moderator', value: `<@${interaction.user.id}>`, inline: false },
-        { name: '<:SurveyIcon:1502787137278312499> Reason', value: reason, inline: false },
-        { name: '📅 Processed', value: new Date().toLocaleString(), inline: false },
-      )
-      .setTimestamp();
+    // ─── NOTIFICAR AL USUARIO ────────────────────────────────────────────────
 
-    await interaction.editReply({ embeds: [embed] });
-
-    // Notify the user
     try {
       const user = await interaction.client.users.fetch(resignation.discordUserId);
       const dmEmbed = new EmbedBuilder()
@@ -280,7 +343,30 @@ export const declineResign = {
         )
         .setTimestamp();
       await user.send({ embeds: [dmEmbed] });
+      
+      // ─── LOG EN EL CANAL ────────────────────────────────────────────────────
+
+      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+      if (logChannel) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle('<:EventIcon:1502787131611938947> Resignation Logs')
+          .setColor(0x808080)
+          .setDescription(`<@${interaction.user.id}> has **declined** the resignation of **${resignation.robloxUsername}**.`)
+          .addFields(
+            { 
+              name: '\u200B', 
+              value: `> **Roblox Username:** ${resignation.robloxUsername}\n> **Discord User:** <@${resignation.discordUserId}>\n> **Reason:** ${reason}\n> **Processed by:** <@${interaction.user.id}>`, 
+              inline: false 
+            },
+          )
+          .setTimestamp();
+        await logChannel.send({ embeds: [logEmbed] });
+      }
     } catch { /* DMs disabled */ }
+
+    await interaction.editReply({
+      content: `❌ Resignation for **${resignation.robloxUsername}** has been **declined**.`,
+    });
 
     logger.info(`[Resign] ${interaction.user.tag} declined resignation for ${resignation.robloxUsername}`);
   },
