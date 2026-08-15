@@ -17,7 +17,7 @@ const ALLOWED_ROLES = [
 export default {
   data: new SlashCommandBuilder()
     .setName('declineresign')
-    .setDescription('<:UnverifiedIcon:1502787138700443668> Decline a pending resignation')
+    .setDescription('Decline a pending resignation')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user whose resignation to decline')
