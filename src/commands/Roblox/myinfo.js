@@ -11,7 +11,7 @@ import {
   getRobloxGroupRank,
   getRobloxAvatar,
   checkBlacklistedGroups
-} from '../../utils/bloxlink.js';  // ✅ CORREGIDO
+} from '../../utils/bloxlink.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
@@ -75,12 +75,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
     .setDescription('View your Roblox profile and group status')
-    .setDMPermission(true)
-    .addUserOption(opt =>
-      opt.setName('user')
-        .setDescription('Discord user to look up (defaults to yourself)')
-        .setRequired(false)
-    ),
+    .setDMPermission(true),
 
   async execute(interaction) {
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
@@ -94,7 +89,7 @@ export default {
     }
 
     try {
-      const targetUser = interaction.options.getUser('user') || interaction.user;
+      const targetUser = interaction.user;
 
       logger.info(`[MyInfo] Looking up: ${targetUser.tag} (${targetUser.id})`);
 
@@ -162,7 +157,10 @@ export default {
         userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
       }
 
-      const trainedText = userData.trained ? '✅ Trained' : '❌ Untrained';
+      // ✅ TRAINED STATUS WITH CUSTOM EMOJIS
+      const trainedText = userData.trained 
+        ? `<:VerifiedIcon:1502787139845230622> Trained` 
+        : `<:UnverifiedIcon:1502787138700443668> Untrained`;
 
       let warningsText = 'None';
       if (userData.warnings && userData.warnings.length > 0) {
@@ -179,7 +177,11 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      const embed = createEmbed({ title: `📋 ${robloxUsername}'s Profile`, description: null })
+      // ✅ EMBED WITH CUSTOM EMOJI IN TITLE
+      const embed = createEmbed({ 
+        title: `<:SurveyIcon:1502787137278312499> ${robloxUsername}'s Profile`,
+        description: null 
+      })
         .setThumbnail(avatar)
         .addFields(
           { name: 'Discord User', value: `${targetUser}`, inline: false },
