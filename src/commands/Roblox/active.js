@@ -5,7 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ AGREGADO
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const INACTIVITY_PATH = join(__dirname, '../../../inactivity-data.json');
@@ -13,8 +13,6 @@ const INACTIVITY_PATH = join(__dirname, '../../../inactivity-data.json');
 const LOG_CHANNEL_ID = '1518037992927789126';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
-
-// ─── ROLES PERMITIDOS ──────────────────────────────────────────────────────
 
 const ALLOWED_ROLES = [
   '1505673879069393024',
@@ -79,7 +77,7 @@ async function setRankByRoleId(userId, roleId) {
 export default {
   data: new SlashCommandBuilder()
     .setName('active')
-    .setDescription('✅ End a user\'s inactivity early and restore their rank')
+    .setDescription('End a user\'s inactivity early and restore their rank')
     .setDMPermission(false)
     .addUserOption(opt =>
       opt.setName('discorduser')
@@ -104,10 +102,8 @@ export default {
       const discordUser = interaction.options.getUser('discorduser');
       const reason = interaction.options.getString('reason') || 'No reason provided.';
 
-      // Cargar datos de inactividad
       const inactivityData = loadInactivity();
 
-      // Buscar al usuario por Discord ID
       let foundKey = null;
       let foundData = null;
 
@@ -125,7 +121,6 @@ export default {
         });
       }
 
-      // Restaurar rango anterior
       const result = await setRankByRoleId(parseInt(foundKey), foundData.previousRank.id);
 
       if (!result.success) {
@@ -134,7 +129,6 @@ export default {
         });
       }
 
-      // Actualizar estado
       foundData.status = 'completed';
       foundData.restoredAt = Date.now();
       foundData.restoredBy = interaction.user.id;
@@ -146,15 +140,20 @@ export default {
 
       try {
         const dmEmbed = new EmbedBuilder()
-          .setTitle('✅ Inactivity Ended Early')
-          .setColor(0x57F287)
-          .setDescription(`Greetings, **${foundData.robloxUsername}**!`)
+          .setTitle('<:RocketIcon:1502787134669590599> 𓂃 Inactivity Period')
+          .setColor(0x808080)
+          .setDescription(`Greetings, **${foundData.robloxUsername}**! We are here to inform you that:`)
           .addFields(
-            { name: '📊 Your Rank', value: `**${foundData.previousRank.name}** has been restored!`, inline: false },
-            { name: '📅 Original End Date', value: foundData.endDate, inline: true },
-            { name: '📝 Reason', value: reason, inline: false },
-            { name: '👤 Actioned by', value: `${interaction.user.tag}`, inline: true },
-            { name: '\u200B', value: '🎉 Welcome back! Your inactivity has been ended early.', inline: false }
+            { 
+              name: '\u200B', 
+              value: 'Your inactivity period has been ended early.\n> Your inactivity period has been ended early as you requested.', 
+              inline: false 
+            },
+            { 
+              name: '\u200B', 
+              value: '<:WarningIcon:1518051573069123728> • If you didn\'t request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.', 
+              inline: false 
+            },
           )
           .setTimestamp();
 
@@ -167,17 +166,20 @@ export default {
       // ─── LOG AL CANAL ──────────────────────────────────────────────────
 
       const logEmbed = new EmbedBuilder()
-        .setTitle('✅ Inactivity Ended Early')
-        .setColor(0x57F287)
-        .setDescription(`**${foundData.robloxUsername}** has returned from inactivity early!`)
+        .setTitle('<:EventIcon:1502787131611938947> Inactivity Logs')
+        .setColor(0x808080)
+        .setDescription(`<@${interaction.user.id}> has ended **${foundData.robloxUsername}** inactivity early! Information about this inactivity notice:`)
         .addFields(
-          { name: '👤 Roblox User', value: foundData.robloxUsername, inline: true },
-          { name: '🆔 Roblox ID', value: foundKey, inline: true },
-          { name: '📋 Discord User', value: `<@${discordUser.id}>`, inline: true },
-          { name: '📊 Restored Rank', value: foundData.previousRank.name, inline: true },
-          { name: '📅 Original End Date', value: foundData.endDate, inline: true },
-          { name: '📝 Reason', value: reason, inline: false },
-          { name: '👤 Actioned by', value: `<@${interaction.user.id}>`, inline: true }
+          { 
+            name: '\u200B', 
+            value: `> **Roblox Username:** ${foundData.robloxUsername}\n> **Restored Rank:** ${foundData.previousRank?.name || 'Unknown'}\n> **Original End Date:** ${foundData.endDate}\n> **Reason:** ${reason}`, 
+            inline: false 
+          },
+          { 
+            name: '\u200B', 
+            value: `<:WarningIcon:1518051573069123728> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.`, 
+            inline: false 
+          },
         )
         .setTimestamp();
 
@@ -186,13 +188,14 @@ export default {
 
       // ─── RESPUESTA AL STAFF ────────────────────────────────────────────
 
-      const confirmEmbed = createEmbed({ title: '✅ Inactivity Ended Early', description: null })
+      const confirmEmbed = new EmbedBuilder()
+        .setTitle('<:VerifiedIcon:1502787139845230622> Inactivity Ended Early')
+        .setColor(0x808080)
         .setDescription(`**${foundData.robloxUsername}** has been marked as active and restored to **${foundData.previousRank.name}**.`)
         .addFields(
-          { name: 'Discord User', value: `${discordUser}`, inline: true },
-          { name: 'Original End Date', value: foundData.endDate, inline: true }
+          { name: '<:AddIcon:1538060207396098130> Moderator', value: `<@${interaction.user.id}>`, inline: false },
+          { name: '📅 Processed', value: new Date().toLocaleString(), inline: false },
         )
-        .setColor(0x57F287)
         .setTimestamp();
 
       await InteractionHelper.safeEditReply(interaction, { embeds: [confirmEmbed] });
