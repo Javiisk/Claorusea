@@ -20,7 +20,7 @@ export const pendingResignations = new Map();
 export default {
   data: new SlashCommandBuilder()
     .setName('resign')
-    .setDescription('<:EventIcon:1502787131611938947> Log a resignation')
+    .setDescription('Log a resignation')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user')
