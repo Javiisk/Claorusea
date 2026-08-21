@@ -14,6 +14,12 @@ const LOG_CHANNEL_ID = '1518037992927789126';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 
+// ─── TRELLO VARIABLES ──────────────────────────────────────────────────────
+
+const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
+const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
+const TRELLO_BOARD_INACTIVITY = process.env.TRELLO_BOARD_INACTIVITY;
+
 const HIATUS_RANK_NAME = '❗ Abandoned';
 
 const ALLOWED_ROLES = [
@@ -24,6 +30,68 @@ const ALLOWED_ROLES = [
   '1505671309915328713',
   '1505671292873867544',
 ];
+
+// ─── TRELLO FUNCTIONS ──────────────────────────────────────────────────────
+
+async function createTrelloCard(data) {
+    if (!TRELLO_API_KEY || !TRELLO_TOKEN || !TRELLO_BOARD_INACTIVITY) {
+        logger.warn('[Trello] Missing credentials');
+        return null;
+    }
+
+    try {
+        const url = `https://api.trello.com/1/cards?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
+        
+        const cardData = {
+            idList: TRELLO_BOARD_INACTIVITY,
+            name: `🚫 ${data.robloxUsername} - Inactivity`,
+            desc: `**Roblox User:** ${data.robloxUsername}\n**Discord User:** <@${data.discordId}> (${data.discordId})\n**Start Date:** ${data.startDate}\n**End Date:** ${data.endDate}\n**Reason:** ${data.reason}\n**Roblox Rank:** ${data.previousRank?.name || 'Unknown'}`,
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cardData),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            logger.error('[Trello] Failed to create card:', error);
+            return null;
+        }
+
+        const card = await response.json();
+        logger.info(`[Trello] ✅ Card created: ${card.id}`);
+        return card.id;
+
+    } catch (error) {
+        logger.error('[Trello] Error:', error);
+        return null;
+    }
+}
+
+async function deleteTrelloCard(cardId) {
+    if (!TRELLO_API_KEY || !TRELLO_TOKEN || !cardId) return false;
+
+    try {
+        const url = `https://api.trello.com/1/cards/${cardId}?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
+
+        const response = await fetch(url, { method: 'DELETE' });
+
+        if (!response.ok) {
+            const error = await response.text();
+            logger.error('[Trello] Failed to delete card:', error);
+            return false;
+        }
+
+        logger.info(`[Trello] ✅ Card deleted: ${cardId}`);
+        return true;
+
+    } catch (error) {
+        logger.error('[Trello] Error deleting:', error);
+        return false;
+    }
+}
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -115,12 +183,12 @@ async function checkExpiredInactivity(client) {
     if (entry.status === 'completed' || !entry.endTimestamp) continue;
 
     if (now >= entry.endTimestamp) {
-      logger.info(`[Inactivity] ⏰ Expired inactivity for ${entry.robloxUsername} (ID: ${entry.robloxId})`);
+      logger.info(`[Inactivity] ⏰ Expired inactivity for ${entry.robloxUsername}`);
 
       const currentRank = await getCurrentRank(entry.robloxId);
-      
+
       if (!currentRank) {
-        logger.warn(`[Inactivity] ${entry.robloxUsername} is not in the group anymore. Marking as completed.`);
+        logger.warn(`[Inactivity] ${entry.robloxUsername} is not in the group.`);
         entry.status = 'completed';
         updated = true;
         continue;
@@ -128,36 +196,32 @@ async function checkExpiredInactivity(client) {
 
       if (currentRank.name === HIATUS_RANK_NAME) {
         const previousRankId = entry.previousRank?.id;
-        
+
         if (previousRankId) {
           const result = await setRankByRoleId(entry.robloxId, previousRankId);
-          
+
           if (result.success) {
-            logger.info(`[Inactivity] ✅ Restored ${entry.robloxUsername} to rank: ${entry.previousRank.name}`);
-            
+            logger.info(`[Inactivity] ✅ Restored ${entry.robloxUsername}`);
+
+            // ─── ELIMINAR TARJETA TRELLO ──────────────────────────────────────
+
+            if (entry.trelloCardId) {
+              await deleteTrelloCard(entry.trelloCardId);
+            }
+
             try {
               const user = await client.users.fetch(entry.discordId);
               const dmEmbed = new EmbedBuilder()
                 .setTitle('<:RocketIcon:1502787134669590599> 𓂃 Inactivity Period')
                 .setColor(0x808080)
-                .setDescription(`Greetings, **${entry.robloxUsername}**! We are here to inform you that:`)
+                .setDescription(`Greetings, **${entry.robloxUsername}**!`)
                 .addFields(
-                  { 
-                    name: '\u200B', 
-                    value: 'Your inactivity period has officially ended.\n> Your inactivity period ended, and your original rank was restored.', 
-                    inline: false 
-                  },
-                  { 
-                    name: '\u200B', 
-                    value: '<:WarningIcon:1518051573069123728> • If you were not meant to become active yet or get the incorrect rank please ping a **Domain+** to correct this.', 
-                    inline: false 
-                  },
+                  { name: '\u200B', value: 'Your inactivity period has officially ended.\n> Your original rank was restored.', inline: false },
+                  { name: '\u200B', value: '<:WarningIcon:1518051573069123728> • If you got the incorrect rank please ping a **Domain+**.', inline: false },
                 )
                 .setTimestamp();
               await user.send({ embeds: [dmEmbed] });
-            } catch (dmError) {
-              logger.warn(`[Inactivity] Could not send DM to ${entry.robloxUsername}:`, dmError.message);
-            }
+            } catch {}
 
             try {
               const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
@@ -165,44 +229,30 @@ async function checkExpiredInactivity(client) {
                 const logEmbed = new EmbedBuilder()
                   .setTitle('<:EventIcon:1502787131611938947> Inactivity Ended')
                   .setColor(0x808080)
-                  .setDescription(`**${entry.robloxUsername}** inactivity period has ended.`)
+                  .setDescription(`**${entry.robloxUsername}** inactivity ended.`)
                   .addFields(
-                    { name: '\u200B', value: `> **Roblox Username:** ${entry.robloxUsername}`, inline: false },
+                    { name: '\u200B', value: `> **Roblox User:** ${entry.robloxUsername}`, inline: false },
                     { name: '\u200B', value: `> **Restored Rank:** ${entry.previousRank?.name || 'Unknown'}`, inline: false },
-                    { name: '\u200B', value: `> **End Date:** ${entry.endDate}`, inline: false },
                   )
                   .setTimestamp();
                 await logChannel.send({ embeds: [logEmbed] });
               }
-            } catch (logError) {
-              logger.error('[Inactivity] Failed to send log:', logError);
-            }
+            } catch {}
 
             entry.status = 'completed';
             updated = true;
-          } else {
-            logger.error(`[Inactivity] ❌ Failed to restore ${entry.robloxUsername}: ${result.error}`);
           }
-        } else {
-          logger.warn(`[Inactivity] No previous rank found for ${entry.robloxUsername}`);
-          entry.status = 'completed';
-          updated = true;
         }
-      } else {
-        logger.info(`[Inactivity] ${entry.robloxUsername} is no longer in hiatus rank. Marking as completed.`);
-        entry.status = 'completed';
-        updated = true;
       }
     }
   }
 
   if (updated) {
     saveInactivity(inactivityData);
-    logger.info('[Inactivity] ✅ Expired inactivity entries processed and saved.');
   }
 }
 
-// ─── INICIAR CHECKER AUTOMÁTICAMENTE ──────────────────────────────────────
+// ─── CHECKER ──────────────────────────────────────────────────────────────
 
 let checkerInitialized = false;
 
@@ -210,17 +260,15 @@ function startChecker(client) {
   if (checkerInitialized) return;
   checkerInitialized = true;
 
-  // Ejecutar cada hora
   setInterval(() => {
     checkExpiredInactivity(client);
   }, 60 * 60 * 1000);
 
-  // Ejecutar una vez al inicio (después de 5 segundos)
   setTimeout(() => {
     checkExpiredInactivity(client);
   }, 5000);
 
-  logger.info('[Inactivity] ✅ Auto-checker started (runs every hour)');
+  logger.info('[Inactivity] ✅ Auto-checker started');
 }
 
 // ─── COMANDO ────────────────────────────────────────────────────────────────
@@ -256,11 +304,7 @@ export default {
       return await interaction.reply({ content: '❌ You don\'t have permission.', ephemeral: true });
     }
 
-    const deferSuccess = await InteractionHelper.safeDefer(interaction);
-    if (!deferSuccess) {
-      logger.warn('Inactivity interaction defer failed', { userId: interaction.user.id });
-      return;
-    }
+    await InteractionHelper.safeDefer(interaction);
 
     try {
       const discordUser = interaction.options.getUser('discorduser');
@@ -296,9 +340,8 @@ export default {
       const hiatusRole = roles.find(r => r.name === HIATUS_RANK_NAME);
 
       if (!hiatusRole) {
-        logger.error(`[Inactivity] Rank "${HIATUS_RANK_NAME}" not found.`);
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Rank "${HIATUS_RANK_NAME}" not found in the group.`,
+          content: `❌ Rank "${HIATUS_RANK_NAME}" not found.`,
         });
       }
 
@@ -315,6 +358,17 @@ export default {
       const [month, day, year] = endDate.split('/');
       const endDateObj = new Date(`${year}-${month}-${day}T23:59:59`);
       const endTimestamp = endDateObj.getTime();
+
+      // ─── CREAR TARJETA TRELLO ─────────────────────────────────────────────
+
+      const trelloCardId = await createTrelloCard({
+        robloxUsername: robloxUsername,
+        discordId: discordUser.id,
+        startDate: startDate,
+        endDate: endDate,
+        reason: reason,
+        previousRank: currentRank,
+      });
 
       inactivityData[key] = {
         robloxId: robloxId,
@@ -338,19 +392,18 @@ export default {
         registeredByTag: interaction.user.tag,
         registeredAt: Date.now(),
         status: 'active',
+        trelloCardId: trelloCardId,
       };
       saveInactivity(inactivityData);
 
-      // ─── INICIAR CHECKER SI NO ESTÁ INICIADO ──────────────────────────────
-
       startChecker(interaction.client);
 
-      // ─── LOG EMBED ────────────────────────────────────────────────────────────
+      // ─── LOGS ─────────────────────────────────────────────────────────────────
 
       const logEmbed = new EmbedBuilder()
         .setTitle('<:EventIcon:1502787131611938947> Inactivity Logs')
         .setColor(0x808080)
-        .setDescription(`<@${interaction.user.id}> has registered an inactivity notice of **${robloxUsername}**! Information about this inactivity notice:`)
+        .setDescription(`<@${interaction.user.id}> has registered an inactivity notice of **${robloxUsername}**!`)
         .addFields(
           { 
             name: '\u200B', 
@@ -359,7 +412,7 @@ export default {
           },
           { 
             name: '\u200B', 
-            value: `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again and **inform** the staff why you received the bot's DM again.`, 
+            value: `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again.`, 
             inline: false 
           },
           { 
@@ -370,37 +423,21 @@ export default {
         )
         .setTimestamp();
 
-      // ─── DM EMBED ────────────────────────────────────────────────────────────
-
       const dmEmbed = new EmbedBuilder()
         .setTitle('<:RocketIcon:1502787134669590599> 𓂃 Inactivity Period')
         .setColor(0x808080)
-        .setDescription(`Greetings, **${robloxUsername}**! We are here to inform you that:`)
+        .setDescription(`Greetings, **${robloxUsername}**!`)
         .addFields(
-          { 
-            name: '\u200B', 
-            value: `> Your inactivity have been logged and will end in **${endDate}**`, 
-            inline: false 
-          },
-          { 
-            name: '\u200B', 
-            value: 'Enjoy your break!', 
-            inline: false 
-          },
-          { 
-            name: '\u200B', 
-            value: '<:WarningIcon:1518051573069123728> • If you didn\'t request an inactivity notice, please ping a **Domain+** to correct this.', 
-            inline: false 
-          },
+          { name: '\u200B', value: `> Your inactivity have been logged and will end in **${endDate}**`, inline: false },
+          { name: '\u200B', value: 'Enjoy your break!', inline: false },
+          { name: '\u200B', value: '<:WarningIcon:1518051573069123728> • If you didn\'t request this, ping a **Domain+**.', inline: false },
         )
         .setTimestamp();
-
-      // ─── CONFIRM EMBED ──────────────────────────────────────────────────────
 
       const confirmEmbed = new EmbedBuilder()
         .setTitle('<:VerifiedIcon:1502787139845230622> Inactivity Registered')
         .setColor(0x808080)
-        .setDescription(`**${robloxUsername}** has been placed on **${hiatusRole.name}** until **${endDate}**.`)
+        .setDescription(`**${robloxUsername}** placed on **${hiatusRole.name}** until **${endDate}**.`)
         .addFields(
           { name: '<:AddIcon:1538060207396098130> Moderator', value: `<@${interaction.user.id}>`, inline: false },
           { name: '📅 Processed', value: new Date().toLocaleString(), inline: false },
@@ -417,11 +454,11 @@ export default {
       await InteractionHelper.safeEditReply(interaction, { embeds: [confirmEmbed] });
 
     } catch (error) {
-      logger.error('Inactivity command error:', error);
+      logger.error('Inactivity error:', error);
       try {
         return await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' });
       } catch (e) {
-        logger.error('Failed to send error reply:', e);
+        logger.error('Failed:', e);
       }
     }
   },
