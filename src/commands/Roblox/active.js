@@ -14,6 +14,11 @@ const LOG_CHANNEL_ID = '1518037992927789126';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 
+// ─── TRELLO VARIABLES ──────────────────────────────────────────────────────
+
+const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
+const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
+
 const ALLOWED_ROLES = [
   '1505673879069393024',
   '1505673808097574912',
@@ -21,6 +26,31 @@ const ALLOWED_ROLES = [
   '1505671296883757158',
   '1505671292873867544',
 ];
+
+// ─── TRELLO FUNCTION ──────────────────────────────────────────────────────
+
+async function deleteTrelloCard(cardId) {
+    if (!TRELLO_API_KEY || !TRELLO_TOKEN || !cardId) return false;
+
+    try {
+        const url = `https://api.trello.com/1/cards/${cardId}?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
+
+        const response = await fetch(url, { method: 'DELETE' });
+
+        if (!response.ok) {
+            const error = await response.text();
+            logger.error('[Trello] Failed to delete card:', error);
+            return false;
+        }
+
+        logger.info(`[Trello] ✅ Card deleted: ${cardId}`);
+        return true;
+
+    } catch (error) {
+        logger.error('[Trello] Error deleting:', error);
+        return false;
+    }
+}
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -127,6 +157,12 @@ export default {
         return await InteractionHelper.safeEditReply(interaction, {
           content: `❌ Failed to restore rank: ${result.error}`,
         });
+      }
+
+      // ─── ELIMINAR TARJETA TRELLO DE ESTA PERSONA ──────────────────────────
+
+      if (foundData.trelloCardId) {
+        await deleteTrelloCard(foundData.trelloCardId);
       }
 
       foundData.status = 'completed';
