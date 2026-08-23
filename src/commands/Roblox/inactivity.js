@@ -33,62 +33,78 @@ const ALLOWED_ROLES = [
 
 // ─── TRELLO FUNCTIONS ──────────────────────────────────────────────────────
 
-async function createTrelloCard(data) {
+async function addTrelloComment(data) {
     if (!TRELLO_API_KEY || !TRELLO_TOKEN || !TRELLO_BOARD_INACTIVITY) {
         logger.warn('[Trello] Missing credentials');
-        return null;
+        return false;
     }
 
     try {
-        const url = `https://api.trello.com/1/cards?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
+        const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
         
-        const cardData = {
-            idList: TRELLO_BOARD_INACTIVITY,
-            name: `🚫 ${data.robloxUsername} - Inactivity`,
-            desc: `**Roblox User:** ${data.robloxUsername}\n**Discord User:** <@${data.discordId}> (${data.discordId})\n**Start Date:** ${data.startDate}\n**End Date:** ${data.endDate}\n**Reason:** ${data.reason}\n**Roblox Rank:** ${data.previousRank?.name || 'Unknown'}`,
-        };
+        const comment = `**🚫 ${data.robloxUsername} - Inactivity Started**\n\n` +
+                       `**Roblox User:** ${data.robloxUsername}\n` +
+                       `**Discord User:** <@${data.discordId}> (${data.discordId})\n` +
+                       `**Start Date:** ${data.startDate}\n` +
+                       `**End Date:** ${data.endDate}\n` +
+                       `**Reason:** ${data.reason}\n` +
+                       `**Roblox Rank:** ${data.previousRank?.name || 'Unknown'}\n` +
+                       `**Registered by:** <@${data.registeredBy}>\n` +
+                       `━━━━━━━━━━━━━━━━━━━━━━`;
 
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cardData),
+            body: JSON.stringify({ text: comment }),
         });
 
         if (!response.ok) {
             const error = await response.text();
-            logger.error('[Trello] Failed to create card:', error);
-            return null;
-        }
-
-        const card = await response.json();
-        logger.info(`[Trello] ✅ Card created: ${card.id}`);
-        return card.id;
-
-    } catch (error) {
-        logger.error('[Trello] Error:', error);
-        return null;
-    }
-}
-
-async function deleteTrelloCard(cardId) {
-    if (!TRELLO_API_KEY || !TRELLO_TOKEN || !cardId) return false;
-
-    try {
-        const url = `https://api.trello.com/1/cards/${cardId}?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
-
-        const response = await fetch(url, { method: 'DELETE' });
-
-        if (!response.ok) {
-            const error = await response.text();
-            logger.error('[Trello] Failed to delete card:', error);
+            logger.error('[Trello] Failed to add comment:', error);
             return false;
         }
 
-        logger.info(`[Trello] ✅ Card deleted: ${cardId}`);
+        logger.info(`[Trello] ✅ Comment added for ${data.robloxUsername}`);
         return true;
 
     } catch (error) {
-        logger.error('[Trello] Error deleting:', error);
+        logger.error('[Trello] Error:', error);
+        return false;
+    }
+}
+
+async function addTrelloEndComment(data) {
+    if (!TRELLO_API_KEY || !TRELLO_TOKEN || !TRELLO_BOARD_INACTIVITY) {
+        return false;
+    }
+
+    try {
+        const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
+        
+        const comment = `**✅ ${data.robloxUsername} - Inactivity Ended**\n\n` +
+                       `**Roblox User:** ${data.robloxUsername}\n` +
+                       `**End Date:** ${data.endDate}\n` +
+                       `**Restored Rank:** ${data.previousRank?.name || 'Unknown'}\n` +
+                       `**Status:** Completed\n` +
+                       `━━━━━━━━━━━━━━━━━━━━━━`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: comment }),
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            logger.error('[Trello] Failed to add end comment:', error);
+            return false;
+        }
+
+        logger.info(`[Trello] ✅ End comment added for ${data.robloxUsername}`);
+        return true;
+
+    } catch (error) {
+        logger.error('[Trello] Error:', error);
         return false;
     }
 }
@@ -203,11 +219,13 @@ async function checkExpiredInactivity(client) {
           if (result.success) {
             logger.info(`[Inactivity] ✅ Restored ${entry.robloxUsername}`);
 
-            // ─── ELIMINAR TARJETA TRELLO ──────────────────────────────────────
+            // ─── COMENTARIO EN TRELLO ──────────────────────────────────────────
 
-            if (entry.trelloCardId) {
-              await deleteTrelloCard(entry.trelloCardId);
-            }
+            await addTrelloEndComment({
+                robloxUsername: entry.robloxUsername,
+                endDate: entry.endDate,
+                previousRank: entry.previousRank,
+            });
 
             try {
               const user = await client.users.fetch(entry.discordId);
@@ -276,7 +294,7 @@ function startChecker(client) {
 export default {
   data: new SlashCommandBuilder()
     .setName('inactivity')
-    .setDescription('Register an inactivity notice')
+    .setDescription('<:EventIcon:1502787131611938947> Register an inactivity notice')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user')
@@ -359,17 +377,6 @@ export default {
       const endDateObj = new Date(`${year}-${month}-${day}T23:59:59`);
       const endTimestamp = endDateObj.getTime();
 
-      // ─── CREAR TARJETA TRELLO ─────────────────────────────────────────────
-
-      const trelloCardId = await createTrelloCard({
-        robloxUsername: robloxUsername,
-        discordId: discordUser.id,
-        startDate: startDate,
-        endDate: endDate,
-        reason: reason,
-        previousRank: currentRank,
-      });
-
       inactivityData[key] = {
         robloxId: robloxId,
         robloxUsername: robloxUsername,
@@ -392,11 +399,22 @@ export default {
         registeredByTag: interaction.user.tag,
         registeredAt: Date.now(),
         status: 'active',
-        trelloCardId: trelloCardId,
       };
       saveInactivity(inactivityData);
 
       startChecker(interaction.client);
+
+      // ─── COMENTARIO EN TRELLO ──────────────────────────────────────────────
+
+      await addTrelloComment({
+        robloxUsername: robloxUsername,
+        discordId: discordUser.id,
+        startDate: startDate,
+        endDate: endDate,
+        reason: reason,
+        previousRank: currentRank,
+        registeredBy: interaction.user.id,
+      });
 
       // ─── LOGS ─────────────────────────────────────────────────────────────────
 
