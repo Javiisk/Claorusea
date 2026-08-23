@@ -18,6 +18,7 @@ const API_KEY = process.env.ROBLOX_API_KEY;
 
 const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
 const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
+const TRELLO_BOARD_INACTIVITY = process.env.TRELLO_BOARD_INACTIVITY;
 
 const ALLOWED_ROLES = [
   '1505673879069393024',
@@ -29,25 +30,40 @@ const ALLOWED_ROLES = [
 
 // ─── TRELLO FUNCTION ──────────────────────────────────────────────────────
 
-async function deleteTrelloCard(cardId) {
-    if (!TRELLO_API_KEY || !TRELLO_TOKEN || !cardId) return false;
+async function addTrelloEndComment(data) {
+    if (!TRELLO_API_KEY || !TRELLO_TOKEN || !TRELLO_BOARD_INACTIVITY) {
+        return false;
+    }
 
     try {
-        const url = `https://api.trello.com/1/cards/${cardId}?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
+        const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
+        
+        const comment = `**✅ ${data.robloxUsername} - Inactivity Ended Early**\n\n` +
+                       `**Roblox User:** ${data.robloxUsername}\n` +
+                       `**End Date:** ${data.endDate}\n` +
+                       `**Restored Rank:** ${data.previousRank?.name || 'Unknown'}\n` +
+                       `**Reason:** ${data.reason}\n` +
+                       `**Processed by:** <@${data.processedBy}>\n` +
+                       `**Status:** Completed (Early)\n` +
+                       `━━━━━━━━━━━━━━━━━━━━━━`;
 
-        const response = await fetch(url, { method: 'DELETE' });
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: comment }),
+        });
 
         if (!response.ok) {
             const error = await response.text();
-            logger.error('[Trello] Failed to delete card:', error);
+            logger.error('[Trello] Failed to add end comment:', error);
             return false;
         }
 
-        logger.info(`[Trello] ✅ Card deleted: ${cardId}`);
+        logger.info(`[Trello] ✅ End comment added for ${data.robloxUsername}`);
         return true;
 
     } catch (error) {
-        logger.error('[Trello] Error deleting:', error);
+        logger.error('[Trello] Error:', error);
         return false;
     }
 }
@@ -107,7 +123,7 @@ async function setRankByRoleId(userId, roleId) {
 export default {
   data: new SlashCommandBuilder()
     .setName('active')
-    .setDescription('End a user\'s inactivity early and restore their rank')
+    .setDescription('<:EventIcon:1502787131611938947> End a user\'s inactivity early')
     .setDMPermission(false)
     .addUserOption(opt =>
       opt.setName('discorduser')
@@ -159,11 +175,15 @@ export default {
         });
       }
 
-      // ─── ELIMINAR TARJETA TRELLO DE ESTA PERSONA ──────────────────────────
+      // ─── COMENTARIO EN TRELLO ──────────────────────────────────────────────
 
-      if (foundData.trelloCardId) {
-        await deleteTrelloCard(foundData.trelloCardId);
-      }
+      await addTrelloEndComment({
+        robloxUsername: foundData.robloxUsername,
+        endDate: foundData.endDate,
+        previousRank: foundData.previousRank,
+        reason: reason,
+        processedBy: interaction.user.id,
+      });
 
       foundData.status = 'completed';
       foundData.restoredAt = Date.now();
