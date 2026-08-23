@@ -15,7 +15,7 @@ const ALLOWED_ROLES = [
 export default {
   data: new SlashCommandBuilder()
     .setName('suggestion')
-    .setDescription('<:SurveyIcon:1502787137278312499> Submit a suggestion')
+    .setDescription('Submit a suggestion')
     .addStringOption(opt =>
       opt.setName('title')
         .setDescription('Title of the suggestion!')
@@ -105,7 +105,7 @@ export default {
         .setColor(0x808080)
         .setDescription(`Your suggestion has been submitted to <#${SUGGESTIONS_CHANNEL_ID}>.`)
         .addFields(
-          { name: '📝 Title', value: title, inline: false },
+          { name: '<:SurveyIcon:1502787137278312499> Title', value: title, inline: false },
         )
         .setTimestamp();
 
