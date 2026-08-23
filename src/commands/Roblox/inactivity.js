@@ -42,7 +42,7 @@ async function addTrelloComment(data) {
     try {
         const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
         
-        const comment = `**🚫 ${data.robloxUsername} - Inactivity Started**\n\n` +
+        const comment = `**${data.robloxUsername} - Inactivity Started**\n\n` +
                        `**Roblox User:** ${data.robloxUsername}\n` +
                        `**Discord User:** <@${data.discordId}> (${data.discordId})\n` +
                        `**Start Date:** ${data.startDate}\n` +
@@ -81,7 +81,7 @@ async function addTrelloEndComment(data) {
     try {
         const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
         
-        const comment = `**✅ ${data.robloxUsername} - Inactivity Ended**\n\n` +
+        const comment = `**${data.robloxUsername} - Inactivity Ended**\n\n` +
                        `**Roblox User:** ${data.robloxUsername}\n` +
                        `**End Date:** ${data.endDate}\n` +
                        `**Restored Rank:** ${data.previousRank?.name || 'Unknown'}\n` +
@@ -294,7 +294,7 @@ function startChecker(client) {
 export default {
   data: new SlashCommandBuilder()
     .setName('inactivity')
-    .setDescription('<:EventIcon:1502787131611938947> Register an inactivity notice')
+    .setDescription('Register an inactivity notice')
     .addUserOption(opt =>
       opt.setName('discorduser')
         .setDescription('Discord user')
