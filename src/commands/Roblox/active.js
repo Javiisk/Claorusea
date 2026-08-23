@@ -38,7 +38,7 @@ async function addTrelloEndComment(data) {
     try {
         const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
         
-        const comment = `**✅ ${data.robloxUsername} - Inactivity Ended Early**\n\n` +
+        const comment = `**${data.robloxUsername} - Inactivity Ended Early**\n\n` +
                        `**Roblox User:** ${data.robloxUsername}\n` +
                        `**End Date:** ${data.endDate}\n` +
                        `**Restored Rank:** ${data.previousRank?.name || 'Unknown'}\n` +
