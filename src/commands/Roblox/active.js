@@ -123,7 +123,7 @@ async function setRankByRoleId(userId, roleId) {
 export default {
   data: new SlashCommandBuilder()
     .setName('active')
-    .setDescription('<:EventIcon:1502787131611938947> End a user\'s inactivity early')
+    .setDescription('End a user\'s inactivity early')
     .setDMPermission(false)
     .addUserOption(opt =>
       opt.setName('discorduser')
