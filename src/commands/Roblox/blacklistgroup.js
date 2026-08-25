@@ -70,6 +70,8 @@ function generateBlacklistEmbed() {
       const appealText = g.appealable ? 'Appealable' : 'Not appealable';
       return `> *${g.name}* - **${appealText}**`;
     }).join('\n');
+  } else {
+    description += '> *No other blacklisted groups.*';
   }
 
   description += '\n\n> -# Leave this communities to be able to freely play our game and its future games, note that we have a professional moderation system if detects you are evading blacklist or evading ban you will be Immediately perm banned from server, reasons of blacklists on tickets.';
@@ -79,6 +81,34 @@ function generateBlacklistEmbed() {
     .setTitle('Adoresa Blacklisted Groups')
     .setDescription(description)
     .setTimestamp();
+}
+
+// ─── ACTUALIZAR EMBED ─────────────────────────────────────────────────────
+
+async function updateBlacklistEmbed(client) {
+  const embed = generateBlacklistEmbed();
+
+  try {
+    const channel = await client.channels.fetch('1502421151123509300');
+    if (!channel) return;
+
+    const messages = await channel.messages.fetch({ limit: 50 });
+    const blacklistMessage = messages.find(m => 
+      m.author.id === client.user.id && 
+      m.embeds.length > 0 && 
+      m.embeds[0].title === 'Adoresa Blacklisted Groups'
+    );
+    
+    if (blacklistMessage) {
+      await blacklistMessage.edit({ embeds: [embed] });
+      logger.info('[BlacklistGroup] ✅ Embed updated');
+    } else {
+      await channel.send({ embeds: [embed] });
+      logger.info('[BlacklistGroup] ✅ New embed sent');
+    }
+  } catch (error) {
+    logger.error('[BlacklistGroup] Failed to update embed:', error.message);
+  }
 }
 
 // ─── COMANDO ────────────────────────────────────────────────────────────────
@@ -161,27 +191,7 @@ export default {
 
         // ─── ACTUALIZAR EMBED ────────────────────────────────────────────────
 
-        const embed = generateBlacklistEmbed();
-
-        try {
-          const channel = await interaction.client.channels.fetch('1502421151123509300');
-          if (channel) {
-            const messages = await channel.messages.fetch({ limit: 50 });
-            const blacklistMessage = messages.find(m => 
-              m.author.id === interaction.client.user.id && 
-              m.embeds.length > 0 && 
-              m.embeds[0].title === 'Adoresa Blacklisted Groups'
-            );
-            
-            if (blacklistMessage) {
-              await blacklistMessage.edit({ embeds: [embed] });
-            } else {
-              await channel.send({ embeds: [embed] });
-            }
-          }
-        } catch (error) {
-          logger.warn('[BlacklistGroup] Could not update embed:', error.message);
-        }
+        await updateBlacklistEmbed(interaction.client);
 
         const appealText = appealable ? 'Appealable' : 'Not appealable';
         await InteractionHelper.safeEditReply(interaction, {
@@ -207,27 +217,7 @@ export default {
 
         // ─── ACTUALIZAR EMBED ────────────────────────────────────────────────
 
-        const embed = generateBlacklistEmbed();
-
-        try {
-          const channel = await interaction.client.channels.fetch('1502421151123509300');
-          if (channel) {
-            const messages = await channel.messages.fetch({ limit: 50 });
-            const blacklistMessage = messages.find(m => 
-              m.author.id === interaction.client.user.id && 
-              m.embeds.length > 0 && 
-              m.embeds[0].title === 'Adoresa Blacklisted Groups'
-            );
-            
-            if (blacklistMessage) {
-              await blacklistMessage.edit({ embeds: [embed] });
-            } else {
-              await channel.send({ embeds: [embed] });
-            }
-          }
-        } catch (error) {
-          logger.warn('[BlacklistGroup] Could not update embed:', error.message);
-        }
+        await updateBlacklistEmbed(interaction.client);
 
         await InteractionHelper.safeEditReply(interaction, {
           content: `✅ **${group.name}** (ID: \`${id}\`) has been removed from the blacklist. The embed has been updated.`,
@@ -238,7 +228,23 @@ export default {
       // ─── LIST ─────────────────────────────────────────────────────────────
 
       if (subcommand === 'list') {
-        const embed = generateBlacklistEmbed();
+        if (groups.length === 0) {
+          return await InteractionHelper.safeEditReply(interaction, {
+            content: '📭 No groups are currently blacklisted.',
+          });
+        }
+
+        const groupList = groups.map((g, i) => {
+          const appealText = g.appealable ? 'Appealable' : 'Not appealable';
+          return `${i + 1}. **${g.name}** (ID: \`${g.id}\`) - **${appealText}**`;
+        }).join('\n');
+
+        const embed = new EmbedBuilder()
+          .setColor(0x808080)
+          .setTitle('🚫 Blacklisted Groups')
+          .setDescription(`**${groups.length}** groups are currently blacklisted.\n\n${groupList}`)
+          .setTimestamp();
+
         await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
       }
 
