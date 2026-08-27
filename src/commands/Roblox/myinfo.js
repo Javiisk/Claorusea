@@ -1,5 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -78,15 +77,8 @@ export default {
     .setDMPermission(true),
 
   async execute(interaction) {
-    const deferSuccess = await InteractionHelper.safeDefer(interaction);
-    if (!deferSuccess) {
-      logger.warn('MyInfo interaction defer failed', {
-        userId: interaction.user.id,
-        guildId: interaction.guildId || 'DM',
-        commandName: 'myinfo',
-      });
-      return;
-    }
+    // Deferimos la respuesta (ephemeral o no, según prefieras)
+    await interaction.deferReply({ ephemeral: true });
 
     try {
       const targetUser = interaction.user;
@@ -97,7 +89,7 @@ export default {
 
       if (!bloxlinkData || !bloxlinkData.robloxID) {
         logger.warn(`[MyInfo] ${targetUser.tag} not linked`);
-        return await InteractionHelper.safeEditReply(interaction, {
+        return await interaction.editReply({
           content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
         });
       }
@@ -157,7 +149,8 @@ export default {
         userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
       }
 
-      // ✅ TRAINED STATUS WITH CUSTOM EMOJIS
+      // ─── ESTADO DE ENTRENAMIENTO ──────────────────────────────────────
+
       const trainedText = userData.trained 
         ? `<:VerifiedIcon:1502787139845230622> Trained` 
         : `<:UnverifiedIcon:1502787138700443668> Untrained`;
@@ -177,29 +170,45 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // ✅ EMBED WITH CUSTOM EMOJI IN TITLE
-      const embed = createEmbed({ 
-        title: `<:SurveyIcon:1502787137278312499> ${robloxUsername}'s Profile`,
-        description: null 
-      })
-        .setThumbnail(avatar)
-        .addFields(
-          { name: 'Discord User', value: `${targetUser}`, inline: false },
-          { name: 'Roblox ID', value: String(newRobloxId), inline: false },
-          { name: 'Rank', value: rank, inline: false },
-          { name: 'Trained Status', value: trainedText, inline: false },
-          { name: 'Warnings', value: warningsText, inline: false },
-          { name: 'Blacklists', value: blacklistText, inline: false },
-        )
-        .setFooter({ text: `Requested by ${interaction.user.username}` })
-        .setTimestamp();
+      // ─── CONSTRUIR EL CONTENIDO CON MARKDOWN ────────────────────────
 
-      await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+      // Usamos Markdown para dar formato: títulos, negritas, listas, etc.
+      const content = `
+# <:SurveyIcon:1502787137278312499> ${robloxUsername}
+
+> <:AddIcon:1538060207396098130> **Discord:** ${targetUser.tag}
+> <:AddIcon:1538060207396098130> **Roblox ID:** \`${newRobloxId}\`
+> <:AddIcon:1538060207396098130> **Rank:** ${rank}
+> <:AddIcon:1538060207396098130> **Status:** ${trainedText}
+> <:AddIcon:1538060207396098130> **Warnings:** ${warningsText}
+> <:AddIcon:1538060207396098130> **Blacklists:** ${blacklistText}
+
+---
+
+*Requested by ${interaction.user.username}*
+<t:${Math.floor(Date.now() / 1000)}:F>
+      `;
+
+      // ─── CREAR EL CONTAINER (NUEVO EMBED) ────────────────────────────
+
+      const container = new ContainerBuilder()
+        .setAccentColor(0x36393F) // Color gris oscuro (borde izquierdo)
+        .addComponents(
+          new TextDisplayBuilder()
+            .setContent(content)
+        );
+
+      // ─── ENVIAR CON EL FLAG ESPECIAL ──────────────────────────────────
+
+      await interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
+      });
 
     } catch (error) {
       logger.error('MyInfo command error:', error);
       try {
-        return await InteractionHelper.safeReply(interaction, {
+        await interaction.editReply({
           content: '❌ An error occurred while fetching the information.',
         });
       } catch (replyError) {
