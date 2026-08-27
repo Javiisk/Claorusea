@@ -1,5 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags, ChannelType } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
@@ -16,13 +15,11 @@ export default {
     .setName('embedmessage')
     .setDescription('🎨 Create a custom embed and send it to a specific channel')
     .setDMPermission(false)
-    // ⭐ REQUIRED options FIRST
     .addChannelOption(option =>
       option.setName('channel')
         .setDescription('📌 Channel where the embed will be sent')
         .setRequired(true)
         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement))
-    // ⭐ NON-REQUIRED options SECOND
     .addStringOption(option =>
       option.setName('title')
         .setDescription('Embed title')
@@ -108,52 +105,52 @@ export default {
 
       const botMember = await targetChannel.guild.members.fetchMe();
       const permissions = targetChannel.permissionsFor(botMember);
-      
+
       if (!permissions.has('SendMessages') || !permissions.has('ViewChannel')) {
         return await InteractionHelper.safeEditReply(interaction, {
           content: `❌ I don't have permission to send messages in <#${targetChannel.id}>.`
         });
       }
 
-      const embed = createEmbed({ 
-        title: title || '📋 Custom Embed',
-        description: description || 'No description provided.'
-      });
+      // ─── BUILD CONTENT ──────────────────────────────────────────────────
 
-      if (colorInput) {
-        const colorMap = {
-          'red': '#FF0000',
-          'blue': '#0000FF',
-          'green': '#00FF00',
-          'yellow': '#FFFF00',
-          'purple': '#800080',
-          'orange': '#FFA500',
-          'pink': '#FFC0CB',
-          'white': '#FFFFFF',
-          'black': '#000000',
-          'grey': '#808080',
-          'gray': '#808080'
-        };
-        let hexColor = colorMap[colorInput.toLowerCase()] || colorInput;
-        if (!hexColor.startsWith('#')) hexColor = `#${hexColor}`;
-        try {
-          embed.setColor(parseInt(hexColor.replace('#', ''), 16));
-        } catch {
-          embed.setColor(0x5865F2);
-        }
-      } else {
-        embed.setColor(0x5865F2);
+      let content = '';
+
+      if (title) {
+        content += `# ${title}\n\n`;
       }
 
-      if (thumbnail) embed.setThumbnail(thumbnail);
-      if (image) embed.setImage(image);
-      if (footer) embed.setFooter({ text: footer, iconURL: footerIcon || null });
-      if (author) embed.setAuthor({ name: author, iconURL: authorIcon || null });
-      if (url) embed.setURL(url);
+      if (description) {
+        content += `${description}\n\n`;
+      }
 
-      embed.setTimestamp();
+      if (thumbnail) {
+        content += `![](${thumbnail})\n\n`;
+      }
 
-      await targetChannel.send({ embeds: [embed] });
+      if (image) {
+        content += `![](${image})\n\n`;
+      }
+
+      if (footer) {
+        content += `---\n*${footer}*`;
+      }
+
+      // ─── CONTAINER ──────────────────────────────────────────────────────
+
+      const container = new ContainerBuilder()
+        .setAccentColor(colorInput ? parseInt(colorInput.replace('#', ''), 16) : 0x2F3136)
+        .addComponents(
+          new TextDisplayBuilder()
+            .setContent(content.trim())
+        );
+
+      // ─── SEND ──────────────────────────────────────────────────────────
+
+      await targetChannel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
       await InteractionHelper.safeEditReply(interaction, { 
         content: `✅ Embed successfully sent to <#${targetChannel.id}>` 
