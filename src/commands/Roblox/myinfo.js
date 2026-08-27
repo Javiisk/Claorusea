@@ -1,4 +1,5 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
+import { createContainer, replyContainer } from '../../utils/container.js';
 import { logger } from '../../utils/logger.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -160,8 +161,6 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // ─── DESCRIPCIÓN CON ESTILO MINIMALISTA ──────────────────────────────
-
       const description = `
 ### <:SurveyIcon:1502787137278312499> ${robloxUsername}
 
@@ -175,17 +174,12 @@ export default {
 *Requested by ${interaction.user.username}*
       `;
 
-      // ─── EMBED MINIMALISTA ─────────────────────────────────────────────────
-
-      const embed = new EmbedBuilder()
-        .setColor(0x2F3136) // Gris oscuro como en la imagen
-        .setDescription(description)
-        .setTimestamp();
-
-      await interaction.editReply({
-        embeds: [embed],
-        ephemeral: true,
+      const container = createContainer({
+        description: description,
+        color: 0x2F3136,
       });
+
+      await replyContainer(interaction, container, true);
 
     } catch (error) {
       logger.error('MyInfo command error:', error);
