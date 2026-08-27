@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { createContainer, replyContainer } from '../../utils/container.js';
 import { logger } from '../../utils/logger.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -160,6 +160,8 @@ export default {
       const blacklistText = userData.blacklisted
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
+
+      // ─── CONTENIDO DEL CONTAINER ──────────────────────────────────────────
 
       const description = `
 ### <:SurveyIcon:1502787137278312499> ${robloxUsername}
