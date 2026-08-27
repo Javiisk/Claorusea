@@ -9,48 +9,28 @@ export function createContainer({
   title = '',
   description = '',
   color = 0x36393F,
-  fields = [],
   footer = null,
   timestamp = true,
-  thumbnail = null,
 } = {}) {
-  // Construir el contenido con Markdown
   let content = '';
 
-  // Título
   if (title) {
     content += `# ${title}\n\n`;
   }
 
-  // Descripción
   if (description) {
     content += `${description}\n\n`;
   }
 
-  // Campos
-  if (fields && fields.length > 0) {
-    fields.forEach(field => {
-      if (field.name && field.value) {
-        content += `**${field.name}**\n> ${field.value}\n\n`;
-      }
-    });
-  }
-
-  // Separador
-  content += `---\n\n`;
-
-  // Footer
   if (footer) {
-    content += `*${footer}*\n`;
+    content += `---\n\n*${footer}*\n`;
   }
 
-  // Timestamp
   if (timestamp) {
     const ts = Math.floor(Date.now() / 1000);
     content += `<t:${ts}:F>`;
   }
 
-  // Crear el container
   return new ContainerBuilder()
     .setAccentColor(color)
     .addComponents(
@@ -78,9 +58,6 @@ export async function replyContainer(interaction, container, ephemeral = false) 
   }
 }
 
-/**
- * Crear container de error
- */
 export function errorContainer(message) {
   return createContainer({
     title: '❌ Error',
@@ -89,9 +66,6 @@ export function errorContainer(message) {
   });
 }
 
-/**
- * Crear container de éxito
- */
 export function successContainer(message) {
   return createContainer({
     title: '✅ Success',
@@ -100,9 +74,6 @@ export function successContainer(message) {
   });
 }
 
-/**
- * Crear container de información
- */
 export function infoContainer(message) {
   return createContainer({
     title: 'ℹ️ Information',
