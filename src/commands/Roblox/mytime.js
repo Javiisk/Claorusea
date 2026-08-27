@@ -1,126 +1,204 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { createContainer, replyContainer } from '../../utils/container.js';
 import { logger } from '../../utils/logger.js';
-import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { 
+  getRobloxUserByDiscord, 
+  getRobloxUsernameById,
+  getRobloxGroupRank,
+  getRobloxAvatar,
+  checkBlacklistedGroups
+} from '../../utils/bloxlink.js';
 
-const GROUP_ID = process.env.ROBLOX_GROUP_ID;
-const UNIVERSE_ID = process.env.UNIVERSE_ID;
-const OPENCLOUD_API_KEY = process.env.ROBLOX_API_KEY;
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DB_PATH = join(__dirname, '../../../../roblox-data.json');
+const GROUPS_PATH = join(__dirname, '../../../../blacklisted-groups.json');
 
-// ─── OBTENER HORAS DE JUEGO DESDE DATASTORE ──────────────────────────────
+const DEFAULT_GROUPS = [
+  { id: '9221386', name: 'Unholy sacred sisters' },
+  { id: '1097260506', name: 'Démoria' },
+  { id: '35008390', name: 'la vélvoria' },
+];
 
-async function getPlaytimeFromDataStore(robloxId) {
-    try {
-        const url = `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}/user-data-stores/Playtime/entries/user-${robloxId}`;
+// ─── FUNCIONES DE BASE DE DATOS ──────────────────────────────────────────
 
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'x-api-key': OPENCLOUD_API_KEY,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                return { success: true, playtime: 0, error: null };
-            }
-            throw new Error(`API error ${response.status}`);
-        }
-
-        const data = await response.json();
-        const playtimeSeconds = data.value || 0;
-        return { success: true, playtime: playtimeSeconds, error: null };
-    } catch (error) {
-        logger.error('[MyTime] Error fetching playtime:', error);
-        return { success: false, playtime: 0, error: error.message };
-    }
+function loadGroups() {
+  if (!existsSync(GROUPS_PATH)) {
+    writeFileSync(GROUPS_PATH, JSON.stringify(DEFAULT_GROUPS, null, 2));
+    return DEFAULT_GROUPS;
+  }
+  return JSON.parse(readFileSync(GROUPS_PATH, 'utf8'));
 }
 
-// ─── OBTENER RANGO DEL GRUPO ──────────────────────────────────────────────
-
-async function getRobloxGroupRank(userId) {
-    try {
-        const res = await fetch(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
-        const data = await res.json();
-        const group = data.data?.find(g => String(g.group.id) === String(GROUP_ID));
-        return group ? group.role.name : 'Not in the group';
-    } catch {
-        return 'Error fetching rank';
-    }
+function loadDB() {
+  if (!existsSync(DB_PATH)) writeFileSync(DB_PATH, JSON.stringify({}));
+  return JSON.parse(readFileSync(DB_PATH, 'utf8'));
 }
 
-// ─── FORMATO DE TIEMPO ──────────────────────────────────────────────────────
+function saveDB(data) {
+  try {
+    writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+    return true;
+  } catch (e) {
+    logger.error('Error saving DB:', e);
+    return false;
+  }
+}
 
-function formatPlaytime(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
+function getUserData(discordId) {
+  const db = loadDB();
+  const key = discordId;
+  if (!db[key]) {
+    db[key] = { 
+      discordId: discordId, 
+      robloxId: null, 
+      username: null, 
+      trained: false, 
+      warnings: [], 
+      blacklisted: false, 
+      blacklistReason: null 
+    };
+    saveDB(db);
+  }
+  return db[key];
+}
 
-    if (hours > 0) {
-        return `${hours}h ${minutes}m ${secs}s`;
-    } else if (minutes > 0) {
-        return `${minutes}m ${secs}s`;
-    } else {
-        return `${secs}s`;
-    }
+function saveUserData(discordId, data) {
+  const db = loadDB();
+  const key = discordId;
+  db[key] = { ...(db[key] || { discordId: discordId, robloxId: null, username: null, trained: false, warnings: [] }), ...data };
+  return saveDB(db);
 }
 
 // ─── COMANDO ────────────────────────────────────────────────────────────────
 
 export default {
-    data: new SlashCommandBuilder()
-        .setName('mytime')
-        .setDescription('⏱️ Get your weekly shift time and rank')
-        .setDMPermission(true),
+  data: new SlashCommandBuilder()
+    .setName('myinfo')
+    .setDescription('View your Roblox profile and group status')
+    .setDMPermission(true),
 
-    async execute(interaction) {
-        await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+  async execute(interaction) {
+    await interaction.deferReply({ ephemeral: true });
 
-        try {
-            const targetUser = interaction.user;
+    try {
+      const targetUser = interaction.user;
 
-            const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+      logger.info(`[MyInfo] Looking up: ${targetUser.tag} (${targetUser.id})`);
 
-            if (!userInfo) {
-                return await InteractionHelper.safeEditReply(interaction, {
-                    content: `❌ You do not have a Roblox account linked in this server.`,
-                });
-            }
+      const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
-            const robloxId = userInfo.id;
-            const robloxUsername = userInfo.username;
+      if (!bloxlinkData || !bloxlinkData.robloxID) {
+        return await interaction.editReply({
+          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+        });
+      }
 
-            const playtimeResult = await getPlaytimeFromDataStore(robloxId);
+      const newRobloxId = String(bloxlinkData.robloxID);
+      let robloxUsername = bloxlinkData.primaryAccount || null;
 
-            if (!playtimeResult.success) {
-                return await InteractionHelper.safeEditReply(interaction, {
-                    content: `❌ Could not fetch playtime data for **${robloxUsername}**.`,
-                });
-            }
+      if (!robloxUsername || robloxUsername === 'Unknown' || robloxUsername === 'null') {
+        const username = await getRobloxUsernameById(newRobloxId);
+        if (username) robloxUsername = username;
+      }
+      if (!robloxUsername) robloxUsername = `User_${newRobloxId}`;
 
-            const rank = await getRobloxGroupRank(robloxId);
-            const formattedTime = formatPlaytime(playtimeResult.playtime);
-            const hoursDecimal = (playtimeResult.playtime / 3600).toFixed(1);
+      let userData = getUserData(targetUser.id);
 
-            const embed = new EmbedBuilder()
-                .setColor(0x5865F2)
-                .setTitle(`⏱️ ${robloxUsername}'s Weekly Shift Time`)
-                .addFields(
-                    { name: '⏱️ Shift Time', value: `\`${formattedTime}\` (${hoursDecimal} hours)`, inline: false },
-                    { name: '📊 Rank', value: `\`${rank}\``, inline: true },
-                    { name: '🆔 Roblox ID', value: `\`${robloxId}\``, inline: true }
-                )
-                .setFooter({ text: 'Shift time resets every Monday' })
-                .setTimestamp();
+      if (userData.robloxId && userData.robloxId !== newRobloxId) {
+        saveUserData(targetUser.id, {
+          robloxId: newRobloxId,
+          username: robloxUsername,
+          trained: false,
+          warnings: [],   
+          blacklisted: false,
+          blacklistReason: null
+        });
+        userData = getUserData(targetUser.id);
+      } 
+      else if (!userData.robloxId) {
+        saveUserData(targetUser.id, {
+          robloxId: newRobloxId,
+          username: robloxUsername
+        });
+        userData.robloxId = newRobloxId;
+        userData.username = robloxUsername;
+      }
+      else if (userData.username !== robloxUsername) {
+        saveUserData(targetUser.id, { username: robloxUsername });
+        userData.username = robloxUsername;
+      }
 
-            await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+      const [rank, avatar, blacklistedGroup] = await Promise.all([
+        getRobloxGroupRank(newRobloxId),
+        getRobloxAvatar(newRobloxId),
+        checkBlacklistedGroups(newRobloxId, loadGroups()),
+      ]);
 
-        } catch (error) {
-            logger.error('MyTime error:', error);
-            await InteractionHelper.safeEditReply(interaction, {
-                content: '❌ An error occurred while fetching your shift time.',
-            });
+      if (blacklistedGroup && !userData.blacklisted) {
+        saveUserData(targetUser.id, {
+          blacklisted: true,
+          blacklistReason: `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`,
+        });
+        userData.blacklisted = true;
+        userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
+      }
+
+      // ─── ESTADO DE ENTRENAMIENTO ──────────────────────────────────────
+
+      const trainedText = userData.trained 
+        ? `<:VerifiedIcon:1502787139845230622> Trained` 
+        : `<:UnverifiedIcon:1502787138700443668> Untrained`;
+
+      let warningsText = 'None';
+      if (userData.warnings && userData.warnings.length > 0) {
+        const lastWarns = userData.warnings.slice(-5).reverse();
+        warningsText = lastWarns.map(w => 
+          `⚠️ **#${w.id}** - ${w.reason} *(by ${w.moderator})*`
+        ).join('\n');
+        if (userData.warnings.length > 5) {
+          warningsText += `\n...and ${userData.warnings.length - 5} more warnings.`;
         }
-    },
+      }
+
+      const blacklistText = userData.blacklisted
+        ? `🚫 ${userData.blacklistReason || 'No reason'}`
+        : 'None';
+
+      // ─── CREAR CONTAINER MODERNO ──────────────────────────────────────
+
+      const description = `
+> <:AddIcon:1538060207396098130> **Discord:** ${targetUser.tag}
+> <:AddIcon:1538060207396098130> **Roblox ID:** \`${newRobloxId}\`
+> <:AddIcon:1538060207396098130> **Rank:** ${rank}
+> <:AddIcon:1538060207396098130> **Status:** ${trainedText}
+> <:AddIcon:1538060207396098130> **Warnings:** ${warningsText}
+> <:AddIcon:1538060207396098130> **Blacklists:** ${blacklistText}
+      `;
+
+      const container = createContainer({
+        title: `<:SurveyIcon:1502787137278312499> ${robloxUsername}`,
+        description: description,
+        color: 0x36393F,
+        footer: `Requested by ${interaction.user.username}`,
+        timestamp: true,
+      });
+
+      // ─── ENVIAR ──────────────────────────────────────────────────────
+
+      await replyContainer(interaction, container, true);
+
+    } catch (error) {
+      logger.error('MyInfo command error:', error);
+      try {
+        await interaction.editReply({
+          content: '❌ An error occurred while fetching the information.',
+        });
+      } catch (replyError) {
+        logger.error('Failed to send error reply:', replyError);
+      }
+    }
+  },
 };
