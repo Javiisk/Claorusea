@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
+import { createContainer, replyContainer } from '../../utils/container.js';
 import { logger } from '../../utils/logger.js';
-import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -21,6 +21,8 @@ const DEFAULT_GROUPS = [
   { id: '1097260506', name: 'Démoria' },
   { id: '35008390', name: 'la vélvoria' },
 ];
+
+// ─── FUNCIONES DE BASE DE DATOS ──────────────────────────────────────────
 
 function loadGroups() {
   if (!existsSync(GROUPS_PATH)) {
@@ -70,6 +72,8 @@ function saveUserData(discordId, data) {
   return saveDB(db);
 }
 
+// ─── COMANDO ────────────────────────────────────────────────────────────────
+
 export default {
   data: new SlashCommandBuilder()
     .setName('myinfo')
@@ -77,7 +81,6 @@ export default {
     .setDMPermission(true),
 
   async execute(interaction) {
-    // Deferimos la respuesta (ephemeral o no, según prefieras)
     await interaction.deferReply({ ephemeral: true });
 
     try {
@@ -88,7 +91,6 @@ export default {
       const bloxlinkData = await getRobloxUserByDiscord(targetUser.id);
 
       if (!bloxlinkData || !bloxlinkData.robloxID) {
-        logger.warn(`[MyInfo] ${targetUser.tag} not linked`);
         return await interaction.editReply({
           content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
         });
@@ -103,13 +105,9 @@ export default {
       }
       if (!robloxUsername) robloxUsername = `User_${newRobloxId}`;
 
-      logger.info(`[MyInfo] Roblox: ${robloxUsername} (${newRobloxId})`);
-
       let userData = getUserData(targetUser.id);
 
       if (userData.robloxId && userData.robloxId !== newRobloxId) {
-        logger.info(`[MyInfo] ACCOUNT CHANGE DETECTED for ${targetUser.tag}. Old: ${userData.robloxId}, New: ${newRobloxId}`);
-
         saveUserData(targetUser.id, {
           robloxId: newRobloxId,
           username: robloxUsername,
@@ -118,7 +116,6 @@ export default {
           blacklisted: false,
           blacklistReason: null
         });
-
         userData = getUserData(targetUser.id);
       } 
       else if (!userData.robloxId) {
@@ -170,11 +167,10 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // ─── CONSTRUIR EL CONTENIDO CON MARKDOWN ────────────────────────
+      // ─── CREAR CONTAINER MODERNO ──────────────────────────────────────
 
-      // Usamos Markdown para dar formato: títulos, negritas, listas, etc.
-      const content = `
-# <:SurveyIcon:1502787137278312499> ${robloxUsername}
+      const description = `
+<:SurveyIcon:1502787137278312499> **${robloxUsername}**
 
 > <:AddIcon:1538060207396098130> **Discord:** ${targetUser.tag}
 > <:AddIcon:1538060207396098130> **Roblox ID:** \`${newRobloxId}\`
@@ -182,28 +178,19 @@ export default {
 > <:AddIcon:1538060207396098130> **Status:** ${trainedText}
 > <:AddIcon:1538060207396098130> **Warnings:** ${warningsText}
 > <:AddIcon:1538060207396098130> **Blacklists:** ${blacklistText}
-
----
-
-*Requested by ${interaction.user.username}*
-<t:${Math.floor(Date.now() / 1000)}:F>
       `;
 
-      // ─── CREAR EL CONTAINER (NUEVO EMBED) ────────────────────────────
-
-      const container = new ContainerBuilder()
-        .setAccentColor(0x36393F) // Color gris oscuro (borde izquierdo)
-        .addComponents(
-          new TextDisplayBuilder()
-            .setContent(content)
-        );
-
-      // ─── ENVIAR CON EL FLAG ESPECIAL ──────────────────────────────────
-
-      await interaction.editReply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2
+      const container = createContainer({
+        description: description,
+        color: 0x36393F,
+        footer: `Requested by ${interaction.user.username}`,
+        timestamp: true,
+        // thumbnail no se usa en V2, se puede poner en el contenido con ![]()
       });
+
+      // ─── ENVIAR ──────────────────────────────────────────────────────────
+
+      await replyContainer(interaction, container, true);
 
     } catch (error) {
       logger.error('MyInfo command error:', error);
