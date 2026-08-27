@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { createContainer, replyContainer } from '../../utils/container.js';
 import { logger } from '../../utils/logger.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -167,9 +167,11 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // ─── CREAR CONTAINER MODERNO ──────────────────────────────────────
+      // ─── CREAR DESCRIPCIÓN ──────────────────────────────────────────────
 
       const description = `
+<:SurveyIcon:1502787137278312499> **${robloxUsername}**
+
 > <:AddIcon:1538060207396098130> **Discord:** ${targetUser.tag}
 > <:AddIcon:1538060207396098130> **Roblox ID:** \`${newRobloxId}\`
 > <:AddIcon:1538060207396098130> **Rank:** ${rank}
@@ -178,17 +180,19 @@ export default {
 > <:AddIcon:1538060207396098130> **Blacklists:** ${blacklistText}
       `;
 
-      const container = createContainer({
-        title: `<:SurveyIcon:1502787137278312499> ${robloxUsername}`,
+      // ─── CREAR CONTAINER ──────────────────────────────────────────────────
+
+      const embed = createContainer({
         description: description,
         color: 0x36393F,
         footer: `Requested by ${interaction.user.username}`,
         timestamp: true,
+        thumbnail: avatar,
       });
 
-      // ─── ENVIAR ──────────────────────────────────────────────────────
+      // ─── ENVIAR ──────────────────────────────────────────────────────────
 
-      await replyContainer(interaction, container, true);
+      await replyContainer(interaction, embed, true);
 
     } catch (error) {
       logger.error('MyInfo command error:', error);
