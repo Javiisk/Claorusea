@@ -1,6 +1,6 @@
 // src/utils/container.js
 
-import { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MessageFlags } from 'discord.js';
+import { ContainerBuilder, TextDisplayBuilder, MessageFlags } from 'discord.js';
 
 /**
  * Crear un container (embed moderno V2) con formato Markdown
@@ -17,17 +17,17 @@ export function createContainer({
   // Construir el contenido con Markdown
   let content = '';
 
-  // Título (con emoji si se proporciona)
+  // Título
   if (title) {
     content += `# ${title}\n\n`;
   }
 
-  // Descripción / cuerpo principal
+  // Descripción
   if (description) {
     content += `${description}\n\n`;
   }
 
-  // Campos (como viñetas o listas)
+  // Campos
   if (fields && fields.length > 0) {
     fields.forEach(field => {
       if (field.name && field.value) {
@@ -37,7 +37,7 @@ export function createContainer({
   }
 
   // Separador
-  content += `---\n`;
+  content += `---\n\n`;
 
   // Footer
   if (footer) {
@@ -50,15 +50,13 @@ export function createContainer({
     content += `<t:${ts}:F>`;
   }
 
-  // Crear el container con los componentes
-  const container = new ContainerBuilder()
+  // Crear el container
+  return new ContainerBuilder()
     .setAccentColor(color)
     .addComponents(
       new TextDisplayBuilder()
         .setContent(content.trim())
     );
-
-  return container;
 }
 
 /**
@@ -66,8 +64,7 @@ export function createContainer({
  */
 export async function replyContainer(interaction, container, ephemeral = false) {
   const flags = ephemeral ? MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral : MessageFlags.IsComponentsV2;
-  
-  // Si ya está deferida
+
   if (interaction.deferred) {
     await interaction.editReply({
       components: [container],
