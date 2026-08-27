@@ -22,8 +22,6 @@ const DEFAULT_GROUPS = [
   { id: '35008390', name: 'la vélvoria' },
 ];
 
-// ─── FUNCIONES DE BASE DE DATOS ──────────────────────────────────────────
-
 function loadGroups() {
   if (!existsSync(GROUPS_PATH)) {
     writeFileSync(GROUPS_PATH, JSON.stringify(DEFAULT_GROUPS, null, 2));
@@ -71,8 +69,6 @@ function saveUserData(discordId, data) {
   db[key] = { ...(db[key] || { discordId: discordId, robloxId: null, username: null, trained: false, warnings: [] }), ...data };
   return saveDB(db);
 }
-
-// ─── COMANDO ────────────────────────────────────────────────────────────────
 
 export default {
   data: new SlashCommandBuilder()
@@ -146,8 +142,6 @@ export default {
         userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
       }
 
-      // ─── ESTADO DE ENTRENAMIENTO ──────────────────────────────────────
-
       const trainedText = userData.trained 
         ? `<:VerifiedIcon:1502787139845230622> Trained` 
         : `<:UnverifiedIcon:1502787138700443668> Untrained`;
@@ -167,8 +161,6 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // ─── CREAR CONTAINER MODERNO ──────────────────────────────────────
-
       const description = `
 <:SurveyIcon:1502787137278312499> **${robloxUsername}**
 
@@ -185,10 +177,7 @@ export default {
         color: 0x36393F,
         footer: `Requested by ${interaction.user.username}`,
         timestamp: true,
-        // thumbnail no se usa en V2, se puede poner en el contenido con ![]()
       });
-
-      // ─── ENVIAR ──────────────────────────────────────────────────────────
 
       await replyContainer(interaction, container, true);
 
