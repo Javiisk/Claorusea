@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { createContainer, replyContainer } from '../../utils/container.js';
 import { logger } from '../../utils/logger.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -21,8 +21,6 @@ const DEFAULT_GROUPS = [
   { id: '1097260506', name: 'Démoria' },
   { id: '35008390', name: 'la vélvoria' },
 ];
-
-// ─── FUNCIONES DE BASE DE DATOS ──────────────────────────────────────────
 
 function loadGroups() {
   if (!existsSync(GROUPS_PATH)) {
@@ -71,8 +69,6 @@ function saveUserData(discordId, data) {
   db[key] = { ...(db[key] || { discordId: discordId, robloxId: null, username: null, trained: false, warnings: [] }), ...data };
   return saveDB(db);
 }
-
-// ─── COMANDO ────────────────────────────────────────────────────────────────
 
 export default {
   data: new SlashCommandBuilder()
@@ -146,8 +142,6 @@ export default {
         userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
       }
 
-      // ─── ESTADO DE ENTRENAMIENTO ──────────────────────────────────────
-
       const trainedText = userData.trained 
         ? `<:VerifiedIcon:1502787139845230622> Trained` 
         : `<:UnverifiedIcon:1502787138700443668> Untrained`;
@@ -167,10 +161,10 @@ export default {
         ? `🚫 ${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // ─── CREAR DESCRIPCIÓN ──────────────────────────────────────────────
+      // ─── CONTENIDO DEL CONTAINER ──────────────────────────────────────────
 
       const description = `
-<:SurveyIcon:1502787137278312499> **${robloxUsername}**
+### <:SurveyIcon:1502787137278312499> ${robloxUsername}
 
 > <:AddIcon:1538060207396098130> **Discord:** ${targetUser.tag}
 > <:AddIcon:1538060207396098130> **Roblox ID:** \`${newRobloxId}\`
@@ -178,21 +172,16 @@ export default {
 > <:AddIcon:1538060207396098130> **Status:** ${trainedText}
 > <:AddIcon:1538060207396098130> **Warnings:** ${warningsText}
 > <:AddIcon:1538060207396098130> **Blacklists:** ${blacklistText}
+
+*Requested by ${interaction.user.username}*
       `;
 
-      // ─── CREAR CONTAINER ──────────────────────────────────────────────────
-
-      const embed = createContainer({
+      const container = createContainer({
         description: description,
-        color: 0x36393F,
-        footer: `Requested by ${interaction.user.username}`,
-        timestamp: true,
-        thumbnail: avatar,
+        color: 0x2F3136,
       });
 
-      // ─── ENVIAR ──────────────────────────────────────────────────────────
-
-      await replyContainer(interaction, embed, true);
+      await replyContainer(interaction, container, true);
 
     } catch (error) {
       logger.error('MyInfo command error:', error);
