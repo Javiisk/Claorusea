@@ -34,7 +34,7 @@ export async function handleDM(client, message) {
       console.error(`❌ Could not find/access the log channel with ID ${logChannelId}.`);
     } else {
       const container = new ContainerBuilder()
-        .setAccentColor(0x22194D)
+        .setAccentColor(null)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
             `### 📩 New Direct Message\n**From:** ${message.author.tag} (\`${message.author.id}\`)`,
