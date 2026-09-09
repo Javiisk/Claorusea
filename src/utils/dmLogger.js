@@ -34,7 +34,7 @@ export async function handleDM(client, message) {
       console.error(`❌ Could not find/access the log channel with ID ${logChannelId}.`);
     } else {
       const container = new ContainerBuilder()
-        .setAccentColor(0x5865f2)
+        .setAccentColor(22194D)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
             `### 📩 New Direct Message\n**From:** ${message.author.tag} (\`${message.author.id}\`)`,
@@ -77,7 +77,7 @@ export async function handleDM(client, message) {
 
   // Let the user know their message was received.
   await message
-    .reply("Thanks for your message! It's been forwarded to our team and someone will get back to you soon.")
+    .reply("Your message has been logged.")
     .catch(() => {
       // Reply can fail if the user has DMs closed after sending — safe to ignore.
     });
