@@ -15,7 +15,7 @@ import {
 export function createContainer({ description = '', color = 0x2F3136 } = {}) {
   const container = new ContainerBuilder()
     .setAccentColor(color)
-    .addComponents(
+    .addTextDisplayComponents( // ✅ Fixed: was .addComponents(), which doesn't exist on ContainerBuilder
       new TextDisplayBuilder()
         .setContent(description.trim())
     );
@@ -43,7 +43,7 @@ export function createContainerWithSections({ sections = [], color = 0x2F3136 } 
 
     // Añadir separador entre secciones (excepto la última)
     if (index < sections.length - 1) {
-      container.addSeparatorComponents(separator => 
+      container.addSeparatorComponents(separator =>
         separator.setSpacing(SeparatorSpacingSize.Medium)
       );
     }
