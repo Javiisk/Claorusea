@@ -1,8 +1,9 @@
-const { ChannelType, EmbedBuilder } = require('discord.js');
+import { ChannelType, EmbedBuilder } from 'discord.js';
 
 // Handles an incoming message: if it's a DM to the bot, logs it into
 // DM_LOG_CHANNEL_ID and sends a confirmation reply to the user.
-async function handleDirectMessage(message) {
+// Called as handleDM(client, message) from app.js's messageCreate listener.
+export async function handleDM(client, message) {
   // Ignore messages from bots (including this bot itself) to avoid loops.
   if (message.author.bot) return;
 
@@ -17,7 +18,7 @@ async function handleDirectMessage(message) {
   if (!logChannelId) {
     console.warn('⚠️ DM_LOG_CHANNEL_ID is not set — DM was received but not logged anywhere.');
   } else {
-    const logChannel = await message.client.channels.fetch(logChannelId).catch(() => null);
+    const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
 
     if (!logChannel) {
       console.error(`❌ Could not find/access the log channel with ID ${logChannelId}.`);
@@ -59,5 +60,3 @@ async function handleDirectMessage(message) {
     // Reply can fail if the user has DMs closed after sending — safe to ignore.
   });
 }
-
-module.exports = { handleDirectMessage };
