@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
-import { handleDM } from './utils/DmLogger.js'; // ✅ Import DM logger (matches actual file name/casing)
+import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger (matches actual file name/casing)
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
