@@ -1,7 +1,17 @@
-import { ChannelType, EmbedBuilder } from 'discord.js';
+import {
+  ChannelType,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+  MessageFlags,
+} from 'discord.js';
 
 // Handles an incoming message: if it's a DM to the bot, logs it into
-// DM_LOG_CHANNEL_ID and sends a confirmation reply to the user.
+// DM_LOG_CHANNEL_ID (using a Components V2 container) and sends a
+// confirmation reply to the user.
 // Called as handleDM(client, message) from app.js's messageCreate listener.
 export async function handleDM(client, message) {
   // Ignore messages from bots (including this bot itself) to avoid loops.
@@ -23,40 +33,52 @@ export async function handleDM(client, message) {
     if (!logChannel) {
       console.error(`❌ Could not find/access the log channel with ID ${logChannelId}.`);
     } else {
-      const embed = new EmbedBuilder()
-        .setColor(0x5865f2)
-        .setAuthor({
-          name: `${message.author.tag} (${message.author.id})`,
-          iconURL: message.author.displayAvatarURL(),
-        })
-        .setTitle('📩 New Direct Message')
-        .setDescription(message.content || '*No text content*')
-        .setTimestamp();
+      const container = new ContainerBuilder()
+        .setAccentColor(0x5865f2)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `### 📩 New Direct Message\n**From:** ${message.author.tag} (\`${message.author.id}\`)`,
+          ),
+        )
+        .addSeparatorComponents((separator) => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(message.content || '*No text content*'),
+        );
 
-      // If the DM includes images/files, attach the first one as a preview
-      // and list every attachment as a field.
+      // Split attachments into images (shown in a media gallery) and other
+      // files (listed as plain links), since Components V2 has no .setImage().
       if (message.attachments.size > 0) {
-        const firstAttachment = message.attachments.first();
-        if (firstAttachment.contentType?.startsWith('image/')) {
-          embed.setImage(firstAttachment.url);
+        const imageAttachments = message.attachments.filter((a) => a.contentType?.startsWith('image/'));
+        const otherAttachments = message.attachments.filter((a) => !a.contentType?.startsWith('image/'));
+
+        if (imageAttachments.size > 0) {
+          const gallery = new MediaGalleryBuilder().addItems(
+            imageAttachments.map((a) => new MediaGalleryItemBuilder().setURL(a.url)),
+          );
+          container.addMediaGalleryComponents(gallery);
         }
 
-        embed.addFields({
-          name: `Attachments (${message.attachments.size})`,
-          value: message.attachments.map((a) => a.url).join('\n'),
-        });
+        if (otherAttachments.size > 0) {
+          container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `**Other attachments (${otherAttachments.size}):**\n${otherAttachments.map((a) => a.url).join('\n')}`,
+            ),
+          );
+        }
       }
 
-      await logChannel.send({ embeds: [embed] }).catch((error) => {
-        console.error('❌ Failed to send the log message:', error);
-      });
+      await logChannel
+        .send({ components: [container], flags: MessageFlags.IsComponentsV2 })
+        .catch((error) => {
+          console.error('❌ Failed to send the log message:', error);
+        });
     }
   }
 
   // Let the user know their message was received.
-  await message.reply(
-    "Thanks for your message! It's been forwarded to our team and someone will get back to you soon.",
-  ).catch(() => {
-    // Reply can fail if the user has DMs closed after sending — safe to ignore.
-  });
-}
+  await message
+    .reply("Thanks for your message! It's been forwarded to our team and someone will get back to you soon.")
+    .catch(() => {
+      // Reply can fail if the user has DMs closed after sending — safe to ignore.
+    });
+        }
