@@ -181,7 +181,7 @@ export default {
       const container = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`### ${targetUser.username}'s Profile`),
+          new TextDisplayBuilder().setContent(`### ${robloxUsername}'s Profile`),
         )
         .addSeparatorComponents(separator =>
           separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
