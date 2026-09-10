@@ -4,8 +4,6 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const SUGGESTIONS_CHANNEL_ID = '1546998163716571206';
 
-];
-
 export default {
   data: new SlashCommandBuilder()
     .setName('suggestion')
@@ -31,15 +29,6 @@ export default {
 
   async execute(interaction) {
     try {
-      // Check permissions
-      const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-      if (!hasRole) {
-        return await interaction.reply({
-          content: '❌ You don\'t have permission to use this command.',
-          ephemeral: true,
-        });
-      }
-
       await interaction.deferReply({ ephemeral: true });
 
       const title = interaction.options.getString('title');
