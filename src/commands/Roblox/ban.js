@@ -37,7 +37,7 @@ export default {
 
     if (targetUser.id === interaction.user.id) {
       return await InteractionHelper.safeEditReply(interaction, {
-        content: '❌ You cannot ban yourself.'
+        content: '<:UnverifiedIcon:1547447352795594844> You cannot ban yourself.'
       });
     }
 
@@ -106,7 +106,7 @@ export default {
                 '',
                 `**Reason**\n${reason}`,
                 '',
-                `**DM Notification**\n${dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully'}`,
+                `**DM Notification**\n${dmError ? '<:UnverifiedIcon:1547447352795594844> Not sent (DMs closed)' : '<:VerifiedIcon:1547447354272260107> Sent successfully'}`,
               ].join('\n'),
             ),
           );
@@ -120,13 +120,13 @@ export default {
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ **${targetUser.tag}** was banned successfully.`,
+        content: `<:VerifiedIcon:1547447354272260107> **${targetUser.tag}** was banned successfully.`,
       });
 
     } catch (error) {
       logger.error('Ban command error:', error);
       await InteractionHelper.safeEditReply(interaction, {
-        content: '❌ An error occurred while trying to ban this user. They may not be bannable.',
+        content: '<:UnverifiedIcon:1547447352795594844> An error occurred while trying to ban this user. They may not be bannable.',
       });
     }
   },
