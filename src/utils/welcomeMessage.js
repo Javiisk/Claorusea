@@ -9,10 +9,11 @@ import {
   MediaGalleryItemBuilder,
   MessageFlags,
 } from 'discord.js';
+import { fileURLToPath } from 'url';
 
 // Path to the decorative banner image, relative to this file.
 // Place your image at: src/assets/welcome-banner.png
-const BANNER_PATH = new URL('../assets/welcome-banner.png', import.meta.url);
+const BANNER_PATH = fileURLToPath(new URL('../assets/welcome-banner.png', import.meta.url));
 
 /**
  * Builds the full welcome message payload (mention + Components V2 container)
