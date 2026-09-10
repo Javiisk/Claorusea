@@ -11,10 +11,11 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getRobloxUserByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
+import { getRobloxUserByDiscord } from '../../utils/bloxlink.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '../../../../roblox-data.json');
+const LOG_CHANNEL_ID = '1547414356210225203';
 
 function loadDB() {
   if (!existsSync(DB_PATH)) writeFileSync(DB_PATH, JSON.stringify({}));
@@ -28,7 +29,7 @@ function saveDB(data) {
 export default {
   data: new SlashCommandBuilder()
     .setName('warn')
-    .setDescription('Add a warning to a user (Updates their MyInfo)')
+    .setDescription('Add a warning to a user')
     .setDMPermission(false)
     .addUserOption(opt =>
       opt.setName('user')
@@ -126,38 +127,47 @@ export default {
         logger.warn(`[Warn] Could not send DM to ${targetUser.tag}. DMs are closed.`);
       }
 
-      // ─── SUCCESS CONTAINER (Components V2) ───────────────────────────
-      const successContainer = new ContainerBuilder()
-        .setAccentColor(null)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### ✅ Warning Applied'),
-        )
-        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `A warning has been added to **${targetUser.tag}**.`,
-          ),
-        )
-        .addSeparatorComponents(separator =>
-          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
-        )
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            [
-              `**Roblox User**\n${robloxUsername}`,
-              '',
-              `**Reason**\n${reason}`,
-              '',
-              `**Total Warnings**\n${db[key].warnings.length}`,
-              '',
-              `**DM Notification**\n${dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully'}`,
-            ].join('\n'),
-          ),
-        );
+      // ─── LOG CONTAINER (Components V2) — sent to the log channel only ─
+      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
 
+      if (!logChannel) {
+        logger.error(`[Warn] Could not find/access the log channel with ID ${LOG_CHANNEL_ID}.`);
+      } else {
+        const logContainer = new ContainerBuilder()
+          .setAccentColor(null)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('### ⚠️ Warning Issued'),
+          )
+          .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              [
+                `**User**\n<@${targetUser.id}> (${targetUser.tag})`,
+                '',
+                `**Roblox User**\n${robloxUsername}`,
+                '',
+                `**Reason**\n${reason}`,
+                '',
+                `**Total Warnings**\n${db[key].warnings.length}`,
+                '',
+                `**Moderator**\n${interaction.user.tag}`,
+                '',
+                `**DM Notification**\n${dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully'}`,
+              ].join('\n'),
+            ),
+          );
+
+        await logChannel.send({
+          components: [logContainer],
+          flags: MessageFlags.IsComponentsV2,
+        }).catch((error) => {
+          logger.error('[Warn] Failed to send the log message:', error);
+        });
+      }
+
+      // ─── SIMPLE REPLY TO THE MODERATOR ────────────────────────────────
       await InteractionHelper.safeEditReply(interaction, {
-        components: [successContainer],
-        flags: MessageFlags.IsComponentsV2,
+        content: '✅ The warning was given successfully.',
       });
 
     } catch (error) {
