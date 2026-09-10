@@ -59,7 +59,7 @@ export default {
 
       if (!/^\d{17,20}$/.test(userId)) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Invalid Discord User ID. Must be a 17-20 digit number or @mention.',
+          content: '<:UnverifiedIcon:1547447352795594844> Invalid Discord User ID. Must be a 17-20 digit number or @mention.',
         });
       }
 
@@ -70,13 +70,13 @@ export default {
         targetUser = await interaction.client.users.fetch(userId);
       } catch {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ User not found. Please check the ID.',
+          content: '<:UnverifiedIcon:1547447352795594844> User not found. Please check the ID.',
         });
       }
 
       if (targetUser.bot) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ You cannot send DMs to bot accounts.',
+          content: '<:UnverifiedIcon:1547447352795594844> You cannot send DMs to bot accounts.',
         });
       }
 
@@ -85,7 +85,7 @@ export default {
       const dmContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### You have received a DM'),
+          new TextDisplayBuilder().setContent('### <:EventIcon:1547068617894658170> You have received a DM'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
@@ -107,7 +107,7 @@ export default {
         });
       } catch {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Could not send DM to **${targetUser.tag}**. They may have DMs disabled.`,
+          content: `<:UnverifiedIcon:1547447352795594844> Could not send DM to **${targetUser.tag}**. They may have DMs disabled.`,
         });
       }
 
@@ -144,7 +144,7 @@ export default {
       // ─── RESPUESTA AL STAFF ────────────────────────────────────────────
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ DM sent to **${targetUser.tag}** (${targetUser.id})`,
+        content: `<:VerifiedIcon:1547447354272260107> DM sent to **${targetUser.tag}** (${targetUser.id})`,
       });
 
       logger.info(`[DM] ${interaction.user.tag} sent DM to ${targetUser.tag}`);
@@ -154,12 +154,12 @@ export default {
 
       if (error.code === 50007) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Could not send DM. The user may have DMs disabled.',
+          content: '<:UnverifiedIcon:1547447352795594844> Could not send DM. The user may have DMs disabled.',
         });
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `❌ An error occurred: ${error.message}`,
+        content: `<:UnverifiedIcon:1547447352795594844> An error occurred: ${error.message}`,
       });
     }
   },
