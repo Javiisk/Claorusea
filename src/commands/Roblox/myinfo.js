@@ -1,9 +1,7 @@
 import {
   SlashCommandBuilder,
   ContainerBuilder,
-  SectionBuilder,
   TextDisplayBuilder,
-  ThumbnailBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
   MessageFlags,
@@ -169,7 +167,7 @@ export default {
         ? `${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // ─── CONTAINER V2: título + section (texto + thumbnail) + footer ──────
+      // ─── CONTAINER V2: título + info (sin thumbnail, sin footer, sin color) ──
 
       const infoText = [
         `**Discord User**\n<@${targetUser.id}>`,
@@ -180,25 +178,16 @@ export default {
         `**Blacklists**\n${blacklistText}`,
       ].join('\n\n');
 
-      const requestedTimestamp = Math.floor(Date.now() / 1000);
-
       const container = new ContainerBuilder()
-        .setAccentColor(0x5865f2) // blurple/blue accent — change if you want another shade
+        .setAccentColor(null)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(`### ${targetUser.username}'s Profile`),
-        )
-        .addSectionComponents(
-          new SectionBuilder()
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(infoText))
-            .setThumbnailAccessory(new ThumbnailBuilder().setURL(avatar)),
         )
         .addSeparatorComponents(separator =>
           separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
         )
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `-# Requested by ${interaction.user.username} | <t:${requestedTimestamp}:f>`,
-          ),
+          new TextDisplayBuilder().setContent(infoText),
         );
 
       await interaction.editReply({
