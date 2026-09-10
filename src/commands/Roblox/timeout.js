@@ -14,7 +14,7 @@ const LOG_CHANNEL_ID = '1547414356210225203';
 export default {
   data: new SlashCommandBuilder()
     .setName('timeout')
-    .setDescription('Times out (mutes) a member for a set number of minutes')
+    .setDescription('Times out a member')
     .setDMPermission(false)
     .addUserOption(opt =>
       opt.setName('user')
