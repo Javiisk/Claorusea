@@ -64,6 +64,36 @@ export default {
     }
 
     try {
+      // ─── DM CONTAINER (Components V2) ────────────────────────────────
+      const issuedTimestamp = Math.floor(Date.now() / 1000);
+
+      const dmContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> You have been timeouted'),
+        )
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`**Reason**\n${reason}`),
+        )
+        .addSeparatorComponents(separator =>
+          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`**Issued**\n<t:${issuedTimestamp}:F>`),
+        );
+
+      let dmError = false;
+      try {
+        await targetUser.send({
+          components: [dmContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      } catch (dmError_) {
+        dmError = true;
+        logger.warn(`[Timeout] Could not send DM to ${targetUser.tag}. DMs are closed.`);
+      }
+
       await member.timeout(minutes * 60 * 1000, reason);
 
       logger.info(`[Timeout] ${targetUser.tag} timed out for ${minutes} minute(s) by ${interaction.user.tag}. Reason: ${reason}`);
@@ -93,6 +123,8 @@ export default {
                 `**Until**\n<t:${untilTimestamp}:F>`,
                 '',
                 `**Reason**\n${reason}`,
+                '',
+                `**DM Notification**\n${dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully'}`,
               ].join('\n'),
             ),
           );
