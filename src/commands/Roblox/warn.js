@@ -136,7 +136,7 @@ export default {
         const logContainer = new ContainerBuilder()
           .setAccentColor(null)
           .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent('### ⚠️ Warning Issued'),
+            new TextDisplayBuilder().setContent('### Warning Issued'),
           )
           .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
           .addTextDisplayComponents(
@@ -152,7 +152,7 @@ export default {
                 '',
                 `**Moderator**\n${interaction.user.tag}`,
                 '',
-                `**DM Notification**\n${dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully'}`,
+                `**DM Notification**\n${dmError ? 'Not sent (DMs closed)' : 'Sent successfully'}`,
               ].join('\n'),
             ),
           );
