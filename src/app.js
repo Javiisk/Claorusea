@@ -7,6 +7,7 @@ import express from 'express';
 import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger (matches actual file name/casing)
 import { buildWelcomeMessage } from './utils/welcomeMessage.js'; // ✅ Import welcome message builder
 import { applyPresence } from './utils/presence.js'; // ✅ Import presence/status helper
+import { handleAutoroleSelect } from './utils/autoroles.js'; // ✅ Import autoroles select-menu handler
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -141,6 +142,16 @@ client.once('ready', async () => {
 // ─── INTERACTION CREATE ──────────────────────────────────────────────────
 
 client.on('interactionCreate', async (interaction) => {
+  // ✅ Added: handle autorole select menu picks (not a slash command).
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith('autorole_select_')) {
+    try {
+      await handleAutoroleSelect(interaction);
+    } catch (error) {
+      console.error('❌ Error handling autorole select menu:', error);
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
@@ -231,4 +242,3 @@ process.on('SIGINT', () => {
 // ─── LOGIN ────────────────────────────────────────────────────────────────
 
 client.login(process.env.DISCORD_TOKEN);
-           
