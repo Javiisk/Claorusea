@@ -8,7 +8,6 @@ import {
 } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { hasAllowedRole } from '../../utils/permissions.js';
 
 const LOG_CHANNEL_ID = '1547414356210225203';
 
@@ -32,11 +31,6 @@ export default {
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) return;
 
-    if (!hasAllowedRole(interaction.member)) {
-      return await InteractionHelper.safeEditReply(interaction, {
-        content: '❌ You cannot use this command.',
-      });
-    }
 
     const targetUser = interaction.options.getUser('user');
     const reason = interaction.options.getString('reason') || 'No reason provided';
