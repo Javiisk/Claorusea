@@ -55,7 +55,7 @@ export default {
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
             [
-              `<:AddIcon:1538060207396098130> **Title**\n${title}`,
+              `<:AddIcon:1547447339835203584> **Title**\n${title}`,
               '',
               `<:SurveyIcon:1502787137278312499> **Description**\n${description.length > 1024 ? description.slice(0, 1021) + '...' : description}`,
               '',
@@ -78,7 +78,7 @@ export default {
       if (!channel) {
         logger.error('[Suggestion] Channel not found:', SUGGESTIONS_CHANNEL_ID);
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Suggestions channel not found. Please contact staff.',
+          content: '<:UnverifiedIcon:1547447352795594844> Suggestions channel not found. Please contact staff.',
         });
       }
 
@@ -90,8 +90,8 @@ export default {
       // ─── ADD REACTIONS ──────────────────────────────────────────────────
 
       try {
-        await message.react('<:VerifiedIcon:1502787139845230622>');
-        await message.react('<:UnverifiedIcon:1502787138700443668>');
+        await message.react('<:VerifiedIcon:1547447354272260107>');
+        await message.react('<:UnverifiedIcon:1547447352795594844>');
       } catch (reactError) {
         logger.warn('[Suggestion] Failed to add reactions:', reactError.message);
       }
@@ -127,7 +127,7 @@ export default {
       logger.error('Suggestion command error:', error);
       try {
         return await InteractionHelper.safeReply(interaction, {
-          content: '❌ An error occurred while submitting your suggestion.',
+          content: '<:UnverifiedIcon:1547447352795594844> An error occurred while submitting your suggestion.',
           ephemeral: true,
         });
       } catch (e) {
