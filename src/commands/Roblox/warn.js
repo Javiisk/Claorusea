@@ -102,7 +102,7 @@ export default {
       const dmContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### ⚠️ You have received a warning'),
+          new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> You have received a warning'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
