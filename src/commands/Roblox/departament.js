@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEPARTMENTS_PATH = join(__dirname, '../../../departments.json');
 
 const ALLOWED_ROLES = [
-  '1505671307335958728',
+  '1547335475390583036',
   '1505671314210553877',
   '1505671325144973323',
   '1505673879069393024',
