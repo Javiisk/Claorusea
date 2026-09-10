@@ -150,7 +150,9 @@ export default {
 
       // Emojis removed on purpose — add your own custom server emojis here
       // wherever you'd like (e.g. before "Trained" / "Untrained").
-      const trainedText = userData.trained ? 'Trained' : 'Untrained';
+      const trainedText = userData.trained
+        ? '<:VerifiedIcon:1547447354272260107> Trained'
+        : '<:UnverifiedIcon:1547447352795594844> Untrained';
 
       let warningsText = 'None';
       if (userData.warnings && userData.warnings.length > 0) {
@@ -181,7 +183,7 @@ export default {
       const container = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`### ${robloxUsername}'s Profile`),
+          new TextDisplayBuilder().setContent(`### <:SurveyIcon:1547068617042952303> ${robloxUsername}'s Profile`),
         )
         .addSeparatorComponents(separator =>
           separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
