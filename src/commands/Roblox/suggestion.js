@@ -2,14 +2,8 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const SUGGESTIONS_CHANNEL_ID = '1502440575171956908';
+const SUGGESTIONS_CHANNEL_ID = '1546998163716571206';
 
-const ALLOWED_ROLES = [
-  '1505671292873867544',
-  '1505671296883757158',
-  '1505671309915328713',
-  '1512905514692903116',
-  '1505673879069393024',
 ];
 
 export default {
