@@ -56,6 +56,37 @@ export default {
     }
 
     try {
+      // ─── DM CONTAINER (Components V2) — sent before the kick, while the ──
+      // bot and user still share this server (higher chance of delivery).
+      const issuedTimestamp = Math.floor(Date.now() / 1000);
+
+      const dmContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> You have been kicked'),
+        )
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`**Reason**\n${reason}`),
+        )
+        .addSeparatorComponents(separator =>
+          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`**Issued**\n<t:${issuedTimestamp}:F>`),
+        );
+
+      let dmError = false;
+      try {
+        await targetUser.send({
+          components: [dmContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      } catch (dmError_) {
+        dmError = true;
+        logger.warn(`[Kick] Could not send DM to ${targetUser.tag}. DMs are closed.`);
+      }
+
       await member.kick(reason);
 
       logger.info(`[Kick] ${targetUser.tag} kicked by ${interaction.user.tag}. Reason: ${reason}`);
@@ -80,6 +111,8 @@ export default {
                 `**Moderator**\n${interaction.user.tag}`,
                 '',
                 `**Reason**\n${reason}`,
+                '',
+                `**DM Notification**\n${dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully'}`,
               ].join('\n'),
             ),
           );
