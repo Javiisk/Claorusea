@@ -41,6 +41,9 @@ export function buildWelcomeMessage(member) {
         `**Welcome, Dear <@${member.id}>! Welcome to the adoresa server! Feel free to follow the guide, and we're happy to have you here.**`,
       ),
     )
+    .addSeparatorComponents((separator) =>
+      separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+    )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         [
@@ -51,6 +54,9 @@ export function buildWelcomeMessage(member) {
           '*⸝⸝ Remember to visit [here](https://discord.com/channels/1546983561306050580/1546986834666590248) This way you can get roles to decorate your profile and avoid mass ping from the server.*',
         ].join('\n'),
       ),
+    )
+    .addSeparatorComponents((separator) =>
+      separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
@@ -64,3 +70,4 @@ export function buildWelcomeMessage(member) {
     files: [attachment],
   };
 }
+
