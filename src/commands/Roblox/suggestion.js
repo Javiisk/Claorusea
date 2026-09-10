@@ -57,9 +57,9 @@ export default {
             [
               `<:AddIcon:1547447339835203584> **Title**\n${title}`,
               '',
-              `<:SurveyIcon:1502787137278312499> **Description**\n${description.length > 1024 ? description.slice(0, 1021) + '...' : description}`,
+              `<:SurveyIcon:1547068617042952303> **Description**\n${description.length > 1024 ? description.slice(0, 1021) + '...' : description}`,
               '',
-              `<a:Black_Question_Mark:1538060208616636489> **Why**\n${why.length > 1024 ? why.slice(0, 1021) + '...' : why}`,
+              `<a:Black_Question_Mark:1547447342628868106> **Why**\n${why.length > 1024 ? why.slice(0, 1021) + '...' : why}`,
             ].join('\n'),
           ),
         )
@@ -111,7 +111,7 @@ export default {
             [
               `Your suggestion has been submitted to <#${SUGGESTIONS_CHANNEL_ID}>.`,
               '',
-              `<:SurveyIcon:1502787137278312499> **Title**\n${title}`,
+              `<:SurveyIcon:1547068617042952303> **Title**\n${title}`,
             ].join('\n'),
           ),
         );
