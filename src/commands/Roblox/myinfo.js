@@ -1,11 +1,19 @@
-import { SlashCommandBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { createContainer, replyContainer } from '../../utils/container.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+} from 'discord.js';
+import { replyContainer } from '../../utils/container.js';
 import { logger } from '../../utils/logger.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { 
-  getRobloxUserByDiscord, 
+import {
+  getRobloxUserByDiscord,
   getRobloxUsernameById,
   getRobloxGroupRank,
   getRobloxAvatar,
@@ -49,14 +57,14 @@ function getUserData(discordId) {
   const db = loadDB();
   const key = discordId;
   if (!db[key]) {
-    db[key] = { 
-      discordId: discordId, 
-      robloxId: null, 
-      username: null, 
-      trained: false, 
-      warnings: [], 
-      blacklisted: false, 
-      blacklistReason: null 
+    db[key] = {
+      discordId: discordId,
+      robloxId: null,
+      username: null,
+      trained: false,
+      warnings: [],
+      blacklisted: false,
+      blacklistReason: null
     };
     saveDB(db);
   }
@@ -108,12 +116,12 @@ export default {
           robloxId: newRobloxId,
           username: robloxUsername,
           trained: false,
-          warnings: [],   
+          warnings: [],
           blacklisted: false,
           blacklistReason: null
         });
         userData = getUserData(targetUser.id);
-      } 
+      }
       else if (!userData.robloxId) {
         saveUserData(targetUser.id, {
           robloxId: newRobloxId,
@@ -142,14 +150,14 @@ export default {
         userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
       }
 
-      const trainedText = userData.trained 
-        ? `<:VerifiedIcon:1502787139845230622> Trained` 
+      const trainedText = userData.trained
+        ? `<:VerifiedIcon:1502787139845230622> Trained`
         : `<:UnverifiedIcon:1502787138700443668> Untrained`;
 
       let warningsText = 'None';
       if (userData.warnings && userData.warnings.length > 0) {
         const lastWarns = userData.warnings.slice(-5).reverse();
-        warningsText = lastWarns.map(w => 
+        warningsText = lastWarns.map(w =>
           `⚠️ **#${w.id}** - ${w.reason} *(by ${w.moderator})*`
         ).join('\n');
         if (userData.warnings.length > 5) {
@@ -176,10 +184,18 @@ export default {
 *Requested by ${interaction.user.username}*
       `;
 
-      const container = createContainer({
-        description: description,
-        color: 0x2F3136,
-      });
+      // ─── CONTAINER V2: banner del avatar arriba + separator + info ────────
+      const container = new ContainerBuilder()
+        .setAccentColor(0x2F3136)
+        .addMediaGalleryComponents(
+          new MediaGalleryBuilder().addItems(
+            new MediaGalleryItemBuilder().setURL(avatar),
+          ),
+        )
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(description.trim()),
+        );
 
       await replyContainer(interaction, container, true);
 
