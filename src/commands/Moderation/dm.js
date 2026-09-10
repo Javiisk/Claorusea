@@ -1,21 +1,21 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const LOG_CHANNEL_ID = '1504301603262566440';
-
-const ALLOWED_ROLES = [
-  '1505671307335958728',
-  '1505671314210553877',
-  '1505671325144973323',
-  '1505673879069393024',
-  '1505673808097574912',
-];
+const LOG_CHANNEL_ID = '1547358082995060756';
 
 export default {
   data: new SlashCommandBuilder()
     .setName('dm')
-    .setDescription('📩 Send a DM to any Discord user (by ID or mention)')
+    .setDescription('Send a DM to any member')
     .setDMPermission(false)
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addStringOption(option =>
@@ -30,23 +30,9 @@ export default {
         .setDescription('The message to send')
         .setRequired(true)
         .setMaxLength(4000)
-    )
-    .addBooleanOption(option =>
-      option
-        .setName('anonymous')
-        .setDescription('Send the message anonymously (default: false)')
-        .setRequired(false)
     ),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({
-        content: '❌ You don\'t have permission to use this command.',
-        ephemeral: true,
-      });
-    }
-
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
       logger.warn('DM interaction defer failed', {
@@ -60,7 +46,6 @@ export default {
     try {
       const userIdInput = interaction.options.getString('user_id');
       const message = interaction.options.getString('message');
-      const anonymous = interaction.options.getBoolean('anonymous') || false;
 
       // ─── EXTRAER ID DE MENCIONES ──────────────────────────────────────
 
@@ -95,46 +80,65 @@ export default {
         });
       }
 
-      if (message.length > 4000) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Message is too long. Max 4000 characters.',
-        });
-      }
+      // ─── CONSTRUIR DM (COMPONENTS V2) ──────────────────────────────────
 
-      // ─── CONSTRUIR MENSAJE DE TEXTO ──────────────────────────────────
+      const dmContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### You have received a DM'),
+        )
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(message),
+        )
+        .addSeparatorComponents(separator =>
+          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('-# Message sent from Adoresa'),
+        );
 
-      let dmMessage = '';
-
-      if (anonymous) {
-        dmMessage = `📩 **Message from the Staff Team**\n\n${message}`;
-      } else {
-        dmMessage = `📩 **Message from ${interaction.user.tag}**\n\n${message}`;
-      }
-
-      dmMessage += `\n\n*You cannot reply to this message. | Logger ID: ${interaction.id}*`;
-
-      // ─── ENVIAR DM (TEXTO PLANO) ──────────────────────────────────────
+      // ─── ENVIAR DM ──────────────────────────────────────────────────────
 
       try {
-        await targetUser.send(dmMessage);
+        await targetUser.send({
+          components: [dmContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
       } catch {
         return await InteractionHelper.safeEditReply(interaction, {
           content: `❌ Could not send DM to **${targetUser.tag}**. They may have DMs disabled.`,
         });
       }
 
-      // ─── LOG AL CANAL ──────────────────────────────────────────────────
+      // ─── LOG AL CANAL (COMPONENTS V2) ──────────────────────────────────
 
-      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
       if (logChannel) {
-        const logMessage =
-          `📩 **DM Sent**\n` +
-          `**To:** ${targetUser.tag} (${targetUser.id})\n` +
-          `**Message:** ${message.substring(0, 1000)}\n` +
-          `**Sent by:** ${interaction.user.tag} (${interaction.user.id})\n` +
-          `**Anonymous:** ${anonymous ? '✅ Yes' : '❌ No'}`;
+        const logContainer = new ContainerBuilder()
+          .setAccentColor(null)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('### DM Sent'),
+          )
+          .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              [
+                `**To**\n<@${targetUser.id}> (${targetUser.tag})`,
+                '',
+                `**Sent by**\n${interaction.user.tag}`,
+                '',
+                `**Message**\n${message.substring(0, 1000)}`,
+              ].join('\n'),
+            ),
+          );
 
-        await logChannel.send(logMessage);
+        await logChannel.send({
+          components: [logContainer],
+          flags: MessageFlags.IsComponentsV2,
+        }).catch((error) => {
+          logger.error('[DM] Failed to send the log message:', error);
+        });
       }
 
       // ─── RESPUESTA AL STAFF ────────────────────────────────────────────
@@ -143,7 +147,7 @@ export default {
         content: `✅ DM sent to **${targetUser.tag}** (${targetUser.id})`,
       });
 
-      logger.info(`[DM] ${interaction.user.tag} sent DM to ${targetUser.tag} (anonymous: ${anonymous})`);
+      logger.info(`[DM] ${interaction.user.tag} sent DM to ${targetUser.tag}`);
 
     } catch (error) {
       logger.error('DM error:', error);
