@@ -45,7 +45,7 @@ export default {
 
     if (targetUser.id === interaction.user.id) {
       return await InteractionHelper.safeEditReply(interaction, {
-        content: '❌ You cannot time out yourself.'
+        content: '<:UnverifiedIcon:1547447352795594844> You cannot time out yourself.'
       });
     }
 
@@ -53,13 +53,13 @@ export default {
 
     if (!member) {
       return await InteractionHelper.safeEditReply(interaction, {
-        content: '❌ That user is not in this server.',
+        content: '<:UnverifiedIcon:1547447352795594844> That user is not in this server.',
       });
     }
 
     if (!member.moderatable) {
       return await InteractionHelper.safeEditReply(interaction, {
-        content: '❌ I cannot time out this member. Check my role position and permissions.',
+        content: '<:UnverifiedIcon:1547447352795594844> I cannot time out this member. Check my role position and permissions.',
       });
     }
 
@@ -124,7 +124,7 @@ export default {
                 '',
                 `**Reason**\n${reason}`,
                 '',
-                `**DM Notification**\n${dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully'}`,
+                `**DM Notification**\n${dmError ? '<:UnverifiedIcon:1547447352795594844> Not sent (DMs closed)' : '<:VerifiedIcon:1547447354272260107> Sent successfully'}`,
               ].join('\n'),
             ),
           );
@@ -138,13 +138,13 @@ export default {
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ **${targetUser.tag}** was timed out for ${minutes} minute(s).`,
+        content: `<:VerifiedIcon:1547447354272260107> **${targetUser.tag}** was timed out for ${minutes} minute(s).`,
       });
 
     } catch (error) {
       logger.error('Timeout command error:', error);
       await InteractionHelper.safeEditReply(interaction, {
-        content: '❌ An error occurred while trying to time out this user.',
+        content: '<:UnverifiedIcon:1547447352795594844> An error occurred while trying to time out this user.',
       });
     }
   },
