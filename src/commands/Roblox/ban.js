@@ -49,7 +49,7 @@ export default {
       const dmContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### You have been banned'),
+          new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> You have been banned'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
@@ -66,7 +66,7 @@ export default {
         )
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            '-# Remember that you are free to appeal your ban at [here](https://discord.gg/ajWYjRrTD5)',
+            '-# Remember that you are free to appeal your ban at [here](https://discord.gg/ajWYjRrTD5) while it is appealable.',
           ),
         );
 
