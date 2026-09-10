@@ -1,4 +1,11 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -63,14 +70,14 @@ export default {
       const key = targetUser.id;
 
       if (!db[key]) {
-        db[key] = { 
+        db[key] = {
           discordId: targetUser.id,
           robloxId: robloxId,
-          username: robloxUsername, 
-          trained: false, 
-          warnings: [], 
-          blacklisted: false, 
-          blacklistReason: null 
+          username: robloxUsername,
+          trained: false,
+          warnings: [],
+          blacklisted: false,
+          blacklistReason: null
         };
       } else {
         db[key].robloxId = robloxId;
@@ -89,39 +96,69 @@ export default {
 
       logger.info(`[Warn] ${targetUser.tag} (${robloxUsername}) warned. Total: ${db[key].warnings.length}. Reason: ${reason}`);
 
-      const dmEmbed = new EmbedBuilder()
-        .setColor(0xFF0000)
-        .setTitle('⚠️ You have received a warning')
-        .setDescription(`You have been warned in **${interaction.guild.name}**.`)
-        .addFields(
-          { name: '👮 Moderator', value: interaction.user.tag, inline: true },
-          { name: '📋 Reason', value: reason, inline: false },
-          { name: '📊 Total Warnings', value: `${db[key].warnings.length}`, inline: true }
+      // ─── DM CONTAINER (Components V2) ────────────────────────────────
+      const issuedTimestamp = Math.floor(Date.now() / 1000);
+
+      const dmContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### ⚠️ You have received a warning'),
         )
-        .setTimestamp()
-        .setFooter({ text: 'Warning System' });
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`**Reason**\n${reason}`),
+        )
+        .addSeparatorComponents(separator =>
+          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`**Issued**\n<t:${issuedTimestamp}:F>`),
+        );
 
       let dmError = false;
       try {
-        await targetUser.send({ embeds: [dmEmbed] });
+        await targetUser.send({
+          components: [dmContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
       } catch (dmError_) {
         dmError = true;
         logger.warn(`[Warn] Could not send DM to ${targetUser.tag}. DMs are closed.`);
       }
 
-      const successEmbed = new EmbedBuilder()
-        .setColor(0xFFA500)
-        .setTitle('✅ Warning Applied')
-        .setDescription(`A warning has been added to **${targetUser.tag}**.`)
-        .addFields(
-          { name: 'Roblox User', value: robloxUsername, inline: true },
-          { name: 'Reason', value: reason, inline: false },
-          { name: 'Total Warnings', value: `${db[key].warnings.length}`, inline: true },
-          { name: 'DM Notification', value: dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully', inline: false }
+      // ─── SUCCESS CONTAINER (Components V2) ───────────────────────────
+      const successContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### ✅ Warning Applied'),
         )
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `A warning has been added to **${targetUser.tag}**.`,
+          ),
+        )
+        .addSeparatorComponents(separator =>
+          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `**Roblox User**\n${robloxUsername}`,
+              '',
+              `**Reason**\n${reason}`,
+              '',
+              `**Total Warnings**\n${db[key].warnings.length}`,
+              '',
+              `**DM Notification**\n${dmError ? '❌ Not sent (DMs closed)' : '✅ Sent successfully'}`,
+            ].join('\n'),
+          ),
+        );
 
-      await InteractionHelper.safeEditReply(interaction, { embeds: [successEmbed] });
+      await InteractionHelper.safeEditReply(interaction, {
+        components: [successContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
     } catch (error) {
       logger.error('Warn command error:', error);
