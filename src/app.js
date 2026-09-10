@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger (matches actual file name/casing)
 import { buildWelcomeMessage } from './utils/welcomeMessage.js'; // ✅ Import welcome message builder
+import { applyPresence } from './utils/presence.js'; // ✅ Import presence/status helper
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -121,6 +122,14 @@ client.once('ready', async () => {
   console.log(`✅ Bot connected as ${client.user.tag}`);
   console.log(`📊 Bot is in ${client.guilds.cache.size} guilds`);
 
+  // Default status shown under the bot's name — change anytime with /status,
+  // or by editing STATUS_TEXT / STATUS_TYPE in your environment variables.
+  applyPresence(
+    client,
+    process.env.STATUS_TEXT || 'Patients and messages',
+    process.env.STATUS_TYPE || 'watching',
+  );
+
   startWebServer();
 
   const commands = await loadCommands();
@@ -222,4 +231,4 @@ process.on('SIGINT', () => {
 // ─── LOGIN ────────────────────────────────────────────────────────────────
 
 client.login(process.env.DISCORD_TOKEN);
-      
+           
