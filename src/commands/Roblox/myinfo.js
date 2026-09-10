@@ -1,13 +1,13 @@
 import {
   SlashCommandBuilder,
   ContainerBuilder,
+  SectionBuilder,
   TextDisplayBuilder,
+  ThumbnailBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
-  MediaGalleryBuilder,
-  MediaGalleryItemBuilder,
+  MessageFlags,
 } from 'discord.js';
-import { replyContainer } from '../../utils/container.js';
 import { logger } from '../../utils/logger.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -150,15 +150,15 @@ export default {
         userData.blacklistReason = `Member of blacklisted group: ${blacklistedGroup.name} (${blacklistedGroup.id})`;
       }
 
-      const trainedText = userData.trained
-        ? `<:VerifiedIcon:1502787139845230622> Trained`
-        : `<:UnverifiedIcon:1502787138700443668> Untrained`;
+      // Emojis removed on purpose — add your own custom server emojis here
+      // wherever you'd like (e.g. before "Trained" / "Untrained").
+      const trainedText = userData.trained ? 'Trained' : 'Untrained';
 
       let warningsText = 'None';
       if (userData.warnings && userData.warnings.length > 0) {
         const lastWarns = userData.warnings.slice(-5).reverse();
         warningsText = lastWarns.map(w =>
-          `⚠️ **#${w.id}** - ${w.reason} *(by ${w.moderator})*`
+          `**#${w.id}** - ${w.reason} *(by ${w.moderator})*`
         ).join('\n');
         if (userData.warnings.length > 5) {
           warningsText += `\n...and ${userData.warnings.length - 5} more warnings.`;
@@ -166,38 +166,45 @@ export default {
       }
 
       const blacklistText = userData.blacklisted
-        ? `🚫 ${userData.blacklistReason || 'No reason'}`
+        ? `${userData.blacklistReason || 'No reason'}`
         : 'None';
 
-      // ─── CONTENIDO DEL CONTAINER ──────────────────────────────────────────
+      // ─── CONTAINER V2: título + section (texto + thumbnail) + footer ──────
 
-      const description = `
-### <:SurveyIcon:1502787137278312499> ${robloxUsername}
+      const infoText = [
+        `**Discord User**\n<@${targetUser.id}>`,
+        `**Roblox ID**\n${newRobloxId}`,
+        `**Rank**\n${rank}`,
+        `**Trained Status**\n${trainedText}`,
+        `**Warnings**\n${warningsText}`,
+        `**Blacklists**\n${blacklistText}`,
+      ].join('\n\n');
 
-> <:AddIcon:1538060207396098130> **Discord:** ${targetUser.tag}
-> <:AddIcon:1538060207396098130> **Roblox ID:** \`${newRobloxId}\`
-> <:AddIcon:1538060207396098130> **Rank:** ${rank}
-> <:AddIcon:1538060207396098130> **Status:** ${trainedText}
-> <:AddIcon:1538060207396098130> **Warnings:** ${warningsText}
-> <:AddIcon:1538060207396098130> **Blacklists:** ${blacklistText}
+      const requestedTimestamp = Math.floor(Date.now() / 1000);
 
-*Requested by ${interaction.user.username}*
-      `;
-
-      // ─── CONTAINER V2: banner del avatar arriba + separator + info ────────
       const container = new ContainerBuilder()
-        .setAccentColor(0x2F3136)
-        .addMediaGalleryComponents(
-          new MediaGalleryBuilder().addItems(
-            new MediaGalleryItemBuilder().setURL(avatar),
-          ),
-        )
-        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .setAccentColor(0x5865f2) // blurple/blue accent — change if you want another shade
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(description.trim()),
+          new TextDisplayBuilder().setContent(`### ${targetUser.username}'s Profile`),
+        )
+        .addSectionComponents(
+          new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(infoText))
+            .setThumbnailAccessory(new ThumbnailBuilder().setURL(avatar)),
+        )
+        .addSeparatorComponents(separator =>
+          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `-# Requested by ${interaction.user.username} | <t:${requestedTimestamp}:f>`,
+          ),
         );
 
-      await replyContainer(interaction, container, true);
+      await interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
     } catch (error) {
       logger.error('MyInfo command error:', error);
