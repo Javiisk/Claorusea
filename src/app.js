@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger (matches actual file name/casing)
+import { buildWelcomeMessage } from './utils/welcomeMessage.js'; // ✅ Import welcome message builder
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -168,6 +169,30 @@ client.on('messageCreate', async (message) => {
   // 🔍 Temporary debug log — remove once DMs are confirmed working.
   console.log(`🔔 messageCreate fired — channel type: ${message.channel.type}, author: ${message.author.tag}, bot: ${message.author.bot}`);
   await handleDM(client, message);
+});
+
+// ─── WELCOME MESSAGE HANDLER ──────────────────────────────────────────────
+
+client.on('guildMemberAdd', async (member) => {
+  console.log(`👋 guildMemberAdd fired — ${member.user.tag} joined ${member.guild.name}`);
+
+  const channelId = process.env.WELCOME_CHANNEL_ID;
+
+  if (!channelId) {
+    console.warn('⚠️ WELCOME_CHANNEL_ID is not set — skipping welcome message.');
+    return;
+  }
+
+  const channel = await member.guild.channels.fetch(channelId).catch(() => null);
+
+  if (!channel) {
+    console.error(`❌ Could not find/access the welcome channel with ID ${channelId}.`);
+    return;
+  }
+
+  await channel.send(buildWelcomeMessage(member)).catch((error) => {
+    console.error('❌ Failed to send the welcome message:', error);
+  });
 });
 
 // ─── GLOBAL ERROR HANDLERS ──────────────────────────────────────────────
