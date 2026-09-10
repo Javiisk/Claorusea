@@ -1,4 +1,11 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
@@ -35,34 +42,39 @@ export default {
       const description = interaction.options.getString('description');
       const why = interaction.options.getString('why');
 
-      // ─── SUGGESTION EMBED ──────────────────────────────────────────────────
+      // ─── SUGGESTION CONTAINER (Components V2) ─────────────────────────
 
-      const embed = new EmbedBuilder()
-        .setColor(0x808080)
-        .setTitle(`<:padlock:1540831474721366137> ${interaction.user.username}'s Suggestion`)
-        .addFields(
-          { 
-            name: '<:AddIcon:1538060207396098130> **Title**', 
-            value: title, 
-            inline: false 
-          },
-          { 
-            name: '<:SurveyIcon:1502787137278312499> **Description**', 
-            value: description.length > 1024 ? description.slice(0, 1021) + '...' : description, 
-            inline: false 
-          },
-          { 
-            name: '<a:Black_Question_Mark:1538060208616636489> **Why**', 
-            value: why.length > 1024 ? why.slice(0, 1021) + '...' : why, 
-            inline: false 
-          }
+      const container = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `### <:padlock:1540831474721366137> ${interaction.user.username}'s Suggestion`,
+          ),
         )
-        .setFooter({ text: `Suggestion from ${interaction.user.tag} • ${new Date().toLocaleString()}` })
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `<:AddIcon:1538060207396098130> **Title**\n${title}`,
+              '',
+              `<:SurveyIcon:1502787137278312499> **Description**\n${description.length > 1024 ? description.slice(0, 1021) + '...' : description}`,
+              '',
+              `<a:Black_Question_Mark:1538060208616636489> **Why**\n${why.length > 1024 ? why.slice(0, 1021) + '...' : why}`,
+            ].join('\n'),
+          ),
+        )
+        .addSeparatorComponents(separator =>
+          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `-# Suggestion from ${interaction.user.tag} • ${new Date().toLocaleString()}`,
+          ),
+        );
 
-      // ─── SEND TO CHANNEL ──────────────────────────────────────────────────
+      // ─── SEND TO CHANNEL ──────────────────────────────────────────────
 
-      const channel = await interaction.client.channels.fetch(SUGGESTIONS_CHANNEL_ID);
+      const channel = await interaction.client.channels.fetch(SUGGESTIONS_CHANNEL_ID).catch(() => null);
       if (!channel) {
         logger.error('[Suggestion] Channel not found:', SUGGESTIONS_CHANNEL_ID);
         return await InteractionHelper.safeEditReply(interaction, {
@@ -70,9 +82,12 @@ export default {
         });
       }
 
-      const message = await channel.send({ embeds: [embed] });
+      const message = await channel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
-      // ─── ADD REACTIONS ──────────────────────────────────────────────────────
+      // ─── ADD REACTIONS ──────────────────────────────────────────────────
 
       try {
         await message.react('<:VerifiedIcon:1502787139845230622>');
@@ -81,18 +96,30 @@ export default {
         logger.warn('[Suggestion] Failed to add reactions:', reactError.message);
       }
 
-      // ─── CONFIRMATION ──────────────────────────────────────────────────────
+      // ─── CONFIRMATION (Components V2) ────────────────────────────────
 
-      const confirmEmbed = new EmbedBuilder()
-        .setTitle('<:VerifiedIcon:1502787139845230622> Suggestion Submitted')
-        .setColor(0x808080)
-        .setDescription(`Your suggestion has been submitted to <#${SUGGESTIONS_CHANNEL_ID}>.`)
-        .addFields(
-          { name: '<:SurveyIcon:1502787137278312499> Title', value: title, inline: false },
+      const confirmContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            '### <:VerifiedIcon:1502787139845230622> Suggestion Submitted',
+          ),
         )
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `Your suggestion has been submitted to <#${SUGGESTIONS_CHANNEL_ID}>.`,
+              '',
+              `<:SurveyIcon:1502787137278312499> **Title**\n${title}`,
+            ].join('\n'),
+          ),
+        );
 
-      await InteractionHelper.safeEditReply(interaction, { embeds: [confirmEmbed] });
+      await InteractionHelper.safeEditReply(interaction, {
+        components: [confirmContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
       logger.info(`[Suggestion] ${interaction.user.tag} submitted a suggestion: ${title}`);
 
