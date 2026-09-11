@@ -199,7 +199,7 @@ export default {
         const dmContainer = new ContainerBuilder()
           .setAccentColor(null)
           .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
+            new TextDisplayBuilder().setContent('### <:RocketIcon:1547447348702220359> 𓂃 Inactivity Period'),
           )
           .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
           .addTextDisplayComponents(
@@ -209,7 +209,7 @@ export default {
                 '',
                 'Your inactivity period has been ended early.\n> Your inactivity period has been ended early as you requested.',
                 '',
-                "<:WarningIcon:1518051573069123728> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
+                "<:WarningIcon:1547447355576684604> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
               ].join('\n'),
             ),
           );
@@ -228,7 +228,7 @@ export default {
       const logContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Logs'),
+          new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> Inactivity Logs'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
@@ -244,7 +244,7 @@ export default {
               '',
               `**Reason**\n${reason}`,
               '',
-              "<:WarningIcon:1518051573069123728> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
+              "<:SurveyIcon:1547068617042952303> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
             ].join('\n'),
           ),
         );
