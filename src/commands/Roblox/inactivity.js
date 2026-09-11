@@ -26,7 +26,7 @@ const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
 const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
 const TRELLO_BOARD_INACTIVITY = process.env.TRELLO_BOARD_INACTIVITY;
 
-const HIATUS_RANK_NAME = '❗ Abandoned';
+const HIATUS_RANK_ID = process.env.HIATUS_RANK_ID; // Roblox group rank ID for the hiatus/inactivity rank
 
 // ─── DATE HELPERS ───────────────────────────────────────────────────────────
 
@@ -217,7 +217,7 @@ async function checkExpiredInactivity(client) {
         continue;
       }
 
-      if (currentRank.name === HIATUS_RANK_NAME) {
+      if (String(currentRank.id) === String(HIATUS_RANK_ID)) {
         const previousRankId = entry.previousRank?.id;
 
         if (previousRankId) {
@@ -372,18 +372,18 @@ export default {
         });
       }
 
-      if (currentRank.name === HIATUS_RANK_NAME) {
+      if (String(currentRank.id) === String(HIATUS_RANK_ID)) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `⚠️ **${robloxUsername}** is already in **${HIATUS_RANK_NAME}**.`,
+          content: `⚠️ **${robloxUsername}** is already in **${currentRank.name}**.`,
         });
       }
 
       const roles = await getGroupRoles();
-      const hiatusRole = roles.find(r => r.name === HIATUS_RANK_NAME);
+      const hiatusRole = roles.find(r => String(r.id) === String(HIATUS_RANK_ID));
 
       if (!hiatusRole) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Rank "${HIATUS_RANK_NAME}" not found.`,
+          content: `❌ Rank with ID "${HIATUS_RANK_ID}" not found in the group.`,
         });
       }
 
