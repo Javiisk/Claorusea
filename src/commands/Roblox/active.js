@@ -15,7 +15,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const INACTIVITY_PATH = join(__dirname, '../../../inactivity-data.json');
 
-const LOG_CHANNEL_ID = '1547415402542407741';
+const LOG_CHANNEL_ID = '1518037992927789126';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 
@@ -184,14 +184,7 @@ export default {
       foundData.restoreReason = reason;
       saveInactivity(inactivityData);
 
-      // Original end date as a Discord timestamp (falls back gracefully if
-      // endTimestamp wasn't stored on older entries).
-      const endTimestampSeconds = foundData.endTimestamp
-        ? Math.floor(foundData.endTimestamp / 1000)
-        : null;
-      const endDateDisplay = endTimestampSeconds
-        ? `<t:${endTimestampSeconds}:F>`
-        : foundData.endDate;
+      const endDateDisplay = foundData.endDate;
 
       // ─── DM AL USUARIO (Components V2) ──────────────────────────────────
 
@@ -199,7 +192,7 @@ export default {
         const dmContainer = new ContainerBuilder()
           .setAccentColor(null)
           .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent('### <:RocketIcon:1547447348702220359> 𓂃 Inactivity Period'),
+            new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
           )
           .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
           .addTextDisplayComponents(
@@ -209,7 +202,7 @@ export default {
                 '',
                 'Your inactivity period has been ended early.\n> Your inactivity period has been ended early as you requested.',
                 '',
-                "<:WarningIcon:1547447355576684604> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
+                "<:WarningIcon:1518051573069123728> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
               ].join('\n'),
             ),
           );
@@ -228,7 +221,7 @@ export default {
       const logContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> Inactivity Logs'),
+          new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Logs'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
@@ -244,7 +237,7 @@ export default {
               '',
               `**Reason**\n${reason}`,
               '',
-              "<:SurveyIcon:1547068617042952303> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
+              "<:WarningIcon:1518051573069123728> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
             ].join('\n'),
           ),
         );
@@ -272,7 +265,7 @@ export default {
               '',
               `<:AddIcon:1538060207396098130> **Moderator**\n<@${interaction.user.id}>`,
               '',
-              `📅 **Processed**\n<t:${Math.floor(Date.now() / 1000)}:F>`,
+              `📅 **Processed**\n${new Date().toLocaleString()}`,
             ].join('\n'),
           ),
         );
