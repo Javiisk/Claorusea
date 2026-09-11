@@ -133,29 +133,8 @@ export default {
         });
       }
 
-      const container = new ContainerBuilder()
-        .setAccentColor(null)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### 🔓 Game Unban'),
-        )
-        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            [
-              `✅ Successfully unbanned **${robloxName}** from the game!`,
-              '',
-              `**Roblox User**\n${robloxName}`,
-              '',
-              `**Roblox ID**\n${robloxId}`,
-              '',
-              `**Unbanned by**\n${interaction.user}`,
-            ].join('\n'),
-          ),
-        );
-
       await InteractionHelper.safeEditReply(interaction, {
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
+        content: `✅ **${robloxName}** has been successfully unbanned.`,
       });
 
       logger.info(`[GameUnban] ${interaction.user.tag} unbanned ${robloxName}`);
