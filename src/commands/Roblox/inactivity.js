@@ -16,7 +16,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const INACTIVITY_PATH = join(__dirname, '../../../inactivity-data.json');
 
-const LOG_CHANNEL_ID = '1547415402542407741';
+const LOG_CHANNEL_ID = '1518037992927789126';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 
@@ -31,10 +31,27 @@ const HIATUS_RANK_ID = process.env.HIATUS_RANK_ID; // Roblox group rank ID for t
 // ─── DATE HELPERS ───────────────────────────────────────────────────────────
 
 // Parses a MM/DD/YYYY string into a Unix timestamp (seconds), for use in
-// Discord's <t:...:F> timestamp format.
+// Discord's <t:...:F> timestamp format. Returns null if the input isn't a
+// valid MM/DD/YYYY date (caller should show an error instead of proceeding).
 function toUnixSeconds(dateStr, endOfDay = false) {
-  const [month, day, year] = dateStr.split('/');
-  const dateObj = new Date(`${year}-${month}-${day}T${endOfDay ? '23:59:59' : '00:00:00'}`);
+  const match = dateStr.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+
+  const month = parseInt(match[1], 10);
+  const day = parseInt(match[2], 10);
+  const year = parseInt(match[3], 10);
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  // Using the numeric Date constructor (year, monthIndex, day, ...) avoids
+  // all the ambiguity of building an ISO-like string by hand — no risk of
+  // single-digit month/day (e.g. "9/5/2026") being misread or rejected.
+  const dateObj = endOfDay
+    ? new Date(year, month - 1, day, 23, 59, 59)
+    : new Date(year, month - 1, day, 0, 0, 0);
+
+  if (isNaN(dateObj.getTime())) return null;
+
   return Math.floor(dateObj.getTime() / 1000);
 }
 
@@ -239,7 +256,7 @@ async function checkExpiredInactivity(client) {
               const dmContainer = new ContainerBuilder()
                 .setAccentColor(null)
                 .addTextDisplayComponents(
-                  new TextDisplayBuilder().setContent('### <:RocketIcon:1547447348702220359> 𓂃 Inactivity Period'),
+                  new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
                 )
                 .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(
@@ -249,7 +266,7 @@ async function checkExpiredInactivity(client) {
                       '',
                       'Your inactivity period has officially ended.\n> Your original rank was restored.',
                       '',
-                      '<:WarningIcon:1547447355576684604> • If you got the incorrect rank please ping a **Domain+**.',
+                      '<:WarningIcon:1518051573069123728> • If you got the incorrect rank please ping a **Domain+**.',
                     ].join('\n'),
                   ),
                 );
@@ -265,7 +282,7 @@ async function checkExpiredInactivity(client) {
                 const logContainer = new ContainerBuilder()
                   .setAccentColor(null)
                   .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> Inactivity Ended'),
+                    new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Ended'),
                   )
                   .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
                   .addTextDisplayComponents(
@@ -354,6 +371,15 @@ export default {
       const endDate = interaction.options.getString('enddate');
       const reason = interaction.options.getString('reason');
 
+      const startTimestamp = toUnixSeconds(startDate, false);
+      const endTimestampSeconds = toUnixSeconds(endDate, true);
+
+      if (startTimestamp === null || endTimestampSeconds === null) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: '❌ Invalid date format. Please use MM/DD/YYYY (e.g. 09/05/2026).',
+        });
+      }
+
       const userInfo = await getRobloxUserInfoByDiscord(discordUser.id);
 
       if (!userInfo) {
@@ -397,8 +423,7 @@ export default {
       const inactivityData = loadInactivity();
       const key = String(robloxId);
 
-      const startTimestamp = toUnixSeconds(startDate, false);
-      const endTimestamp = toUnixSeconds(endDate, true) * 1000; // stored in ms, as before
+      const endTimestamp = endTimestampSeconds * 1000; // stored in ms, as before
 
       inactivityData[key] = {
         robloxId: robloxId,
@@ -444,7 +469,7 @@ export default {
       const logContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> Inactivity Logs'),
+          new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Logs'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
@@ -460,9 +485,9 @@ export default {
               '',
               `**Reason of inactivity notice**\n${reason}`,
               '',
-              `<:WarningIcon:1547447355576684604> • If it didn't register **correctly**, remember to use the command again.`,
+              `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again.`,
               '',
-              `<:SurveyIcon:1547068617042952303> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`,
+              `<:SurveyIcon:1502787137278312499> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`,
             ].join('\n'),
           ),
         );
@@ -470,7 +495,7 @@ export default {
       const dmContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### <:RocketIcon:1547447348702220359> 𓂃 Inactivity Period'),
+          new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
@@ -482,7 +507,7 @@ export default {
               '',
               'Enjoy your break!',
               '',
-              "<:WarningIcon:1547447355576684604> • If you didn't request this, ping a **Domain+**.",
+              "<:WarningIcon:1518051573069123728> • If you didn't request this, ping a **Domain+**.",
             ].join('\n'),
           ),
         );
