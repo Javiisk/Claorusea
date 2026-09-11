@@ -239,7 +239,7 @@ async function checkExpiredInactivity(client) {
               const dmContainer = new ContainerBuilder()
                 .setAccentColor(null)
                 .addTextDisplayComponents(
-                  new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
+                  new TextDisplayBuilder().setContent('### <:RocketIcon:1547447348702220359> 𓂃 Inactivity Period'),
                 )
                 .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
                 .addTextDisplayComponents(
@@ -249,7 +249,7 @@ async function checkExpiredInactivity(client) {
                       '',
                       'Your inactivity period has officially ended.\n> Your original rank was restored.',
                       '',
-                      '<:WarningIcon:1518051573069123728> • If you got the incorrect rank please ping a **Domain+**.',
+                      '<:WarningIcon:1547447355576684604> • If you got the incorrect rank please ping a **Domain+**.',
                     ].join('\n'),
                   ),
                 );
@@ -265,7 +265,7 @@ async function checkExpiredInactivity(client) {
                 const logContainer = new ContainerBuilder()
                   .setAccentColor(null)
                   .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Ended'),
+                    new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> Inactivity Ended'),
                   )
                   .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
                   .addTextDisplayComponents(
@@ -444,7 +444,7 @@ export default {
       const logContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Logs'),
+          new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> Inactivity Logs'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
@@ -460,9 +460,9 @@ export default {
               '',
               `**Reason of inactivity notice**\n${reason}`,
               '',
-              `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again.`,
+              `<:WarningIcon:1547447355576684604> • If it didn't register **correctly**, remember to use the command again.`,
               '',
-              `<:SurveyIcon:1502787137278312499> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`,
+              `<:SurveyIcon:1547068617042952303> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`,
             ].join('\n'),
           ),
         );
@@ -470,7 +470,7 @@ export default {
       const dmContainer = new ContainerBuilder()
         .setAccentColor(null)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
+          new TextDisplayBuilder().setContent('### <:RocketIcon:1547447348702220359> 𓂃 Inactivity Period'),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(
@@ -482,7 +482,7 @@ export default {
               '',
               'Enjoy your break!',
               '',
-              "<:WarningIcon:1518051573069123728> • If you didn't request this, ping a **Domain+**.",
+              "<:WarningIcon:1547447355576684604> • If you didn't request this, ping a **Domain+**.",
             ].join('\n'),
           ),
         );
