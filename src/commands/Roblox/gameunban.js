@@ -1,18 +1,17 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const UNIVERSE_ID = process.env.UNIVERSE_ID;
 const ROBLOX_API_KEY = process.env.ROBLOX_API_KEY;
 const LOG_CHANNEL_ID = '1530033235403210762';
-
-const ALLOWED_ROLES = [
-  '1505671307335958728',
-  '1505671314210553877',
-  '1505671325144973323',
-  '1505673879069393024',
-  '1505673808097574912',
-];
 
 async function getRobloxUser(username) {
   try {
@@ -64,21 +63,34 @@ async function sendLog(interaction, robloxUsername, robloxId, success) {
     const channel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
     if (!channel) return;
 
-    const embed = new EmbedBuilder()
-      .setColor(success ? 0x57F287 : 0xED4245)
-      .setTitle(success ? '🔓 Game Unban' : '⚠️ Game Unban Failed')
-      .setDescription(success
-        ? `✅ Successfully unbanned **${robloxUsername}** from the game!`
-        : `❌ Failed to unban **${robloxUsername}**`
+    const container = new ContainerBuilder()
+      .setAccentColor(null)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          success ? '### 🔓 Game Unban' : '### ⚠️ Game Unban Failed',
+        ),
       )
-      .addFields(
-        { name: '👤 Roblox User', value: robloxUsername, inline: true },
-        { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
-        { name: '👮 Unbanned by', value: `${interaction.user} (${interaction.user.tag})`, inline: true }
-      )
-      .setTimestamp();
+      .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          [
+            success
+              ? `✅ Successfully unbanned **${robloxUsername}** from the game!`
+              : `❌ Failed to unban **${robloxUsername}**`,
+            '',
+            `**Roblox User**\n${robloxUsername}`,
+            '',
+            `**Roblox ID**\n${robloxId}`,
+            '',
+            `**Unbanned by**\n${interaction.user} (${interaction.user.tag})`,
+          ].join('\n'),
+        ),
+      );
 
-    await channel.send({ embeds: [embed] });
+    await channel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   } catch (error) {
     logger.error('[GameUnban] Log error:', error);
   }
@@ -96,14 +108,6 @@ export default {
     ),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({
-        content: '❌ You don\'t have permission.',
-        ephemeral: true,
-      });
-    }
-
     await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
     try {
@@ -129,18 +133,30 @@ export default {
         });
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('🔓 Game Unban')
-        .setDescription(`✅ Successfully unbanned **${robloxName}** from the game!`)
-        .addFields(
-          { name: '👤 Roblox User', value: robloxName, inline: true },
-          { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
-          { name: '👤 Unbanned by', value: `${interaction.user}`, inline: true }
+      const container = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### 🔓 Game Unban'),
         )
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `✅ Successfully unbanned **${robloxName}** from the game!`,
+              '',
+              `**Roblox User**\n${robloxName}`,
+              '',
+              `**Roblox ID**\n${robloxId}`,
+              '',
+              `**Unbanned by**\n${interaction.user}`,
+            ].join('\n'),
+          ),
+        );
 
-      await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+      await InteractionHelper.safeEditReply(interaction, {
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
       logger.info(`[GameUnban] ${interaction.user.tag} unbanned ${robloxName}`);
 
