@@ -1,11 +1,16 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const INACTIVITY_PATH = join(__dirname, '../../../inactivity-data.json');
@@ -20,14 +25,6 @@ const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
 const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
 const TRELLO_BOARD_INACTIVITY = process.env.TRELLO_BOARD_INACTIVITY;
 
-const ALLOWED_ROLES = [
-  '1505673879069393024',
-  '1505673808097574912',
-  '1505671309915328713',
-  '1505671296883757158',
-  '1505671292873867544',
-];
-
 // ─── TRELLO FUNCTION ──────────────────────────────────────────────────────
 
 async function addTrelloEndComment(data) {
@@ -37,7 +34,7 @@ async function addTrelloEndComment(data) {
 
     try {
         const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
-        
+
         const comment = `**${data.robloxUsername} - Inactivity Ended Early**\n\n` +
                        `**Roblox User:** ${data.robloxUsername}\n` +
                        `**End Date:** ${data.endDate}\n` +
@@ -137,11 +134,6 @@ export default {
     ),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({ content: '❌ You don\'t have permission.', ephemeral: true });
-    }
-
     await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
     try {
@@ -192,69 +184,103 @@ export default {
       foundData.restoreReason = reason;
       saveInactivity(inactivityData);
 
-      // ─── DM AL USUARIO ──────────────────────────────────────────────────
+      // Original end date as a Discord timestamp (falls back gracefully if
+      // endTimestamp wasn't stored on older entries).
+      const endTimestampSeconds = foundData.endTimestamp
+        ? Math.floor(foundData.endTimestamp / 1000)
+        : null;
+      const endDateDisplay = endTimestampSeconds
+        ? `<t:${endTimestampSeconds}:F>`
+        : foundData.endDate;
+
+      // ─── DM AL USUARIO (Components V2) ──────────────────────────────────
 
       try {
-        const dmEmbed = new EmbedBuilder()
-          .setTitle('<:RocketIcon:1502787134669590599> 𓂃 Inactivity Period')
-          .setColor(0x808080)
-          .setDescription(`Greetings, **${foundData.robloxUsername}**! We are here to inform you that:`)
-          .addFields(
-            { 
-              name: '\u200B', 
-              value: 'Your inactivity period has been ended early.\n> Your inactivity period has been ended early as you requested.', 
-              inline: false 
-            },
-            { 
-              name: '\u200B', 
-              value: '<:WarningIcon:1518051573069123728> • If you didn\'t request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.', 
-              inline: false 
-            },
+        const dmContainer = new ContainerBuilder()
+          .setAccentColor(null)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
           )
-          .setTimestamp();
+          .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              [
+                `Greetings, **${foundData.robloxUsername}**! We are here to inform you that:`,
+                '',
+                'Your inactivity period has been ended early.\n> Your inactivity period has been ended early as you requested.',
+                '',
+                "<:WarningIcon:1518051573069123728> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
+              ].join('\n'),
+            ),
+          );
 
-        await discordUser.send({ embeds: [dmEmbed] });
+        await discordUser.send({
+          components: [dmContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
         logger.info(`[Active] DM sent to ${discordUser.tag}`);
       } catch (dmError) {
         logger.warn(`[Active] Could not send DM to ${discordUser.tag}:`, dmError.message);
       }
 
-      // ─── LOG AL CANAL ──────────────────────────────────────────────────
+      // ─── LOG AL CANAL (Components V2) ───────────────────────────────────
 
-      const logEmbed = new EmbedBuilder()
-        .setTitle('<:EventIcon:1502787131611938947> Inactivity Logs')
-        .setColor(0x808080)
-        .setDescription(`<@${interaction.user.id}> has ended **${foundData.robloxUsername}** inactivity early! Information about this inactivity notice:`)
-        .addFields(
-          { 
-            name: '\u200B', 
-            value: `> **Roblox Username:** ${foundData.robloxUsername}\n> **Restored Rank:** ${foundData.previousRank?.name || 'Unknown'}\n> **Original End Date:** ${foundData.endDate}\n> **Reason:** ${reason}`, 
-            inline: false 
-          },
-          { 
-            name: '\u200B', 
-            value: `<:WarningIcon:1518051573069123728> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.`, 
-            inline: false 
-          },
+      const logContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Logs'),
         )
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `<@${interaction.user.id}> has ended **${foundData.robloxUsername}** inactivity early! Information about this inactivity notice:`,
+              '',
+              `**Roblox Username**\n${foundData.robloxUsername}`,
+              '',
+              `**Restored Rank**\n${foundData.previousRank?.name || 'Unknown'}`,
+              '',
+              `**Original End Date**\n${endDateDisplay}`,
+              '',
+              `**Reason**\n${reason}`,
+              '',
+              "<:WarningIcon:1518051573069123728> • If you didn't request a early inactivity end or you get the wrong rank, please ping a **Domain+** to correct this.",
+            ].join('\n'),
+          ),
+        );
 
       const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
-      if (logChannel) await logChannel.send({ embeds: [logEmbed] });
+      if (logChannel) {
+        await logChannel.send({
+          components: [logContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      }
 
-      // ─── RESPUESTA AL STAFF ────────────────────────────────────────────
+      // ─── RESPUESTA AL STAFF (Components V2) ─────────────────────────────
 
-      const confirmEmbed = new EmbedBuilder()
-        .setTitle('<:VerifiedIcon:1502787139845230622> Inactivity Ended Early')
-        .setColor(0x808080)
-        .setDescription(`**${foundData.robloxUsername}** has been marked as active and restored to **${foundData.previousRank.name}**.`)
-        .addFields(
-          { name: '<:AddIcon:1538060207396098130> Moderator', value: `<@${interaction.user.id}>`, inline: false },
-          { name: '📅 Processed', value: new Date().toLocaleString(), inline: false },
+      const confirmContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### <:VerifiedIcon:1502787139845230622> Inactivity Ended Early'),
         )
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `**${foundData.robloxUsername}** has been marked as active and restored to **${foundData.previousRank.name}**.`,
+              '',
+              `<:AddIcon:1538060207396098130> **Moderator**\n<@${interaction.user.id}>`,
+              '',
+              `📅 **Processed**\n<t:${Math.floor(Date.now() / 1000)}:F>`,
+            ].join('\n'),
+          ),
+        );
 
-      await InteractionHelper.safeEditReply(interaction, { embeds: [confirmEmbed] });
+      await InteractionHelper.safeEditReply(interaction, {
+        components: [confirmContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
     } catch (error) {
       logger.error('Active command error:', error);
