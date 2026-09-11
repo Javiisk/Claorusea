@@ -214,41 +214,8 @@ export default {
         });
       }
 
-      const container = new ContainerBuilder()
-        .setAccentColor(null)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### 🔨 Game Ban'),
-        )
-        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            [
-              `✅ Successfully banned **${robloxName}** & all detected alts from the game!`,
-              '',
-              `**Roblox User**\n${robloxName}`,
-              '',
-              `**Roblox ID**\n${robloxId}`,
-              '',
-              `**Duration**\n\`${durationDisplay}\``,
-              '',
-              `**Reason**\n${reason}`,
-              '',
-              `**Banned by**\n${interaction.user}`,
-            ].join('\n'),
-          ),
-        )
-        .addSeparatorComponents(separator =>
-          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
-        )
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            '-# All alt accounts have been detected and banned automatically.',
-          ),
-        );
-
       await InteractionHelper.safeEditReply(interaction, {
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
+        content: `✅ **${robloxName}** has been successfully banned.`,
       });
 
       logger.info(`[GameBan] ${interaction.user.tag} banned ${robloxName} (${robloxId}) for ${durationDisplay}: ${reason}`);
