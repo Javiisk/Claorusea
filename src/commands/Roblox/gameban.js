@@ -1,18 +1,17 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const UNIVERSE_ID = process.env.UNIVERSE_ID;
 const ROBLOX_API_KEY = process.env.ROBLOX_API_KEY;
 const LOG_CHANNEL_ID = '1530033235403210762';
-
-const ALLOWED_ROLES = [
-  '1505671307335958728',
-  '1505671314210553877',
-  '1505671325144973323',
-  '1505673879069393024',
-  '1505673808097574912',
-];
 
 async function getRobloxUser(username) {
   try {
@@ -67,23 +66,38 @@ async function sendLog(interaction, robloxUsername, robloxId, durationDisplay, r
     const channel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
     if (!channel) return;
 
-    const embed = new EmbedBuilder()
-      .setColor(success ? 0xED4245 : 0xF1C40F)
-      .setTitle(success ? '🔨 Game Ban' : '⚠️ Game Ban Failed')
-      .setDescription(success
-        ? `✅ Successfully banned **${robloxUsername}** & all detected alts from the game!`
-        : `❌ Failed to ban **${robloxUsername}**`
+    const container = new ContainerBuilder()
+      .setAccentColor(null)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          success ? '### 🔨 Game Ban' : '### ⚠️ Game Ban Failed',
+        ),
       )
-      .addFields(
-        { name: '👤 Roblox User', value: robloxUsername, inline: true },
-        { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
-        { name: '⏱️ Duration', value: `\`${durationDisplay}\``, inline: true },
-        { name: '📝 Reason', value: reason, inline: false },
-        { name: '👮 Banned by', value: `${interaction.user} (${interaction.user.tag})`, inline: true }
-      )
-      .setTimestamp();
+      .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          [
+            success
+              ? `✅ Successfully banned **${robloxUsername}** & all detected alts from the game!`
+              : `❌ Failed to ban **${robloxUsername}**`,
+            '',
+            `**Roblox User**\n${robloxUsername}`,
+            '',
+            `**Roblox ID**\n${robloxId}`,
+            '',
+            `**Duration**\n\`${durationDisplay}\``,
+            '',
+            `**Reason**\n${reason}`,
+            '',
+            `**Banned by**\n${interaction.user} (${interaction.user.tag})`,
+          ].join('\n'),
+        ),
+      );
 
-    await channel.send({ embeds: [embed] });
+    await channel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   } catch (error) {
     logger.error('[GameBan] Log error:', error);
   }
@@ -144,14 +158,6 @@ export default {
     ),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({
-        content: '❌ You don\'t have permission to use this command.',
-        ephemeral: true,
-      });
-    }
-
     const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
     if (!deferSuccess) {
       logger.warn('GameBan interaction defer failed', {
@@ -208,21 +214,42 @@ export default {
         });
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(0xED4245)
-        .setTitle('🔨 Game Ban')
-        .setDescription(`✅ Successfully banned **${robloxName}** & all detected alts from the game!`)
-        .addFields(
-          { name: '👤 Roblox User', value: robloxName, inline: true },
-          { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
-          { name: '⏱️ Duration', value: `\`${durationDisplay}\``, inline: true },
-          { name: '📝 Reason', value: reason, inline: false },
-          { name: '👮 Banned by', value: `${interaction.user}`, inline: true }
+      const container = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### 🔨 Game Ban'),
         )
-        .setFooter({ text: 'All alt accounts have been detected and banned automatically.' })
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `✅ Successfully banned **${robloxName}** & all detected alts from the game!`,
+              '',
+              `**Roblox User**\n${robloxName}`,
+              '',
+              `**Roblox ID**\n${robloxId}`,
+              '',
+              `**Duration**\n\`${durationDisplay}\``,
+              '',
+              `**Reason**\n${reason}`,
+              '',
+              `**Banned by**\n${interaction.user}`,
+            ].join('\n'),
+          ),
+        )
+        .addSeparatorComponents(separator =>
+          separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+        )
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            '-# All alt accounts have been detected and banned automatically.',
+          ),
+        );
 
-      await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+      await InteractionHelper.safeEditReply(interaction, {
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
       logger.info(`[GameBan] ${interaction.user.tag} banned ${robloxName} (${robloxId}) for ${durationDisplay}: ${reason}`);
 
