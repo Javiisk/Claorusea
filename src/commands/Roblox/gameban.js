@@ -11,7 +11,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const UNIVERSE_ID = process.env.UNIVERSE_ID;
 const ROBLOX_API_KEY = process.env.ROBLOX_API_KEY;
-const LOG_CHANNEL_ID = '1530033235403210762';
+const LOG_CHANNEL_ID = '1547417292806160434';
 
 async function getRobloxUser(username) {
   try {
