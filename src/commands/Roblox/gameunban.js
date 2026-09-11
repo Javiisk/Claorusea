@@ -67,7 +67,7 @@ async function sendLog(interaction, robloxUsername, robloxId, success) {
       .setAccentColor(null)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          success ? '### 🔓 Game Unban' : '### ⚠️ Game Unban Failed',
+          success ? '### <:WarningIcon:1547447355576684604> Game Unban' : '### <:WarningIcon:1547447355576684604> Game Unban Failed',
         ),
       )
       .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
@@ -75,8 +75,8 @@ async function sendLog(interaction, robloxUsername, robloxId, success) {
         new TextDisplayBuilder().setContent(
           [
             success
-              ? `✅ Successfully unbanned **${robloxUsername}** from the game!`
-              : `❌ Failed to unban **${robloxUsername}**`,
+              ? `<:VerifiedIcon:1547447354272260107> Successfully unbanned **${robloxUsername}** from the game!`
+              : `<:UnverifiedIcon:1547447352795594844> Failed to unban **${robloxUsername}**`,
             '',
             `**Roblox User**\n${robloxUsername}`,
             '',
@@ -99,7 +99,7 @@ async function sendLog(interaction, robloxUsername, robloxId, success) {
 export default {
   data: new SlashCommandBuilder()
     .setName('gameunban')
-    .setDescription('🔓 Unban a user from the game by Roblox username (Staff only)')
+    .setDescription('Unban a user from the game')
     .setDMPermission(false)
     .addStringOption(opt =>
       opt.setName('robloxuser')
@@ -116,7 +116,7 @@ export default {
       const roblox = await getRobloxUser(robloxUsername);
       if (!roblox) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Roblox user **${robloxUsername}** not found.`,
+          content: `<:VerifiedIcon:1547447354272260107> Roblox user **${robloxUsername}** not found.`,
         });
       }
 
@@ -129,12 +129,12 @@ export default {
 
       if (!result.success) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Failed to unban **${robloxName}**: ${result.error}`,
+          content: `<:UnverifiedIcon:1547447352795594844> Failed to unban **${robloxName}**: ${result.error}`,
         });
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ **${robloxName}** has been successfully unbanned.`,
+        content: `<:VerifiedIcon:1547447354272260107> **${robloxName}** has been successfully unbanned.`,
       });
 
       logger.info(`[GameUnban] ${interaction.user.tag} unbanned ${robloxName}`);
@@ -142,7 +142,7 @@ export default {
     } catch (error) {
       logger.error('GameUnban error:', error);
       await InteractionHelper.safeEditReply(interaction, {
-        content: `❌ An error occurred: ${error.message}`,
+        content: `<:UnverifiedIcon:1547447352795594844> An error occurred: ${error.message}`,
       });
     }
   },
