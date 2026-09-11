@@ -1,5 +1,11 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
@@ -22,14 +28,15 @@ const TRELLO_BOARD_INACTIVITY = process.env.TRELLO_BOARD_INACTIVITY;
 
 const HIATUS_RANK_NAME = '❗ Abandoned';
 
-const ALLOWED_ROLES = [
-  '1505671318262255616',
-  '1507261877431042159',
-  '1505673879069393024',
-  '1505673808097574912',
-  '1505671309915328713',
-  '1505671292873867544',
-];
+// ─── DATE HELPERS ───────────────────────────────────────────────────────────
+
+// Parses a MM/DD/YYYY string into a Unix timestamp (seconds), for use in
+// Discord's <t:...:F> timestamp format.
+function toUnixSeconds(dateStr, endOfDay = false) {
+  const [month, day, year] = dateStr.split('/');
+  const dateObj = new Date(`${year}-${month}-${day}T${endOfDay ? '23:59:59' : '00:00:00'}`);
+  return Math.floor(dateObj.getTime() / 1000);
+}
 
 // ─── TRELLO FUNCTIONS ──────────────────────────────────────────────────────
 
@@ -41,7 +48,7 @@ async function addTrelloComment(data) {
 
     try {
         const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
-        
+
         const comment = `**${data.robloxUsername} - Inactivity Started**\n\n` +
                        `**Roblox User:** ${data.robloxUsername}\n` +
                        `**Discord User:** <@${data.discordId}> (${data.discordId})\n` +
@@ -80,7 +87,7 @@ async function addTrelloEndComment(data) {
 
     try {
         const url = `https://api.trello.com/1/cards/${TRELLO_BOARD_INACTIVITY}/actions/comments?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
-        
+
         const comment = `**${data.robloxUsername} - Inactivity Ended**\n\n` +
                        `**Roblox User:** ${data.robloxUsername}\n` +
                        `**End Date:** ${data.endDate}\n` +
@@ -229,31 +236,53 @@ async function checkExpiredInactivity(client) {
 
             try {
               const user = await client.users.fetch(entry.discordId);
-              const dmEmbed = new EmbedBuilder()
-                .setTitle('<:RocketIcon:1502787134669590599> 𓂃 Inactivity Period')
-                .setColor(0x808080)
-                .setDescription(`Greetings, **${entry.robloxUsername}**!`)
-                .addFields(
-                  { name: '\u200B', value: 'Your inactivity period has officially ended.\n> Your original rank was restored.', inline: false },
-                  { name: '\u200B', value: '<:WarningIcon:1518051573069123728> • If you got the incorrect rank please ping a **Domain+**.', inline: false },
+              const dmContainer = new ContainerBuilder()
+                .setAccentColor(null)
+                .addTextDisplayComponents(
+                  new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
                 )
-                .setTimestamp();
-              await user.send({ embeds: [dmEmbed] });
+                .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+                .addTextDisplayComponents(
+                  new TextDisplayBuilder().setContent(
+                    [
+                      `Greetings, **${entry.robloxUsername}**!`,
+                      '',
+                      'Your inactivity period has officially ended.\n> Your original rank was restored.',
+                      '',
+                      '<:WarningIcon:1518051573069123728> • If you got the incorrect rank please ping a **Domain+**.',
+                    ].join('\n'),
+                  ),
+                );
+              await user.send({
+                components: [dmContainer],
+                flags: MessageFlags.IsComponentsV2,
+              });
             } catch {}
 
             try {
               const logChannel = await client.channels.fetch(LOG_CHANNEL_ID);
               if (logChannel) {
-                const logEmbed = new EmbedBuilder()
-                  .setTitle('<:EventIcon:1502787131611938947> Inactivity Ended')
-                  .setColor(0x808080)
-                  .setDescription(`**${entry.robloxUsername}** inactivity ended.`)
-                  .addFields(
-                    { name: '\u200B', value: `> **Roblox User:** ${entry.robloxUsername}`, inline: false },
-                    { name: '\u200B', value: `> **Restored Rank:** ${entry.previousRank?.name || 'Unknown'}`, inline: false },
+                const logContainer = new ContainerBuilder()
+                  .setAccentColor(null)
+                  .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Ended'),
                   )
-                  .setTimestamp();
-                await logChannel.send({ embeds: [logEmbed] });
+                  .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+                  .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                      [
+                        `**${entry.robloxUsername}** inactivity ended.`,
+                        '',
+                        `**Roblox User**\n${entry.robloxUsername}`,
+                        '',
+                        `**Restored Rank**\n${entry.previousRank?.name || 'Unknown'}`,
+                      ].join('\n'),
+                    ),
+                  );
+                await logChannel.send({
+                  components: [logContainer],
+                  flags: MessageFlags.IsComponentsV2,
+                });
               }
             } catch {}
 
@@ -317,11 +346,6 @@ export default {
     ),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({ content: '❌ You don\'t have permission.', ephemeral: true });
-    }
-
     await InteractionHelper.safeDefer(interaction);
 
     try {
@@ -373,9 +397,8 @@ export default {
       const inactivityData = loadInactivity();
       const key = String(robloxId);
 
-      const [month, day, year] = endDate.split('/');
-      const endDateObj = new Date(`${year}-${month}-${day}T23:59:59`);
-      const endTimestamp = endDateObj.getTime();
+      const startTimestamp = toUnixSeconds(startDate, false);
+      const endTimestamp = toUnixSeconds(endDate, true) * 1000; // stored in ms, as before
 
       inactivityData[key] = {
         robloxId: robloxId,
@@ -416,60 +439,91 @@ export default {
         registeredBy: interaction.user.id,
       });
 
-      // ─── LOGS ─────────────────────────────────────────────────────────────────
+      // ─── LOGS (Components V2) ───────────────────────────────────────────────
 
-      const logEmbed = new EmbedBuilder()
-        .setTitle('<:EventIcon:1502787131611938947> Inactivity Logs')
-        .setColor(0x808080)
-        .setDescription(`<@${interaction.user.id}> has registered an inactivity notice of **${robloxUsername}**!`)
-        .addFields(
-          { 
-            name: '\u200B', 
-            value: `> **Roblox Username:** ${robloxUsername}\n> **Start of inactivity notice:** ${startDate}\n> **End of Inactivity Notice:** ${endDate}\n> **Reason of inactivity notice:** ${reason}`, 
-            inline: false 
-          },
-          { 
-            name: '\u200B', 
-            value: `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again.`, 
-            inline: false 
-          },
-          { 
-            name: '\u200B', 
-            value: `<:SurveyIcon:1502787137278312499> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`, 
-            inline: false 
-          },
+      const logContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Logs'),
         )
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `<@${interaction.user.id}> has registered an inactivity notice of **${robloxUsername}**!`,
+              '',
+              `**Roblox Username**\n${robloxUsername}`,
+              '',
+              `**Start of inactivity notice**\n<t:${startTimestamp}:F>`,
+              '',
+              `**End of Inactivity Notice**\n<t:${Math.floor(endTimestamp / 1000)}:F>`,
+              '',
+              `**Reason of inactivity notice**\n${reason}`,
+              '',
+              `<:WarningIcon:1518051573069123728> • If it didn't register **correctly**, remember to use the command again.`,
+              '',
+              `<:SurveyIcon:1502787137278312499> • Remember that ${robloxUsername} **cooldown** to start another **inactivity** notice has begun: **2 Weeks.**`,
+            ].join('\n'),
+          ),
+        );
 
-      const dmEmbed = new EmbedBuilder()
-        .setTitle('<:RocketIcon:1502787134669590599> 𓂃 Inactivity Period')
-        .setColor(0x808080)
-        .setDescription(`Greetings, **${robloxUsername}**!`)
-        .addFields(
-          { name: '\u200B', value: `> Your inactivity have been logged and will end in **${endDate}**`, inline: false },
-          { name: '\u200B', value: 'Enjoy your break!', inline: false },
-          { name: '\u200B', value: '<:WarningIcon:1518051573069123728> • If you didn\'t request this, ping a **Domain+**.', inline: false },
+      const dmContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### <:RocketIcon:1502787134669590599> 𓂃 Inactivity Period'),
         )
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `Greetings, **${robloxUsername}**!`,
+              '',
+              `Your inactivity have been logged and will end <t:${Math.floor(endTimestamp / 1000)}:F>`,
+              '',
+              'Enjoy your break!',
+              '',
+              "<:WarningIcon:1518051573069123728> • If you didn't request this, ping a **Domain+**.",
+            ].join('\n'),
+          ),
+        );
 
-      const confirmEmbed = new EmbedBuilder()
-        .setTitle('<:VerifiedIcon:1502787139845230622> Inactivity Registered')
-        .setColor(0x808080)
-        .setDescription(`**${robloxUsername}** placed on **${hiatusRole.name}** until **${endDate}**.`)
-        .addFields(
-          { name: '<:AddIcon:1538060207396098130> Moderator', value: `<@${interaction.user.id}>`, inline: false },
-          { name: '📅 Processed', value: new Date().toLocaleString(), inline: false },
+      const confirmContainer = new ContainerBuilder()
+        .setAccentColor(null)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('### <:VerifiedIcon:1502787139845230622> Inactivity Registered'),
         )
-        .setTimestamp();
+        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            [
+              `**${robloxUsername}** placed on **${hiatusRole.name}** until <t:${Math.floor(endTimestamp / 1000)}:F>.`,
+              '',
+              `<:AddIcon:1538060207396098130> **Moderator**\n<@${interaction.user.id}>`,
+              '',
+              `📅 **Processed**\n<t:${Math.floor(Date.now() / 1000)}:F>`,
+            ].join('\n'),
+          ),
+        );
 
       const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
-      if (logChannel) await logChannel.send({ embeds: [logEmbed] });
+      if (logChannel) {
+        await logChannel.send({
+          components: [logContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      }
 
       try {
-        await discordUser.send({ embeds: [dmEmbed] });
+        await discordUser.send({
+          components: [dmContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
       } catch {}
 
-      await InteractionHelper.safeEditReply(interaction, { embeds: [confirmEmbed] });
+      await InteractionHelper.safeEditReply(interaction, {
+        components: [confirmContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
 
     } catch (error) {
       logger.error('Inactivity error:', error);
