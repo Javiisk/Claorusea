@@ -70,7 +70,7 @@ async function sendLog(interaction, robloxUsername, robloxId, durationDisplay, r
       .setAccentColor(null)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          success ? '### 🔨 Game Ban' : '### ⚠️ Game Ban Failed',
+          success ? '### <:WarningIcon:1547447355576684604> Game Ban' : '### <:WarningIcon:1547447355576684604> Game Ban Failed',
         ),
       )
       .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
@@ -78,8 +78,8 @@ async function sendLog(interaction, robloxUsername, robloxId, durationDisplay, r
         new TextDisplayBuilder().setContent(
           [
             success
-              ? `✅ Successfully banned **${robloxUsername}** & all detected alts from the game!`
-              : `❌ Failed to ban **${robloxUsername}**`,
+              ? `<:VerifiedIcon:1547447354272260107> Successfully banned **${robloxUsername}** & all detected alts from the game!`
+              : `<:UnverifiedIcon:1547447352795594844> Failed to ban **${robloxUsername}**`,
             '',
             `**Roblox User**\n${robloxUsername}`,
             '',
@@ -139,7 +139,7 @@ function formatDuration(seconds) {
 export default {
   data: new SlashCommandBuilder()
     .setName('gameban')
-    .setDescription('🔨 Ban a user from the game by Roblox username (Staff only)')
+    .setDescription('Ban a user from the game')
     .setDMPermission(false)
     .addStringOption(opt =>
       opt.setName('robloxuser')
@@ -176,7 +176,7 @@ export default {
       const roblox = await getRobloxUser(robloxUsername);
       if (!roblox) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Roblox user **${robloxUsername}** not found.`,
+          content: `<:UnverifiedIcon:1547447352795594844> Roblox user **${robloxUsername}** not found.`,
         });
       }
 
@@ -193,7 +193,7 @@ export default {
         durationSeconds = parseDuration(durationInput);
         if (!durationSeconds) {
           return await InteractionHelper.safeEditReply(interaction, {
-            content: '❌ Invalid duration format. Use: `1s`, `10m`, `2h`, `3d`, `1w`, or `permanent`',
+            content: '<:UnverifiedIcon:1547447352795594844> Invalid duration format. Use: `1s`, `10m`, `2h`, `3d`, `1w`, or `permanent`',
           });
         }
         durationDisplay = formatDuration(durationSeconds);
@@ -210,12 +210,12 @@ export default {
 
       if (!result.success) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Failed to ban **${robloxName}**: ${result.error}`,
+          content: `<:UnverifiedIcon:1547447352795594844> Failed to ban **${robloxName}**: ${result.error}`,
         });
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `✅ **${robloxName}** has been successfully banned.`,
+        content: `<:UnverifiedIcon:1547447352795594844> **${robloxName}** has been successfully banned.`,
       });
 
       logger.info(`[GameBan] ${interaction.user.tag} banned ${robloxName} (${robloxId}) for ${durationDisplay}: ${reason}`);
@@ -224,7 +224,7 @@ export default {
       logger.error('GameBan command error:', error);
       try {
         return await InteractionHelper.safeReply(interaction, {
-          content: '❌ An error occurred while banning the user.',
+          content: '<:UnverifiedIcon:1547447352795594844> An error occurred while banning the user.',
         });
       } catch (replyError) {
         logger.error('Failed to send error reply:', replyError);
