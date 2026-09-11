@@ -215,7 +215,7 @@ export default {
       }
 
       await InteractionHelper.safeEditReply(interaction, {
-        content: `<:UnverifiedIcon:1547447352795594844> **${robloxName}** has been successfully banned.`,
+        content: `<:VerifiedIcon:1547447354272260107> **${robloxName}** has been successfully banned.`,
       });
 
       logger.info(`[GameBan] ${interaction.user.tag} banned ${robloxName} (${robloxId}) for ${durationDisplay}: ${reason}`);
