@@ -30,9 +30,6 @@ const HIATUS_RANK_ID = process.env.HIATUS_RANK_ID; // Roblox group rank ID for t
 
 // ─── DATE HELPERS ───────────────────────────────────────────────────────────
 
-// Parses a MM/DD/YYYY string into a Unix timestamp (seconds), for use in
-// Discord's <t:...:F> timestamp format. Returns null if the input isn't a
-// valid MM/DD/YYYY date (caller should show an error instead of proceeding).
 function toUnixSeconds(dateStr, endOfDay = false) {
   const match = dateStr.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return null;
@@ -43,9 +40,6 @@ function toUnixSeconds(dateStr, endOfDay = false) {
 
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
 
-  // Using the numeric Date constructor (year, monthIndex, day, ...) avoids
-  // all the ambiguity of building an ISO-like string by hand — no risk of
-  // single-digit month/day (e.g. "9/5/2026") being misread or rejected.
   const dateObj = endOfDay
     ? new Date(year, month - 1, day, 23, 59, 59)
     : new Date(year, month - 1, day, 0, 0, 0);
@@ -243,8 +237,6 @@ async function checkExpiredInactivity(client) {
           if (result.success) {
             logger.info(`[Inactivity] ✅ Restored ${entry.robloxUsername}`);
 
-            // ─── COMENTARIO EN TRELLO ──────────────────────────────────────────
-
             await addTrelloEndComment({
                 robloxUsername: entry.robloxUsername,
                 endDate: entry.endDate,
@@ -282,7 +274,7 @@ async function checkExpiredInactivity(client) {
                 const logContainer = new ContainerBuilder()
                   .setAccentColor(null)
                   .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> Inactivity Ended'),
+                    new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Ended'),
                   )
                   .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
                   .addTextDisplayComponents(
@@ -452,8 +444,6 @@ export default {
 
       startChecker(interaction.client);
 
-      // ─── COMENTARIO EN TRELLO ──────────────────────────────────────────────
-
       await addTrelloComment({
         robloxUsername: robloxUsername,
         discordId: discordUser.id,
@@ -512,24 +502,6 @@ export default {
           ),
         );
 
-      const confirmContainer = new ContainerBuilder()
-        .setAccentColor(null)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('### <:VerifiedIcon:1502787139845230622> Inactivity Registered'),
-        )
-        .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            [
-              `**${robloxUsername}** placed on **${hiatusRole.name}** until <t:${Math.floor(endTimestamp / 1000)}:F>.`,
-              '',
-              `<:AddIcon:1538060207396098130> **Moderator**\n<@${interaction.user.id}>`,
-              '',
-              `📅 **Processed**\n<t:${Math.floor(Date.now() / 1000)}:F>`,
-            ].join('\n'),
-          ),
-        );
-
       const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
       if (logChannel) {
         await logChannel.send({
@@ -545,9 +517,9 @@ export default {
         });
       } catch {}
 
+      // Public, simple confirmation reply (not ephemeral, no container).
       await InteractionHelper.safeEditReply(interaction, {
-        components: [confirmContainer],
-        flags: MessageFlags.IsComponentsV2,
+        content: '<:RocketIcon:1547447348702220359> Your `hiatus` has been `registered`.',
       });
 
     } catch (error) {
