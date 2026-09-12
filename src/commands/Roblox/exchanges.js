@@ -76,7 +76,7 @@ async function setRankById(userId, rankNumber) {
 export default {
   data: new SlashCommandBuilder()
     .setName('exchanges')
-    .setDescription('Exchange your Aggressive Denizen gamepass purchase for the rank'),
+    .setDescription('Exchange your gamepass'),
 
   async execute(interaction) {
     const deferSuccess = await InteractionHelper.safeDefer(interaction);
@@ -95,7 +95,7 @@ export default {
 
       if (!userInfo) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ You do not have a Roblox account linked in this server.',
+          content: '<:UnverifiedIcon:1547447352795594844> You do not have a Roblox account linked in this server.',
         });
       }
 
@@ -106,7 +106,7 @@ export default {
 
       if (!ownsGamepass) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ You do not own the required gamepass yet. Purchase it and try again.',
+          content: '<:UnverifiedIcon:1547447352795594844> You do not own the required gamepass yet. Purchase it and try again.',
         });
       }
 
@@ -114,7 +114,7 @@ export default {
 
       if (!rankResult.success) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ Failed to rank you up: ${rankResult.error}`,
+          content: `<:UnverifiedIcon:1547447352795594844> Failed to rank you up: ${rankResult.error}`,
         });
       }
 
@@ -155,7 +155,7 @@ export default {
 
     } catch (error) {
       logger.error('Exchanges error:', error);
-      try { await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed:', e); }
+      try { await InteractionHelper.safeReply(interaction, { content: '<:UnverifiedIcon:1547447352795594844> An error occurred.' }); } catch (e) { logger.error('Failed:', e); }
     }
   },
 };
