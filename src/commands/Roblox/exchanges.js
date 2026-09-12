@@ -79,7 +79,7 @@ export default {
     .setDescription('Exchange your Aggressive Denizen gamepass purchase for the rank'),
 
   async execute(interaction) {
-    const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+    const deferSuccess = await InteractionHelper.safeDefer(interaction);
     if (!deferSuccess) {
       logger.warn('Exchanges defer failed', { userId: interaction.user.id });
       return;
@@ -159,4 +159,3 @@ export default {
     }
   },
 };
-          
