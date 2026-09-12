@@ -282,7 +282,7 @@ async function checkExpiredInactivity(client) {
                 const logContainer = new ContainerBuilder()
                   .setAccentColor(null)
                   .addTextDisplayComponents(
-                    new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Inactivity Ended'),
+                    new TextDisplayBuilder().setContent('### <:WarningIcon:1547447355576684604> Inactivity Ended'),
                   )
                   .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
                   .addTextDisplayComponents(
