@@ -88,7 +88,7 @@ export default {
     try {
       // ─── STEP 1: let the user know we're checking ────────────────────
       await InteractionHelper.safeEditReply(interaction, {
-        content: '🔍 Looking for gamepass...',
+        content: '<:GlassIcon:1547447346470846544> Looking for gamepass...',
       });
 
       const userInfo = await getRobloxUserInfoByDiscord(interaction.user.id);
@@ -148,7 +148,7 @@ export default {
 
       // ─── STEP 2: final confirmation ───────────────────────────────────
       await InteractionHelper.safeEditReply(interaction, {
-        content: '✅ You have been ranked successfully.',
+        content: '<:RocketIcon:1547447348702220359> You have been ranked successfully.',
       });
 
       logger.info(`[Exchanges] ${interaction.user.tag} exchanged gamepass and got ranked to ${rankResult.roleName}`);
