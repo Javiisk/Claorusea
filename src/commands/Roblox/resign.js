@@ -19,11 +19,6 @@ export default {
   data: new SlashCommandBuilder()
     .setName('resign')
     .setDescription('Log a resignation')
-    .addUserOption(opt =>
-      opt.setName('discorduser')
-        .setDescription('Discord user')
-        .setRequired(true)
-    )
     .addStringOption(opt =>
       opt.setName('reason')
         .setDescription('Reason for resignation')
@@ -43,7 +38,7 @@ export default {
     }
 
     try {
-      const discordUser = interaction.options.getUser('discorduser');
+      const discordUser = interaction.user;
       const reason = interaction.options.getString('reason');
       const notes = interaction.options.getString('notes') || 'None';
 
