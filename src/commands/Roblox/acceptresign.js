@@ -1,21 +1,18 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { pendingResignations } from './resign.js';
 
-const LOG_CHANNEL_ID = '1518724147763740784';
+const LOG_CHANNEL_ID = '1547415402542407741';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 const ESTEEMED_DENIZEN_RANK = 2;
-
-const ALLOWED_ROLES = [
-  '1505671318262255616',
-  '1507261877431042159',
-  '1505673879069393024',
-  '1505673808097574912',
-  '1505671309915328713',
-  '1505671292873867544',
-];
 
 async function getGroupRoles() {
   try {
@@ -80,11 +77,6 @@ export default {
     ),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({ content: '❌ You don\'t have permission.', ephemeral: true });
-    }
-
     await interaction.deferReply({ ephemeral: true });
 
     try {
@@ -103,50 +95,77 @@ export default {
 
       const rankResult = await setRankById(parseInt(resignation.robloxId), ESTEEMED_DENIZEN_RANK);
 
-      // ─── LOG EN EL CANAL ──────────────────────────────────────────────────────
+      // ─── LOG CONTAINER (Components V2) ────────────────────────────────
 
-      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
       if (logChannel) {
-        const logEmbed = new EmbedBuilder()
-          .setTitle('<:EventIcon:1502787131611938947> Resignation Logs')
-          .setColor(0x808080)
-          .setDescription(`<@${interaction.user.id}> has **accepted** the resignation of **${resignation.robloxUsername}**.`)
-          .addFields(
-            { 
-              name: '\u200B', 
-              value: `> **Roblox Username:** ${resignation.robloxUsername}\n> **Discord User:** <@${resignation.discordUserId}>\n> **New Rank:** ${rankResult.success ? rankResult.roleName : 'Failed'}\n> **Processed by:** <@${interaction.user.id}>`, 
-              inline: false 
-            },
+        const logContainer = new ContainerBuilder()
+          .setAccentColor(null)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> Resignation Logs'),
           )
-          .setTimestamp();
-        await logChannel.send({ embeds: [logEmbed] });
+          .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              [
+                `<@${interaction.user.id}> has **accepted** the resignation of **${resignation.robloxUsername}**.`,
+                '',
+                `**Roblox Username**\n${resignation.robloxUsername}`,
+                '',
+                `**Discord User**\n<@${resignation.discordUserId}>`,
+                '',
+                `**New Rank**\n${rankResult.success ? rankResult.roleName : 'Failed'}`,
+                '',
+                `**Processed by**\n<@${interaction.user.id}>`,
+              ].join('\n'),
+            ),
+          );
+        await logChannel.send({
+          components: [logContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
       }
 
-      // ─── DM AL USUARIO ──────────────────────────────────────────────────────
+      // ─── DM CONTAINER (Components V2) ──────────────────────────────────
 
       try {
         const user = await interaction.client.users.fetch(resignation.discordUserId);
-        const dmEmbed = new EmbedBuilder()
-          .setTitle('<:EventIcon:1502787131611938947> 𓂃 Resignation Notice')
-          .setColor(0x808080)
-          .setDescription(`Greetings, **${resignation.robloxUsername}**! We are here to inform you that:`)
-          .addFields(
-            { name: '\u200B', value: '> Your resignation has been **accepted**.', inline: false },
-            { name: '\u200B', value: rankResult.success 
-              ? `> You have been ranked to **${rankResult.roleName}**.` 
-              : `> ⚠️ Rank change failed: ${rankResult.error}`, 
-              inline: false },
-            { name: '\u200B', value: '**Thank you for working with us and have a good day/night.**', inline: false },
-            { name: '\u200B', value: '<:WarningIcon:1518051573069123728> • If you think this high rank made a **mistake**, ping a **Domain+**.', inline: false },
-            { name: '\u200B', value: '<:WarningIcon:1518051573069123728> • If you didn\'t request a resignation, please ping a **Domain+** to correct this.', inline: false },
-            { name: '\u200B', value: '<:SurveyIcon:1502787137278312499> • Remember you can **return** to the **staff team** whenever you want.', inline: false },
+        const dmContainer = new ContainerBuilder()
+          .setAccentColor(null)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('### <:EventIcon:1502787131611938947> 𓂃 Resignation Notice'),
           )
-          .setTimestamp();
-        await user.send({ embeds: [dmEmbed] });
+          .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              [
+                `Greetings, **${resignation.robloxUsername}**! We are here to inform you that:`,
+                '',
+                'Your resignation has been **accepted**.',
+                '',
+                rankResult.success
+                  ? `You have been ranked to **${rankResult.roleName}**.`
+                  : `⚠️ Rank change failed: ${rankResult.error}`,
+                '',
+                '**Thank you for working with us and have a good day/night.**',
+                '',
+                '<:WarningIcon:1518051573069123728> • If you think this high rank made a **mistake**, ping a **Domain+**.',
+                '',
+                "<:WarningIcon:1518051573069123728> • If you didn't request a resignation, please ping a **Domain+** to correct this.",
+                '',
+                '<:SurveyIcon:1502787137278312499> • Remember you can **return** to the **staff team** whenever you want.',
+              ].join('\n'),
+            ),
+          );
+        await user.send({
+          components: [dmContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
       } catch { /* DMs disabled */ }
 
+      // Public, simple confirmation reply.
       await interaction.editReply({
-        content: `✅ Resignation for **${resignation.robloxUsername}** has been **accepted** and ranked to **${rankResult.success ? rankResult.roleName : 'Failed'}**.`,
+        content: '<:EventIcon:1502787131611938947> Your `resignation` has been `accepted`.',
       });
 
       logger.info(`[AcceptResign] ${interaction.user.tag} accepted resignation for ${resignation.robloxUsername}`);
