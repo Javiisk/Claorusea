@@ -333,11 +333,6 @@ export default {
   data: new SlashCommandBuilder()
     .setName('inactivity')
     .setDescription('Register an inactivity notice')
-    .addUserOption(opt =>
-      opt.setName('discorduser')
-        .setDescription('Discord user')
-        .setRequired(true)
-    )
     .addStringOption(opt =>
       opt.setName('startdate')
         .setDescription('Start date (MM/DD/YYYY)')
@@ -358,7 +353,7 @@ export default {
     await InteractionHelper.safeDefer(interaction);
 
     try {
-      const discordUser = interaction.options.getUser('discorduser');
+      const discordUser = interaction.user;
       const startDate = interaction.options.getString('startdate');
       const endDate = interaction.options.getString('enddate');
       const reason = interaction.options.getString('reason');
