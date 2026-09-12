@@ -1,11 +1,18 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ CORREGIDO
+import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js';
 
 const GAMEPASS_ID = '1890892397';
 const AGGRESSIVE_DENIZEN_RANK = 3;
-const LOG_CHANNEL_ID = '1519207020299812936';
+const LOG_CHANNEL_ID = '1547416553623126096';
 const GROUP_ID = process.env.ROBLOX_GROUP_ID;
 const API_KEY = process.env.ROBLOX_API_KEY;
 
@@ -16,16 +23,6 @@ async function checkGamepass(userId) {
     return data.data && data.data.length > 0;
   } catch {
     return false;
-  }
-}
-
-async function getRobloxAvatar(userId) {
-  try {
-    const res = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`);
-    const data = await res.json();
-    return data.data?.[0]?.imageUrl || null;
-  } catch {
-    return null;
   }
 }
 
@@ -78,77 +75,88 @@ async function setRankById(userId, rankNumber) {
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('applyaggressivedenizen')
-    .setDescription('Apply for Aggressive Denizen rank (must have gamepass)')
-    .addUserOption(opt =>
-      opt.setName('user')
-        .setDescription('Your Discord user')
-        .setRequired(true)
-    ),
+    .setName('exchanges')
+    .setDescription('Exchange your Aggressive Denizen gamepass purchase for the rank'),
 
   async execute(interaction) {
     const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
     if (!deferSuccess) {
-      logger.warn('ApplyAggressiveDenizen defer failed', { userId: interaction.user.id });
+      logger.warn('Exchanges defer failed', { userId: interaction.user.id });
       return;
     }
 
     try {
-      const targetUser = interaction.options.getUser('user');
+      // ─── STEP 1: let the user know we're checking ────────────────────
+      await InteractionHelper.safeEditReply(interaction, {
+        content: '🔍 Looking for gamepass...',
+      });
 
-      // ✅ Obtener Roblox info desde Bloxlink
-      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
+      const userInfo = await getRobloxUserInfoByDiscord(interaction.user.id);
 
       if (!userInfo) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
+          content: '❌ You do not have a Roblox account linked in this server.',
         });
       }
 
       const robloxId = userInfo.id;
       const robloxUsername = userInfo.username;
-      const avatar = await getRobloxAvatar(robloxId);
 
-      // Mandar DM con instrucciones y botón de verificar
-      try {
-        const dmEmbed = new EmbedBuilder()
-          .setColor(0x1a0a0a)
-          .setTitle('🌿 Aggressive Denizen Application')
-          .setThumbnail(avatar)
-          .setDescription(
-            `Greetings, **${robloxUsername}**! Welcome to the application process.\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `To become an **Aggressive Denizen** you must:\n\n` +
-            `**Step 1 —** Purchase the Aggressive Denizen Gamepass on Roblox\n` +
-            `**Step 2 —** Click the button below to verify your purchase\n\n` +
-            `*The system will automatically check if you own the gamepass and rank you up instantly!*\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━\n` +
-            `🔑 • If you have already purchased it, go ahead and click **Verify Purchase**!`
-          )
-          .setTimestamp();
+      const ownsGamepass = await checkGamepass(robloxId);
 
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`aggressivedenizen_verify:${targetUser.id}:${robloxId}:${robloxUsername}`)
-            .setLabel('Verify Purchase')
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('✅'),
-        );
-
-        await targetUser.send({ embeds: [dmEmbed], components: [row] });
-        await InteractionHelper.safeEditReply(interaction, {
-          content: '🌿 Check your DMs! The application instructions have been sent.',
-        });
-
-      } catch {
+      if (!ownsGamepass) {
         return await InteractionHelper.safeEditReply(interaction, {
-          content: '❌ Could not send you a DM. Please enable your DMs and try again.',
+          content: '❌ You do not own the required gamepass yet. Purchase it and try again.',
         });
       }
 
+      const rankResult = await setRankById(robloxId, AGGRESSIVE_DENIZEN_RANK);
+
+      if (!rankResult.success) {
+        return await InteractionHelper.safeEditReply(interaction, {
+          content: `❌ Failed to rank you up: ${rankResult.error}`,
+        });
+      }
+
+      // ─── LOG CONTAINER (Components V2) ────────────────────────────────
+
+      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+      if (logChannel) {
+        const logContainer = new ContainerBuilder()
+          .setAccentColor(null)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('### Gamepass Exchange'),
+          )
+          .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              [
+                `<@${interaction.user.id}> exchanged their gamepass for a rank.`,
+                '',
+                `**Roblox Username**\n${robloxUsername}`,
+                '',
+                `**New Rank**\n${rankResult.roleName}`,
+              ].join('\n'),
+            ),
+          );
+
+        await logChannel.send({
+          components: [logContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+      }
+
+      // ─── STEP 2: final confirmation ───────────────────────────────────
+      await InteractionHelper.safeEditReply(interaction, {
+        content: '✅ You have been ranked successfully.',
+      });
+
+      logger.info(`[Exchanges] ${interaction.user.tag} exchanged gamepass and got ranked to ${rankResult.roleName}`);
+
     } catch (error) {
-      logger.error('ApplyAggressiveDenizen error:', error);
+      logger.error('Exchanges error:', error);
       try { await InteractionHelper.safeReply(interaction, { content: '❌ An error occurred.' }); } catch (e) { logger.error('Failed:', e); }
     }
   },
 };
+          
