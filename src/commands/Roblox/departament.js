@@ -1,5 +1,14 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import {
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MessageFlags,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -8,11 +17,6 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEPARTMENTS_PATH = join(__dirname, '../../../departments.json');
-
-const ALLOWED_ROLES = [
-  '1547335475390583036',
-  '1547335308276793484',
-];
 
 const LOG_CHANNEL_ID = '1547416959019253882';
 const OUTREACH_ROLE_ID = '1547007643640406027';
@@ -78,14 +82,6 @@ export default {
 // ─── CHOOSE ────────────────────────────────────────────────────────────────
 
 async function handleChoose(interaction) {
-  const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-  if (!hasRole) {
-    return await interaction.reply({
-      content: '❌ You don\'t have permission to choose a department.',
-      ephemeral: true,
-    });
-  }
-
   await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
   try {
@@ -98,50 +94,18 @@ async function handleChoose(interaction) {
       });
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3F3F3F)
-      .setTitle('📋 Department Choice')
-      .setDescription(
-        'Greetings! Before your official HR journey begins, you are required to select a department.\n\n' +
-        'Each department handles different materials. However, in case assistance is required in the other department, ' +
-        'another department member may assist even if it is outside of their department.'
-      )
-      .addFields(
-        {
-          name: '👥 Staffing',
-          value:
-            'The Staffing department handles anything related to **staffing**. ' +
-            'Their role is to handle the weekly **staff reforms**, including promotions, demotions and staff of the week. ' +
-            'This department also handles **tickets of any kind and server/in-game moderation**. ' +
-            'This department also handles selecting new members for the MR and HR team. ' +
-            'This department is the primal training hoster department, however a staffing department member may host one if no Supervision department member is available.',
-          inline: false,
-        },
-        {
-          name: '🎪 Outreach',
-          value:
-            'The Outreach department main role is to handle staff and non-staff events, to ensure the community is alive. ' +
-            'They are responsible for **handling events, daily activities, and chat revives**. ' +
-            'This department has the final say over **Discord moderation**, as they do not handle reforms, you will handle **in-game promotions and supervision**. ' +
-            'This department handles welcoming new members, wherever that would be LR, MR or HR to ensure everyone feels welcomed.',
-          inline: false,
-        }
-      )
-      .setFooter({ text: 'Choose your department wisely. You can only change with staff approval.' })
-      .setTimestamp();
-
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId(`department_select:${userId}`)
         .setPlaceholder('Select your department...')
         .addOptions(
           new StringSelectMenuOptionBuilder()
-            .setLabel('👥 Staffing')
+            .setLabel('Staffing')
             .setDescription('Staff reforms, tickets, moderation')
             .setValue('Staffing')
             .setEmoji('👥'),
           new StringSelectMenuOptionBuilder()
-            .setLabel('🎪 Outreach')
+            .setLabel('Outreach')
             .setDescription('Events, activities, community engagement')
             .setValue('Outreach')
             .setEmoji('🎪')
@@ -149,7 +113,7 @@ async function handleChoose(interaction) {
     );
 
     await InteractionHelper.safeEditReply(interaction, {
-      embeds: [embed],
+      content: '📋 Select your department:',
       components: [row],
     });
 
@@ -172,21 +136,30 @@ async function handleChoose(interaction) {
         await interaction.member.roles.add(role);
       }
 
-      const confirmEmbed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('✅ Department Selected')
-        .setDescription(`You have been assigned to the **${selected}** department!`)
-        .setTimestamp();
-
       await selectInteraction.update({
-        embeds: [confirmEmbed],
+        content: `✅ You have joined the department of **${selected}** successfully`,
         components: [],
       });
 
-      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+      // ─── LOG CONTAINER (Components V2) ────────────────────────────────
+
+      const logChannel = await interaction.client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
       if (logChannel) {
+        const logContainer = new ContainerBuilder()
+          .setAccentColor(null)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('### 📋 Department Joined'),
+          )
+          .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `<@${interaction.user.id}> has joined the **${selected}** department.`,
+            ),
+          );
+
         await logChannel.send({
-          content: `📋 **${interaction.user.tag}** has joined the **${selected}** department.`,
+          components: [logContainer],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
@@ -226,13 +199,9 @@ async function handleView(interaction) {
       });
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3F3F3F)
-      .setTitle('📋 Your Department')
-      .setDescription(`You are currently in the **${department}** department.`)
-      .setTimestamp();
-
-    await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+    await InteractionHelper.safeEditReply(interaction, {
+      content: `📋 You are currently in the **${department}** department.`,
+    });
 
   } catch (error) {
     logger.error('Department view error:', error);
@@ -245,14 +214,6 @@ async function handleView(interaction) {
 // ─── LIST ──────────────────────────────────────────────────────────────────
 
 async function handleList(interaction) {
-  const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-  if (!hasRole) {
-    return await interaction.reply({
-      content: '❌ You don\'t have permission to view the department list.',
-      ephemeral: true,
-    });
-  }
-
   await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
   try {
@@ -273,24 +234,17 @@ async function handleList(interaction) {
       }
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3F3F3F)
-      .setTitle('📋 Department Members')
-      .addFields(
-        {
-          name: `👥 Staffing (${staffing.length})`,
-          value: staffing.length > 0 ? staffing.join('\n') : 'No members',
-          inline: true,
-        },
-        {
-          name: `🎪 Outreach (${outreach.length})`,
-          value: outreach.length > 0 ? outreach.join('\n') : 'No members',
-          inline: true,
-        }
-      )
-      .setTimestamp();
+    const content = [
+      `📋 **Department Members**`,
+      '',
+      `**Staffing (${staffing.length})**`,
+      staffing.length > 0 ? staffing.join('\n') : 'No members',
+      '',
+      `**Outreach (${outreach.length})**`,
+      outreach.length > 0 ? outreach.join('\n') : 'No members',
+    ].join('\n');
 
-    await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+    await InteractionHelper.safeEditReply(interaction, { content });
 
   } catch (error) {
     logger.error('Department list error:', error);
@@ -303,14 +257,6 @@ async function handleList(interaction) {
 // ─── RESET ─────────────────────────────────────────────────────────────────
 
 async function handleReset(interaction) {
-  const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-  if (!hasRole) {
-    return await interaction.reply({
-      content: '❌ You don\'t have permission to reset departments.',
-      ephemeral: true,
-    });
-  }
-
   await InteractionHelper.safeDefer(interaction, { ephemeral: true });
 
   try {
@@ -337,13 +283,9 @@ async function handleReset(interaction) {
       }
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0xED4245)
-      .setTitle('🔄 Department Reset')
-      .setDescription(`**${targetUser.tag}** has been removed from the **${oldDept}** department.`)
-      .setTimestamp();
-
-    await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+    await InteractionHelper.safeEditReply(interaction, {
+      content: `🔄 **${targetUser.tag}** has been removed from the **${oldDept}** department.`,
+    });
 
     logger.info(`[Department] ${interaction.user.tag} reset ${targetUser.tag} from ${oldDept}`);
 
