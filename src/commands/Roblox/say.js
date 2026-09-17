@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 
 const ALLOWED_ROLES = [
-  '1505671292873867544',
+  '1547006682800848939',
   '1505671296883757158',
   '1505671309915328713',
   '1505673808097574912',
