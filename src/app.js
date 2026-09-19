@@ -7,7 +7,6 @@ import express from 'express';
 import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger (matches actual file name/casing)
 import { buildWelcomeMessage } from './utils/welcomeMessage.js'; // ✅ Import welcome message builder
 import { applyPresence } from './utils/presence.js'; // ✅ Import presence/status helper
-import { attachModerationLogging } from './utils/modLogger.js'; // ✅ Import moderation logging system
 import { handleTicketButton, handleTicketModal } from './utils/ticketHandlers.js'; // ✅ Import ticket system handlers
 
 const __filename = fileURLToPath(import.meta.url);
@@ -132,8 +131,6 @@ client.once('ready', async () => {
     process.env.STATUS_TEXT || 'Patients and messages',
     process.env.STATUS_TYPE || 'watching',
   );
-
-  attachModerationLogging(client);
 
   startWebServer();
 
