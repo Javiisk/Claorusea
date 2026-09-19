@@ -12,9 +12,14 @@ import {
 import { TICKET_CATEGORIES, buildCategoryModal, buildCloseModal, buildTicketContainer } from './ticketPanel.js';
 import { createTicketRecord, getTicketRecord, updateTicketRecord, deleteTicketRecord } from './ticketStorage.js';
 
-const TICKET_CATEGORY_ID = process.env.TICKET_CATEGORY_ID || '1546992415972266044';
+const TICKET_CATEGORY_ID = process.env.TICKET_CATEGORY_ID || '1550720468804435999';
 const TRANSCRIPT_CHANNEL_ID = process.env.TRANSCRIPT_CHANNEL_ID || '1547414643235102730';
 const TICKET_PING_ROLE_ID = process.env.TICKET_PING_ROLE_ID || '1547026097164652594';
+const TICKET_STAFF_ROLE_ID = process.env.TICKET_STAFF_ROLE_ID || '1550720755518410792';
+
+function hasTicketStaffRole(interaction) {
+  return interaction.member.roles.cache.has(TICKET_STAFF_ROLE_ID);
+}
 
 // ─── BUTTON DISPATCH ─────────────────────────────────────────────────────
 
@@ -28,10 +33,16 @@ export async function handleTicketButton(interaction) {
   }
 
   if (customId === 'ticket_claim') {
+    if (!hasTicketStaffRole(interaction)) {
+      return interaction.reply({ content: '❌ You cannot use this button.', ephemeral: true });
+    }
     return handleClaim(interaction);
   }
 
   if (customId === 'ticket_close') {
+    if (!hasTicketStaffRole(interaction)) {
+      return interaction.reply({ content: '❌ You cannot use this button.', ephemeral: true });
+    }
     return interaction.showModal(buildCloseModal());
   }
 }
@@ -160,6 +171,24 @@ async function handleClaim(interaction) {
 
   await interaction.update({
     components: [updatedContainer],
+    flags: MessageFlags.IsComponentsV2,
+  });
+
+  // Public announcement in the channel, separate from the edited ticket card.
+  const claimAnnouncement = new ContainerBuilder()
+    .setAccentColor(null)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('### Ticket Claimed'),
+    )
+    .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `<@${record.openerId}> Your ticket has been claimed by <@${interaction.user.id}>`,
+      ),
+    );
+
+  await interaction.channel.send({
+    components: [claimAnnouncement],
     flags: MessageFlags.IsComponentsV2,
   });
 }
