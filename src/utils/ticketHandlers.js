@@ -1,3 +1,4 @@
+
 // src/utils/ticketHandlers.js
 import {
   ChannelType,
@@ -14,23 +15,36 @@ import { createTicketRecord, getTicketRecord, updateTicketRecord, deleteTicketRe
 
 const TICKET_CATEGORY_ID = process.env.TICKET_CATEGORY_ID || '1550720468804435999';
 const TRANSCRIPT_CHANNEL_ID = process.env.TRANSCRIPT_CHANNEL_ID || '1547414643235102730';
-const TICKET_PING_ROLE_ID = process.env.TICKET_PING_ROLE_ID || '1547026097164652594';
 const TICKET_STAFF_ROLE_ID = process.env.TICKET_STAFF_ROLE_ID || '1550720755518410792';
+
+// Ping role IDs, resolved from the 'normal' / 'staff1' / 'staff2' keys used
+// in each category's `pingRoles` array (see ticketPanel.js).
+const PING_ROLE_MAP = {
+  normal: process.env.TICKET_PING_ROLE_ID || '1547026097164652594',
+  staff1: process.env.STAFF_PING_ROLE_1 || '1547335308276793484',
+  staff2: process.env.STAFF_PING_ROLE_2 || '1547335475390583036',
+};
 
 function hasTicketStaffRole(interaction) {
   return interaction.member.roles.cache.has(TICKET_STAFF_ROLE_ID);
 }
 
-// ─── BUTTON DISPATCH ─────────────────────────────────────────────────────
+function buildPingMentions(category) {
+  return category.pingRoles.map(key => `<@&${PING_ROLE_MAP[key]}>`).join(' ');
+}
+
+// ─── SELECT MENU DISPATCH (opening a ticket) ────────────────────────────
+
+export async function handleTicketSelect(interaction) {
+  const categoryKey = interaction.values[0];
+  if (!TICKET_CATEGORIES[categoryKey]) return;
+  return interaction.showModal(buildCategoryModal(categoryKey));
+}
+
+// ─── BUTTON DISPATCH (claim / close) ─────────────────────────────────────
 
 export async function handleTicketButton(interaction) {
   const { customId } = interaction;
-
-  if (customId.startsWith('ticket_open_')) {
-    const categoryKey = customId.replace('ticket_open_', '');
-    if (!TICKET_CATEGORIES[categoryKey]) return;
-    return interaction.showModal(buildCategoryModal(categoryKey));
-  }
 
   if (customId === 'ticket_claim') {
     if (!hasTicketStaffRole(interaction)) {
@@ -120,7 +134,7 @@ async function handleCategorySubmit(interaction, categoryKey) {
   // Ping as its own message (plain text as a top-level component — NOT
   // `content`, since content can't be combined with Components V2).
   const pingText = new TextDisplayBuilder().setContent(
-    `<@&${TICKET_PING_ROLE_ID}> <@${interaction.user.id}>`,
+    `${buildPingMentions(category)} <@${interaction.user.id}>`,
   );
   await ticketChannel.send({
     components: [pingText],
@@ -134,9 +148,14 @@ async function handleCategorySubmit(interaction, categoryKey) {
     claimedById: null,
   });
 
-  await ticketChannel.send({
+  const ticketMessage = await ticketChannel.send({
     components: [ticketContainer],
     flags: MessageFlags.IsComponentsV2,
+  });
+
+  // Pin the card that has the Claim/Close buttons.
+  await ticketMessage.pin().catch((error) => {
+    console.error('❌ Failed to pin the ticket card:', error.message);
   });
 
   await interaction.editReply({
