@@ -20,7 +20,7 @@ const TICKET_STAFF_ROLE_ID = process.env.TICKET_STAFF_ROLE_ID || '15507207555184
 // Ping role IDs, resolved from the 'normal' / 'staff1' / 'staff2' keys used
 // in each category's `pingRoles` array (see ticketPanel.js).
 const PING_ROLE_MAP = {
-  normal: process.env.TICKET_PING_ROLE_ID || '1547026097164652594',
+  normal: process.env.TICKET_PING_ROLE_ID || '1547335161081888808',
   staff1: process.env.STAFF_PING_ROLE_1 || '1547335308276793484',
   staff2: process.env.STAFF_PING_ROLE_2 || '1547335475390583036',
 };
