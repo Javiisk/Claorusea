@@ -3,6 +3,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
+  StringSelectMenuBuilder,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -12,58 +13,110 @@ import {
   SeparatorSpacingSize,
 } from 'discord.js';
 
-// Each category: its button label/style, and the modal questions it asks.
+// panelType: 'all' | 'staff' — which /tickets panel this category shows up in.
+// pingRoles: which roles to ping when a ticket of this category opens.
+//   'normal' = the regular ticket ping role, 'staff1'/'staff2' = the two
+//   staff ping roles. Actual IDs are resolved in ticketHandlers.js.
 export const TICKET_CATEGORIES = {
   alliance: {
     label: 'Alliance & role',
-    buttonStyle: ButtonStyle.Primary,
+    panelType: 'all',
+    pingRoles: ['normal'],
     questions: [
-      { id: 'need', label: 'What you need?', style: TextInputStyle.Paragraph },
-      { id: 'why', label: 'Why should we do it?', style: TextInputStyle.Paragraph },
+      { label: 'What you need?', style: TextInputStyle.Paragraph },
+      { label: 'Why should we do it?', style: TextInputStyle.Paragraph },
     ],
   },
   support: {
     label: 'Support Ticket',
-    buttonStyle: ButtonStyle.Success,
+    panelType: 'all',
+    pingRoles: ['normal'],
     questions: [
-      { id: 'need', label: 'What do you need?', style: TextInputStyle.Paragraph },
+      { label: 'What do you need?', style: TextInputStyle.Paragraph },
     ],
   },
   report: {
     label: 'Report ticket',
-    buttonStyle: ButtonStyle.Danger,
+    panelType: 'all',
+    pingRoles: ['normal'],
     questions: [
-      { id: 'reported_user', label: 'The user you are reporting', style: TextInputStyle.Short },
-      { id: 'reason', label: 'Reason of report?', style: TextInputStyle.Paragraph },
-      { id: 'notes', label: 'Notes', style: TextInputStyle.Paragraph },
+      { label: 'The user you are reporting', style: TextInputStyle.Short },
+      { label: 'Reason of report?', style: TextInputStyle.Paragraph },
+      { label: 'Notes', style: TextInputStyle.Paragraph },
+    ],
+  },
+  staffsupport: {
+    label: 'Staff Support',
+    panelType: 'staff',
+    pingRoles: ['normal', 'staff1', 'staff2'],
+    questions: [
+      { label: 'What you need?', style: TextInputStyle.Paragraph },
+    ],
+  },
+  usernamechange: {
+    label: 'Username Change',
+    panelType: 'staff',
+    pingRoles: ['staff1', 'staff2'],
+    questions: [
+      { label: "What's your old username?", style: TextInputStyle.Short },
+      { label: "What's your new username?", style: TextInputStyle.Short },
+    ],
+  },
+  evaluation: {
+    label: 'Evaluation Ticket',
+    panelType: 'staff',
+    pingRoles: ['staff1', 'staff2'],
+    questions: [
+      { label: 'Your Roblox user?', style: TextInputStyle.Short },
+      { label: 'Current rank?', style: TextInputStyle.Short },
+      { label: 'How long has it been since you were promoted?', style: TextInputStyle.Short },
+    ],
+  },
+  staffdispute: {
+    label: 'Staff Dispute',
+    panelType: 'staff',
+    pingRoles: ['staff1', 'staff2'],
+    questions: [
+      { label: 'User you are reporting?', style: TextInputStyle.Short },
+      { label: 'Reason?', style: TextInputStyle.Paragraph },
     ],
   },
 };
 
-// The panel message posted by /tickets — one button per category.
-export function buildPanelContainer() {
+function categoriesForPanel(panelType) {
+  return Object.entries(TICKET_CATEGORIES).filter(([, cat]) => cat.panelType === panelType);
+}
+
+// The panel message posted by /tickets — a select menu (dropdown) instead
+// of one button per category.
+export function buildPanelContainer(panelType) {
+  const entries = categoriesForPanel(panelType);
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`ticket_open_select_${panelType}`)
+    .setPlaceholder('Select a category...')
+    .addOptions(
+      entries.map(([key, category]) => ({
+        label: category.label,
+        value: key,
+      })),
+    );
+
   return new ContainerBuilder()
     .setAccentColor(null)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('### 🎫 Support Tickets'),
+      new TextDisplayBuilder().setContent(
+        panelType === 'staff' ? '### 🎫 Staff Tickets' : '### 🎫 Support Tickets',
+      ),
     )
     .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent('Select a category below to open a ticket.'),
     )
-    .addActionRowComponents(
-      new ActionRowBuilder().addComponents(
-        ...Object.entries(TICKET_CATEGORIES).map(([key, category]) =>
-          new ButtonBuilder()
-            .setCustomId(`ticket_open_${key}`)
-            .setLabel(category.label)
-            .setStyle(category.buttonStyle),
-        ),
-      ),
-    );
+    .addActionRowComponents(new ActionRowBuilder().addComponents(selectMenu));
 }
 
-// The modal shown when someone clicks a category button.
+// The modal shown after picking a category from the select menu.
 export function buildCategoryModal(categoryKey) {
   const category = TICKET_CATEGORIES[categoryKey];
 
@@ -103,7 +156,7 @@ export function buildCloseModal() {
 }
 
 // The container posted inside the ticket channel, with the form answers
-// and the Claim/Close buttons.
+// and the Claim/Close buttons (both gray/Secondary, as requested).
 export function buildTicketContainer({ categoryKey, openerId, answers, claimedById }) {
   const category = TICKET_CATEGORIES[categoryKey];
 
@@ -135,12 +188,12 @@ export function buildTicketContainer({ categoryKey, openerId, answers, claimedBy
         new ButtonBuilder()
           .setCustomId('ticket_claim')
           .setLabel('Claim')
-          .setStyle(ButtonStyle.Success)
+          .setStyle(ButtonStyle.Secondary)
           .setDisabled(Boolean(claimedById)),
         new ButtonBuilder()
           .setCustomId('ticket_close')
           .setLabel('Close')
-          .setStyle(ButtonStyle.Danger),
+          .setStyle(ButtonStyle.Secondary),
       ),
     );
 }
