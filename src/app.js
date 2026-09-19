@@ -7,7 +7,7 @@ import express from 'express';
 import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger (matches actual file name/casing)
 import { buildWelcomeMessage } from './utils/welcomeMessage.js'; // ✅ Import welcome message builder
 import { applyPresence } from './utils/presence.js'; // ✅ Import presence/status helper
-import { handleTicketButton, handleTicketModal } from './utils/ticketHandlers.js'; // ✅ Import ticket system handlers
+import { handleTicketButton, handleTicketModal, handleTicketSelect } from './utils/ticketHandlers.js'; // ✅ Import ticket system handlers
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -143,7 +143,17 @@ client.once('ready', async () => {
 // ─── INTERACTION CREATE ──────────────────────────────────────────────────
 
 client.on('interactionCreate', async (interaction) => {
-  // ✅ Added: ticket system buttons (open/claim/close) and modals.
+  // ✅ Added: ticket category select menu (opening a ticket).
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith('ticket_open_select_')) {
+    try {
+      await handleTicketSelect(interaction);
+    } catch (error) {
+      console.error('❌ Error handling ticket select menu:', error);
+    }
+    return;
+  }
+
+  // ✅ Added: ticket system buttons (claim/close) and modals.
   if (interaction.isButton() && interaction.customId.startsWith('ticket_')) {
     try {
       await handleTicketButton(interaction);
