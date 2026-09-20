@@ -1,4 +1,3 @@
-
 // src/utils/ticketHandlers.js
 import {
   ChannelType,
@@ -14,16 +13,32 @@ import { TICKET_CATEGORIES, buildCategoryModal, buildCloseModal, buildTicketCont
 import { createTicketRecord, getTicketRecord, updateTicketRecord, deleteTicketRecord } from './ticketStorage.js';
 
 const TICKET_CATEGORY_ID = process.env.TICKET_CATEGORY_ID || '1550720468804435999';
+const STAFFSUPPORT_CATEGORY_ID = process.env.STAFFSUPPORT_CATEGORY_ID || '1550992932071538698';
 const TRANSCRIPT_CHANNEL_ID = process.env.TRANSCRIPT_CHANNEL_ID || '1547414643235102730';
 const TICKET_STAFF_ROLE_ID = process.env.TICKET_STAFF_ROLE_ID || '1550720755518410792';
 
 // Ping role IDs, resolved from the 'normal' / 'staff1' / 'staff2' keys used
 // in each category's `pingRoles` array (see ticketPanel.js).
 const PING_ROLE_MAP = {
-  normal: process.env.TICKET_PING_ROLE_ID || '1547335161081888808',
+  normal: process.env.TICKET_PING_ROLE_ID || '1547026097164652594',
   staff1: process.env.STAFF_PING_ROLE_1 || '1547335308276793484',
   staff2: process.env.STAFF_PING_ROLE_2 || '1547335475390583036',
 };
+
+// Who is allowed to SEE a staff-type ticket, resolved from the 'ticketStaff'
+// / 'staff1' / 'staff2' keys used in each category's `visibleRoles` array.
+// Note 'ticketStaff' here is the general ticket-staff role (same one that
+// can claim/close any ticket) — separate from the 'normal' PING role above.
+const VIEW_ROLE_MAP = {
+  ticketStaff: TICKET_STAFF_ROLE_ID,
+  staff1: PING_ROLE_MAP.staff1,
+  staff2: PING_ROLE_MAP.staff2,
+};
+
+// Which Discord category a new ticket channel is created under.
+function getParentCategoryId(categoryKey) {
+  return categoryKey === 'staffsupport' ? STAFFSUPPORT_CATEGORY_ID : TICKET_CATEGORY_ID;
+}
 
 function hasTicketStaffRole(interaction) {
   return interaction.member.roles.cache.has(TICKET_STAFF_ROLE_ID);
@@ -88,7 +103,8 @@ async function handleCategorySubmit(interaction, categoryKey) {
   });
 
   const guild = interaction.guild;
-  const categoryChannel = await guild.channels.fetch(TICKET_CATEGORY_ID).catch(() => null);
+  const parentCategoryId = getParentCategoryId(categoryKey);
+  const categoryChannel = await guild.channels.fetch(parentCategoryId).catch(() => null);
 
   const safeUsername = interaction.user.username
     .toLowerCase()
@@ -109,8 +125,23 @@ async function handleCategorySubmit(interaction, categoryKey) {
     },
   ];
 
-  // Inherit staff role visibility from the ticket category itself.
-  if (categoryChannel) {
+  if (category.panelType === 'staff') {
+    // Staff tickets: explicit visibility only for the roles listed in
+    // this category's `visibleRoles` — never inherited from the category.
+    for (const roleKey of category.visibleRoles) {
+      overwrites.push({
+        id: VIEW_ROLE_MAP[roleKey],
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.AttachFiles,
+        ],
+      });
+    }
+  } else if (categoryChannel) {
+    // Regular 'all' tickets: inherit staff role visibility from the
+    // Discord category itself, same as before.
     for (const overwrite of categoryChannel.permissionOverwrites.cache.values()) {
       overwrites.push({ id: overwrite.id, allow: overwrite.allow, deny: overwrite.deny });
     }
@@ -309,4 +340,4 @@ async function handleCloseSubmit(interaction) {
   setTimeout(() => {
     interaction.channel.delete().catch(() => {});
   }, 5000);
-}
+                                       }
