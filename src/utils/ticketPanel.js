@@ -49,6 +49,7 @@ export const TICKET_CATEGORIES = {
     label: 'Staff Support',
     panelType: 'staff',
     pingRoles: ['normal', 'staff1', 'staff2'],
+    visibleRoles: ['ticketStaff', 'staff1', 'staff2'],
     questions: [
       { label: 'What you need?', style: TextInputStyle.Paragraph },
     ],
@@ -57,6 +58,7 @@ export const TICKET_CATEGORIES = {
     label: 'Username Change',
     panelType: 'staff',
     pingRoles: ['staff1', 'staff2'],
+    visibleRoles: ['staff1', 'staff2'],
     questions: [
       { label: "What's your old username?", style: TextInputStyle.Short },
       { label: "What's your new username?", style: TextInputStyle.Short },
@@ -66,6 +68,7 @@ export const TICKET_CATEGORIES = {
     label: 'Evaluation Ticket',
     panelType: 'staff',
     pingRoles: ['staff1', 'staff2'],
+    visibleRoles: ['staff1', 'staff2'],
     questions: [
       { label: 'Your Roblox user?', style: TextInputStyle.Short },
       { label: 'Current rank?', style: TextInputStyle.Short },
@@ -76,6 +79,7 @@ export const TICKET_CATEGORIES = {
     label: 'Staff Dispute',
     panelType: 'staff',
     pingRoles: ['staff1', 'staff2'],
+    visibleRoles: ['staff1', 'staff2'],
     questions: [
       { label: 'User you are reporting?', style: TextInputStyle.Short },
       { label: 'Reason?', style: TextInputStyle.Paragraph },
