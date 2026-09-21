@@ -8,6 +8,8 @@ import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger (matches
 import { buildWelcomeMessage } from './utils/welcomeMessage.js'; // ✅ Import welcome message builder
 import { applyPresence } from './utils/presence.js'; // ✅ Import presence/status helper
 import { handleTicketButton, handleTicketModal, handleTicketSelect } from './utils/ticketHandlers.js'; // ✅ Import ticket system handlers
+import { handleApplyButton, handleApplyModal } from './utils/applyHandlers.js'; // ✅ Import /apply handlers
+import { handleFeedbackButton } from './utils/feedbackHandlers.js'; // ✅ Import /feedback handlers
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -168,6 +170,36 @@ client.on('interactionCreate', async (interaction) => {
       await handleTicketModal(interaction);
     } catch (error) {
       console.error('❌ Error handling ticket modal:', error);
+    }
+    return;
+  }
+
+  // ✅ Added: /apply buttons (accept/decline) and modals (the 4 chained
+  // application pages + the decline-reason modal).
+  if (interaction.isButton() && interaction.customId.startsWith('apply_')) {
+    try {
+      await handleApplyButton(interaction);
+    } catch (error) {
+      console.error('❌ Error handling apply button:', error);
+    }
+    return;
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('apply_')) {
+    try {
+      await handleApplyModal(interaction);
+    } catch (error) {
+      console.error('❌ Error handling apply modal:', error);
+    }
+    return;
+  }
+
+  // ✅ Added: /feedback "View Feedback" button.
+  if (interaction.isButton() && interaction.customId === 'feedback_view') {
+    try {
+      await handleFeedbackButton(interaction);
+    } catch (error) {
+      console.error('❌ Error handling feedback button:', error);
     }
     return;
   }
