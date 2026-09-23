@@ -9,7 +9,7 @@ export async function handleFeedbackButton(interaction) {
   const record = getFeedbackRecord(interaction.message.id);
 
   if (!record) {
-    return interaction.reply({ content: '❌ This feedback is no longer available.', ephemeral: true });
+    return interaction.reply({ content: '<:UnverifiedIcon:1547447352795594844> This feedback is no longer available.', ephemeral: true });
   }
 
   const isTargetUser = interaction.user.id === record.targetUserId;
@@ -17,7 +17,7 @@ export async function handleFeedbackButton(interaction) {
     || interaction.member.roles.cache.has(FEEDBACK_ROLE_2);
 
   if (!isTargetUser && !hasStaffRole) {
-    return interaction.reply({ content: '❌ You cannot use this button.', ephemeral: true });
+    return interaction.reply({ content: '<:UnverifiedIcon:1547447352795594844> You cannot use this button.', ephemeral: true });
   }
 
   const feedbackContainer = new ContainerBuilder()
