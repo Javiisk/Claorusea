@@ -48,7 +48,7 @@ export default {
         .setAccentColor(null)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `### <:padlock:1540831474721366137> ${interaction.user.username}'s Suggestion`,
+            `###  ${interaction.user.username}'s Suggestion`,
           ),
         )
         .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
