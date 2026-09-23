@@ -27,7 +27,7 @@ export async function startApplication(interaction) {
 
   if (!robloxInfo) {
     return interaction.editReply({
-      content: '❌ You do not have a Roblox account linked in this server.',
+      content: '<:UnverifiedIcon:1547447352795594844> You do not have a Roblox account linked in this server.',
     });
   }
 
@@ -40,7 +40,7 @@ export async function startApplication(interaction) {
     });
   } catch {
     return interaction.editReply({
-      content: '❌ Could not send you a DM. Please enable your DMs and try again.',
+      content: '<:UnverifiedIcon:1547447352795594844> Could not send you a DM. Please enable your DMs and try again.',
     });
   }
 
@@ -52,7 +52,7 @@ export async function startApplication(interaction) {
     answers: {},
   });
 
-  await interaction.editReply({ content: '✅ Check your DMs to fill out the application!' });
+  await interaction.editReply({ content: '<:VerifiedIcon:1547447354272260107> Check your DMs to fill out the application!' });
 }
 
 // ─── BUTTON DISPATCH ─────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ async function handleQuestionSubmit(interaction, index) {
   const state = pendingApplications.get(interaction.message.id);
 
   if (!state) {
-    return interaction.reply({ content: '❌ This application session expired. Run /apply again.', ephemeral: true });
+    return interaction.reply({ content: '<:UnverifiedIcon:1547447352795594844> This application session expired. Run /apply again.', ephemeral: true });
   }
 
   state.answers[QUESTIONS[index].key] = interaction.fields.getTextInputValue('answer');
@@ -146,7 +146,7 @@ async function handleAccept(interaction) {
   const record = getApplicationRecord(interaction.message.id);
 
   if (!record || record.status !== 'pending') {
-    return interaction.reply({ content: '❌ This application was already processed.', ephemeral: true });
+    return interaction.reply({ content: '<:UnverifiedIcon:1547447352795594844> This application was already processed.', ephemeral: true });
   }
 
   const updated = updateApplicationRecord(interaction.message.id, {
@@ -164,7 +164,7 @@ async function handleDeclineSubmit(interaction) {
   const record = getApplicationRecord(interaction.message.id);
 
   if (!record || record.status !== 'pending') {
-    return interaction.reply({ content: '❌ This application was already processed.', ephemeral: true });
+    return interaction.reply({ content: '<:UnverifiedIcon:1547447352795594844> This application was already processed.', ephemeral: true });
   }
 
   const reason = interaction.fields.getTextInputValue('decline_reason');
