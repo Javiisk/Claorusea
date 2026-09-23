@@ -1,98 +1,69 @@
 // src/utils/applyHandlers.js
 import { MessageFlags } from 'discord.js';
 import {
-  QUESTION_PAGES,
-  TOTAL_PAGES,
-  buildApplicationModal,
+  QUESTIONS,
+  buildQuestionContainer,
+  buildQuestionModal,
+  buildDoneContainer,
   buildDeclineModal,
   buildApplicationContainer,
 } from './applyForm.js';
 import { createApplicationRecord, getApplicationRecord, updateApplicationRecord } from './applyStorage.js';
+import { getRobloxUserInfoByDiscord } from './bloxlink.js';
 
 const APPLICATION_LOG_CHANNEL_ID = process.env.APPLICATION_LOG_CHANNEL_ID || '1547414272231997522';
 
-// Holds answers between the 4 chained modal submissions, per user.
-// In-memory only — if the bot restarts mid-application the user has to
-// start over with /apply again.
-const pendingAnswers = new Map();
+// Holds application-in-progress state, keyed by the DM message ID that
+// carries the current question. In-memory only — if the bot restarts
+// mid-application the user has to start over with /apply.
+const pendingApplications = new Map();
 
 // ─── /apply command entry point ─────────────────────────────────────────
 
 export async function startApplication(interaction) {
-  pendingAnswers.set(interaction.user.id, {});
-  await interaction.showModal(buildApplicationModal(0));
-}
-
-// ─── MODAL DISPATCH ──────────────────────────────────────────────────────
-
-export async function handleApplyModal(interaction) {
-  const { customId } = interaction;
-
-  if (customId.startsWith('apply_modal_')) {
-    const pageIndex = parseInt(customId.replace('apply_modal_', ''), 10);
-    return handlePageSubmit(interaction, pageIndex);
-  }
-
-  if (customId === 'apply_decline_modal') {
-    return handleDeclineSubmit(interaction);
-  }
-}
-
-async function handlePageSubmit(interaction, pageIndex) {
-  const answers = pendingAnswers.get(interaction.user.id) || {};
-
-  for (const question of QUESTION_PAGES[pageIndex]) {
-    answers[question.key] = interaction.fields.getTextInputValue(question.key);
-  }
-  pendingAnswers.set(interaction.user.id, answers);
-
-  const isLastPage = pageIndex === TOTAL_PAGES - 1;
-
-  if (!isLastPage) {
-    // Chain straight into the next modal.
-    return interaction.showModal(buildApplicationModal(pageIndex + 1));
-  }
-
-  // ─── FINAL PAGE: log the application ──────────────────────────────
   await interaction.deferReply({ ephemeral: true });
-  pendingAnswers.delete(interaction.user.id);
 
-  const record = {
-    applicantId: interaction.user.id,
-    answers,
-    status: 'pending',
-    processedById: null,
-    reason: null,
-    createdAt: Date.now(),
-  };
+  const robloxInfo = await getRobloxUserInfoByDiscord(interaction.user.id);
 
-  const logChannel = await interaction.client.channels.fetch(APPLICATION_LOG_CHANNEL_ID).catch(() => null);
-
-  if (!logChannel) {
+  if (!robloxInfo) {
     return interaction.editReply({
-      content: '❌ Could not find the application log channel. Contact staff.',
+      content: '❌ You do not have a Roblox account linked in this server.',
     });
   }
 
-  // Container references the message it lives in for the status field, so
-  // send once with status "pending", get the message ID, then store it.
-  const tempContainer = buildApplicationContainer(record);
-  const logMessage = await logChannel.send({
-    components: [tempContainer],
-    flags: MessageFlags.IsComponentsV2,
+  let dmMessage;
+  try {
+    const dmChannel = await interaction.user.createDM();
+    dmMessage = await dmChannel.send({
+      components: [buildQuestionContainer(0)],
+      flags: MessageFlags.IsComponentsV2,
+    });
+  } catch {
+    return interaction.editReply({
+      content: '❌ Could not send you a DM. Please enable your DMs and try again.',
+    });
+  }
+
+  pendingApplications.set(dmMessage.id, {
+    applicantId: interaction.user.id,
+    discordUsername: interaction.user.tag,
+    accountCreatedAt: interaction.user.createdTimestamp,
+    robloxUsername: robloxInfo.username,
+    answers: {},
   });
 
-  createApplicationRecord(logMessage.id, record);
-
-  await interaction.editReply({
-    content: 'You application has been logged, wait for your feedback.',
-  });
+  await interaction.editReply({ content: '✅ Check your DMs to fill out the application!' });
 }
 
-// ─── BUTTON DISPATCH (accept / decline) ─────────────────────────────────
+// ─── BUTTON DISPATCH ─────────────────────────────────────────────────────
 
 export async function handleApplyButton(interaction) {
   const { customId } = interaction;
+
+  if (customId.startsWith('apply_answer_')) {
+    const index = parseInt(customId.replace('apply_answer_', ''), 10);
+    return interaction.showModal(buildQuestionModal(index));
+  }
 
   if (customId === 'apply_accept') {
     return handleAccept(interaction);
@@ -102,6 +73,74 @@ export async function handleApplyButton(interaction) {
     return interaction.showModal(buildDeclineModal());
   }
 }
+
+// ─── MODAL DISPATCH ──────────────────────────────────────────────────────
+
+export async function handleApplyModal(interaction) {
+  const { customId } = interaction;
+
+  if (customId.startsWith('apply_qmodal_')) {
+    const index = parseInt(customId.replace('apply_qmodal_', ''), 10);
+    return handleQuestionSubmit(interaction, index);
+  }
+
+  if (customId === 'apply_decline_modal') {
+    return handleDeclineSubmit(interaction);
+  }
+}
+
+async function handleQuestionSubmit(interaction, index) {
+  const state = pendingApplications.get(interaction.message.id);
+
+  if (!state) {
+    return interaction.reply({ content: '❌ This application session expired. Run /apply again.', ephemeral: true });
+  }
+
+  state.answers[QUESTIONS[index].key] = interaction.fields.getTextInputValue('answer');
+
+  const nextIndex = index + 1;
+
+  if (nextIndex < QUESTIONS.length) {
+    await interaction.update({
+      components: [buildQuestionContainer(nextIndex)],
+      flags: MessageFlags.IsComponentsV2,
+    });
+    return;
+  }
+
+  // ─── LAST QUESTION: finalize ───────────────────────────────────────
+  await interaction.update({
+    components: [buildDoneContainer()],
+    flags: MessageFlags.IsComponentsV2,
+  });
+
+  pendingApplications.delete(interaction.message.id);
+
+  const record = {
+    applicantId: state.applicantId,
+    discordUsername: state.discordUsername,
+    accountCreatedAt: state.accountCreatedAt,
+    robloxUsername: state.robloxUsername,
+    answers: state.answers,
+    status: 'pending',
+    processedById: null,
+    reason: null,
+    createdAt: Date.now(),
+  };
+
+  const logChannel = await interaction.client.channels.fetch(APPLICATION_LOG_CHANNEL_ID).catch(() => null);
+
+  if (logChannel) {
+    const logContainer = buildApplicationContainer(record);
+    const logMessage = await logChannel.send({
+      components: [logContainer],
+      flags: MessageFlags.IsComponentsV2,
+    });
+    createApplicationRecord(logMessage.id, record);
+  }
+}
+
+// ─── ACCEPT / DECLINE (in the log channel) ──────────────────────────────
 
 async function handleAccept(interaction) {
   const record = getApplicationRecord(interaction.message.id);
@@ -115,10 +154,8 @@ async function handleAccept(interaction) {
     processedById: interaction.user.id,
   });
 
-  const updatedContainer = buildApplicationContainer(updated);
-
   await interaction.update({
-    components: [updatedContainer],
+    components: [buildApplicationContainer(updated)],
     flags: MessageFlags.IsComponentsV2,
   });
 }
@@ -138,10 +175,8 @@ async function handleDeclineSubmit(interaction) {
     reason,
   });
 
-  const updatedContainer = buildApplicationContainer(updated);
-
   await interaction.update({
-    components: [updatedContainer],
+    components: [buildApplicationContainer(updated)],
     flags: MessageFlags.IsComponentsV2,
   });
 }
