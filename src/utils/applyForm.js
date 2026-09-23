@@ -39,7 +39,7 @@ export function buildQuestionContainer(index) {
   return new ContainerBuilder()
     .setAccentColor(null)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`### 📋 Staff Application (${index + 1}/${QUESTIONS.length})`),
+      new TextDisplayBuilder().setContent(`### <:SurveyIcon:1547068617042952303> Staff Application (${index + 1}/${QUESTIONS.length})`),
     )
     .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
@@ -132,7 +132,7 @@ export function buildApplicationContainer(record) {
 
   return new ContainerBuilder()
     .setAccentColor(null)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent('### 📋 Staff Application'))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent('### <:SurveyIcon:1547068617042952303> Staff Application'))
     .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(basicInfo))
     .addSeparatorComponents(separator => separator.setDivider(false).setSpacing(SeparatorSpacingSize.Small))
