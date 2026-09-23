@@ -12,61 +12,73 @@ import {
   SeparatorSpacingSize,
 } from 'discord.js';
 
-// Every question: `key` (used to store the answer), `label` (short, for the
-// modal field — Discord caps this at 45 chars), `full` (the complete
-// question text shown later in the log), and `style` (Short/Paragraph).
-const ALL_QUESTIONS = [
-  { key: 'discord_username', label: 'Discord username', full: 'Discord username', style: TextInputStyle.Short },
-  { key: 'account_age', label: 'Discord Account age', full: 'Discord Account age', style: TextInputStyle.Short },
-  { key: 'timezone', label: 'What is your timezone?', full: 'What is your timezone?', style: TextInputStyle.Short },
-  { key: 'activity_scale', label: 'Activity (1-10)', full: 'On a scale of 1 to 10, how active can you be?', style: TextInputStyle.Short },
-
-  { key: 'other_communities', label: 'Worked in other communities?', full: 'You worked in other similar communities? Type N/A if not.', style: TextInputStyle.Short },
-  { key: 'why_rank', label: 'Why do you want this rank?', full: 'Why do you want this rank?', style: TextInputStyle.Paragraph },
-  { key: 'why_hire', label: 'Why hire you over others?', full: 'Why should we hire you and not the other applicants?', style: TextInputStyle.Paragraph },
-  { key: 'staff_abuse', label: 'Staff abusing tools/powers?', full: 'If a staff member is found abusing their tools or powers, what do you think should be done?', style: TextInputStyle.Paragraph },
-
-  { key: 'unpleasant_player', label: 'Unpleasant player - action?', full: 'In the case of an unpleasant player, what should you do?', style: TextInputStyle.Paragraph },
-  { key: 'exploiter', label: 'Encounter an exploiter?', full: 'If you encounter an exploiter, how would you handle the situation?', style: TextInputStyle.Paragraph },
-  { key: 'disrespect', label: 'Higher staff disrespectful?', full: 'If a higher ranking staff member was disrespectful to you, what should you do?', style: TextInputStyle.Paragraph },
-  { key: 'staff_role', label: 'Role of a staff member?', full: 'In your opinion, what is the role of a staff member?', style: TextInputStyle.Paragraph },
-
-  { key: 'lying', label: 'Ok to lie to staff? Explain.', full: 'Is it acceptable to lie to other staff members? If you think so, please explain your reasoning.', style: TextInputStyle.Paragraph },
-  { key: 'ready', label: 'Ready for staff duties?', full: 'Do you think you are ready to take on the duties of a staff?', style: TextInputStyle.Short },
-  { key: 'uniform', label: 'Follow rules & be in uniform?', full: 'You will follow the rules and be in uniform?', style: TextInputStyle.Short },
-  { key: 'additional', label: 'Anything else to add?', full: 'Do you have anything else to add? If no, please type N/A.', style: TextInputStyle.Paragraph },
+// Discord username / account age / Roblox username are NOT asked here —
+// they're pulled automatically and shown only in the log container.
+export const QUESTIONS = [
+  { key: 'timezone', full: 'What is your timezone?', style: TextInputStyle.Short },
+  { key: 'activity_scale', full: 'On a scale of 1 to 10, how active can you be?', style: TextInputStyle.Short },
+  { key: 'other_communities', full: 'You worked in other similar communities? Type N/A if not.', style: TextInputStyle.Short },
+  { key: 'why_rank', full: 'Why do you want this rank?', style: TextInputStyle.Paragraph },
+  { key: 'why_hire', full: 'Why should we hire you and not the other applicants?', style: TextInputStyle.Paragraph },
+  { key: 'staff_abuse', full: 'If a staff member is found abusing their tools or powers, what do you think should be done?', style: TextInputStyle.Paragraph },
+  { key: 'unpleasant_player', full: 'In the case of an unpleasant player, what should you do?', style: TextInputStyle.Paragraph },
+  { key: 'exploiter', full: 'If you encounter an exploiter, how would you handle the situation?', style: TextInputStyle.Paragraph },
+  { key: 'disrespect', full: 'If a higher ranking staff member was disrespectful to you, what should you do?', style: TextInputStyle.Paragraph },
+  { key: 'staff_role', full: 'In your opinion, what is the role of a staff member?', style: TextInputStyle.Paragraph },
+  { key: 'lying', full: 'Is it acceptable to lie to other staff members? If you think so, please explain your reasoning.', style: TextInputStyle.Paragraph },
+  { key: 'ready', full: 'Do you think you are ready to take on the duties of a staff?', style: TextInputStyle.Short },
+  { key: 'uniform', full: 'You will follow the rules and be in uniform?', style: TextInputStyle.Short },
+  { key: 'additional', full: 'Do you have anything else to add? If no, please type N/A.', style: TextInputStyle.Paragraph },
 ];
 
-// Split into 4 pages of 4 questions (Discord's modal limit is 5 fields).
-export const QUESTION_PAGES = [
-  ALL_QUESTIONS.slice(0, 4),
-  ALL_QUESTIONS.slice(4, 8),
-  ALL_QUESTIONS.slice(8, 12),
-  ALL_QUESTIONS.slice(12, 16),
-];
+// The DM message shown for a single question, with an "Answer" button
+// below it that opens a one-field modal.
+export function buildQuestionContainer(index) {
+  const question = QUESTIONS[index];
 
-export const TOTAL_PAGES = QUESTION_PAGES.length;
+  return new ContainerBuilder()
+    .setAccentColor(null)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`### 📋 Staff Application (${index + 1}/${QUESTIONS.length})`),
+    )
+    .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(question.full),
+    )
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`apply_answer_${index}`)
+          .setLabel('Answer')
+          .setStyle(ButtonStyle.Secondary),
+      ),
+    );
+}
 
-export function buildApplicationModal(pageIndex) {
-  const questions = QUESTION_PAGES[pageIndex];
+export function buildQuestionModal(index) {
+  const question = QUESTIONS[index];
 
-  const modal = new ModalBuilder()
-    .setCustomId(`apply_modal_${pageIndex}`)
-    .setTitle(`Staff Application (${pageIndex + 1}/${TOTAL_PAGES})`);
-
-  questions.forEach((question) => {
-    modal.addComponents(
+  return new ModalBuilder()
+    .setCustomId(`apply_qmodal_${index}`)
+    .setTitle(`Question ${index + 1}/${QUESTIONS.length}`)
+    .addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
-          .setCustomId(question.key)
-          .setLabel(question.label.slice(0, 45))
+          .setCustomId('answer')
+          .setLabel(question.full.slice(0, 45))
           .setStyle(question.style)
           .setRequired(true),
       ),
     );
-  });
+}
 
-  return modal;
+// Shown in the user's DM once every question has been answered.
+export function buildDoneContainer() {
+  return new ContainerBuilder()
+    .setAccentColor(null)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('You application has been logged'),
+    );
 }
 
 export function buildDeclineModal() {
@@ -84,10 +96,10 @@ export function buildDeclineModal() {
     );
 }
 
-// Builds the full application container, reflecting current status
-// (pending / passed / declined).
+// Builds the full application container posted to the log channel,
+// reflecting current status (pending / accepted / declined).
 export function buildApplicationContainer(record) {
-  const { applicantId, answers, status, processedById, reason, createdAt } = record;
+  const { answers, status, processedById, reason, createdAt, discordUsername, accountCreatedAt, robloxUsername } = record;
 
   let statusText;
   if (status === 'accepted') {
@@ -99,24 +111,26 @@ export function buildApplicationContainer(record) {
   }
 
   const basicInfo = [
-    `**Discord Username**\n${answers.discord_username}`,
+    `**Discord Username**\n${discordUsername}`,
     '',
-    `**Discord Account Age**\n${answers.account_age}`,
+    `**Discord Account Age**\n<t:${Math.floor(accountCreatedAt / 1000)}:R>`,
+    '',
+    `**Roblox Username**\n${robloxUsername}`,
     '',
     `**Status**\n${statusText}`,
     '',
     `**Date of Application**\n<t:${Math.floor(createdAt / 1000)}:F>`,
   ].join('\n');
 
-  const answerBlock1 = ALL_QUESTIONS.slice(2, 9)
+  const answerBlock1 = QUESTIONS.slice(0, 7)
     .map(q => `**${q.full}**\n${answers[q.key]}`)
     .join('\n\n');
 
-  const answerBlock2 = ALL_QUESTIONS.slice(9, 16)
+  const answerBlock2 = QUESTIONS.slice(7, 14)
     .map(q => `**${q.full}**\n${answers[q.key]}`)
     .join('\n\n');
 
-  const container = new ContainerBuilder()
+  return new ContainerBuilder()
     .setAccentColor(null)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent('### 📋 Staff Application'))
     .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
@@ -139,6 +153,4 @@ export function buildApplicationContainer(record) {
           .setDisabled(status !== 'pending'),
       ),
     );
-
-  return container;
 }
