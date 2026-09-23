@@ -48,7 +48,7 @@ export default {
 
     if (feedbackChoice === 'Other.' && !otherText) {
       return interaction.reply({
-        content: '❌ You picked "Other." — please also fill in the `other` option with your feedback.',
+        content: '<:UnverifiedIcon:1547447352795594844> You picked "Other." — please also fill in the `other` option with your feedback.',
         ephemeral: true,
       });
     }
@@ -59,7 +59,7 @@ export default {
 
     if (!feedbackChannel) {
       return interaction.reply({
-        content: '❌ Could not find the feedback channel. Contact staff.',
+        content: '<:UnverifiedIcon:1547447352795594844> Could not find the feedback channel. Contact staff.',
         ephemeral: true,
       });
     }
@@ -92,7 +92,7 @@ export default {
     });
 
     await interaction.reply({
-      content: `✅ Feedback sent to <@${targetUser.id}> in ${feedbackChannel}.`,
+      content: `<:VerifiedIcon:1547447354272260107> Feedback sent to <@${targetUser.id}> in ${feedbackChannel}.`,
       ephemeral: true,
     });
   },
