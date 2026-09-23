@@ -22,7 +22,7 @@ export async function handleFeedbackButton(interaction) {
 
   const feedbackContainer = new ContainerBuilder()
     .setAccentColor(null)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent('### 📋 Application Feedback'))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent('### <:SurveyIcon:1547068617042952303> Application Feedback'))
     .addSeparatorComponents(separator => separator.setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(record.feedbackText));
 
