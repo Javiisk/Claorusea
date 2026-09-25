@@ -10,6 +10,7 @@ import { applyPresence } from './utils/presence.js'; // ✅ Import presence/stat
 import { handleTicketButton, handleTicketModal, handleTicketSelect } from './utils/ticketHandlers.js'; // ✅ Import ticket system handlers
 import { handleApplyButton, handleApplyModal } from './utils/applyHandlers.js'; // ✅ Import /apply handlers
 import { handleFeedbackButton } from './utils/feedbackHandlers.js'; // ✅ Import /feedback handlers
+import { handleMusicButton } from './utils/musicButtons.js'; // ✅ Import music playback button handlers
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,6 +146,29 @@ client.once('ready', async () => {
 // ─── INTERACTION CREATE ──────────────────────────────────────────────────
 
 client.on('interactionCreate', async (interaction) => {
+  // ✅ Added: autocomplete for commands like /play (song search suggestions).
+  if (interaction.isAutocomplete()) {
+    const command = client.commands.get(interaction.commandName);
+    if (command && typeof command.autocomplete === 'function') {
+      try {
+        await command.autocomplete(interaction);
+      } catch (error) {
+        console.error(`❌ Error in autocomplete for ${interaction.commandName}:`, error);
+      }
+    }
+    return;
+  }
+
+  // ✅ Added: music playback control buttons (pause/skip/loop/volume/etc).
+  if (interaction.isButton() && interaction.customId.startsWith('music_')) {
+    try {
+      await handleMusicButton(interaction);
+    } catch (error) {
+      console.error('❌ Error handling music button:', error);
+    }
+    return;
+  }
+
   // ✅ Added: ticket category select menu (opening a ticket).
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith('ticket_open_select_')) {
     try {
