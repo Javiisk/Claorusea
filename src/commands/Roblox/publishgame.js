@@ -8,10 +8,18 @@ import {
 export default {
   data: new SlashCommandBuilder()
     .setName('publishgame')
-    .setDescription('Publish a .rbxl or .rbxlx file to your Roblox game via Open Cloud')
+    .setDescription('Publish a .rbxl or .rbxlx file to any Roblox game via Open Cloud')
     .addAttachmentOption(option => 
       option.setName('file')
         .setDescription('The Roblox place file (.rbxl or .rbxlx)')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('universe_id')
+        .setDescription('The Universe ID of the game')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('place_id')
+        .setDescription('The Place ID of the place')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('version_type')
@@ -27,6 +35,8 @@ export default {
     await interaction.deferReply({ ephemeral: true });
 
     const attachment = interaction.options.getAttachment('file');
+    const universeId = interaction.options.getString('universe_id');
+    const placeId = interaction.options.getString('place_id');
     const versionType = interaction.options.getString('version_type') || 'Published';
 
     // 1. Validar extensión del archivo
@@ -39,14 +49,12 @@ export default {
       });
     }
 
-    // 2. Leer variables de entorno
-    const universeId = process.env.ROBLOX_UNIVERSE_ID;
-    const placeId = process.env.ROBLOX_PLACE_ID;
+    // 2. Leer API Key (única variable de entorno necesaria)
     const apiKey = process.env.ROBLOX_API_KEY;
 
-    if (!universeId || !placeId || !apiKey) {
+    if (!apiKey) {
       return interaction.editReply({
-        content: '❌ Faltan variables de entorno: `ROBLOX_UNIVERSE_ID`, `ROBLOX_PLACE_ID` o `ROBLOX_API_KEY`.'
+        content: '❌ Falta la variable de entorno `ROBLOX_API_KEY`.'
       });
     }
 
@@ -63,7 +71,7 @@ export default {
         ? 'application/xml' 
         : 'application/octet-stream';
 
-      // 5. Endpoint de publicación
+      // 5. Endpoint de publicación con IDs del comando
       const url = `https://apis.roblox.com/universes/v1/${universeId}/places/${placeId}/versions?versionType=${versionType}`;
 
       // 6. Petición POST a Roblox
@@ -84,13 +92,19 @@ export default {
         
         if (robloxResponse.status === 403) {
           return interaction.editReply({
-            content: '❌ **Error 403**: La API Key no tiene permisos `universe-places` (Write) o la IP no está autorizada.'
+            content: '❌ **Error 403**: La API Key no tiene permisos `universe-places` (Write) para este juego o la IP no está autorizada.'
           });
         }
         
         if (robloxResponse.status === 404) {
           return interaction.editReply({
-            content: '❌ **Error 404**: No se encontró el juego. Verifica `ROBLOX_UNIVERSE_ID` y `ROBLOX_PLACE_ID`.'
+            content: '❌ **Error 404**: No se encontró el juego. Verifica el Universe ID y Place ID.'
+          });
+        }
+
+        if (robloxResponse.status === 400) {
+          return interaction.editReply({
+            content: `❌ **Error 400**: ${result.message || 'IDs inválidos o no coinciden entre sí.'}`
           });
         }
 
@@ -119,7 +133,7 @@ export default {
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
-      console.log(`[PublishGame] ${interaction.user.tag} publicó ${attachment.name} como versión ${result.versionNumber}`);
+      console.log(`[PublishGame] ${interaction.user.tag} publicó ${attachment.name} en U:${universeId} P:${placeId} como versión ${result.versionNumber}`);
 
     } catch (error) {
       console.error('Error ejecutando /publishgame:', error);
