@@ -11,6 +11,7 @@ import { handleTicketButton, handleTicketModal, handleTicketSelect } from './uti
 import { handleApplyButton, handleApplyModal } from './utils/applyHandlers.js'; // ✅ Import /apply handlers
 import { handleFeedbackButton } from './utils/feedbackHandlers.js'; // ✅ Import /feedback handlers
 import { handleMusicButton } from './utils/musicButtons.js'; // ✅ Import music playback button handlers
+import { handleMessageXp } from './utils/leveling.js'; // ✅ Import leveling/Ascensions system
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -265,6 +266,7 @@ client.on('messageCreate', async (message) => {
   // 🔍 Temporary debug log — remove once DMs are confirmed working.
   console.log(`🔔 messageCreate fired — channel type: ${message.channel.type}, author: ${message.author.tag}, bot: ${message.author.bot}`);
   await handleDM(client, message);
+  await handleMessageXp(message); // ✅ Ascensions/leveling XP gain
 });
 
 // ─── WELCOME MESSAGE HANDLER ──────────────────────────────────────────────
