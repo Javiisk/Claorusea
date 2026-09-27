@@ -12,6 +12,8 @@ import { handleApplyButton, handleApplyModal } from './utils/applyHandlers.js'; 
 import { handleFeedbackButton } from './utils/feedbackHandlers.js'; // ✅ Import /feedback handlers
 import { handleMusicButton } from './utils/musicButtons.js'; // ✅ Import music playback button handlers
 import { handleMessageXp } from './utils/leveling.js'; // ✅ Import leveling/Ascensions system
+import { handleForumThreadCreate, handleResolveThread } from './utils/bugForum.js'; // ✅ Import bug forum system
+import { handleStarButton, handleFeedbackModal } from './utils/bugFeedback.js'; // ✅ Import bug feedback rating system
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -229,6 +231,35 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
+  // ✅ Added: bug report resolution star-rating buttons and modal.
+  if (interaction.isButton() && interaction.customId.startsWith('bugfeedback_star_')) {
+    try {
+      await handleStarButton(interaction);
+    } catch (error) {
+      console.error('❌ Error handling bug feedback star button:', error);
+    }
+    return;
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('bugfeedback_modal_')) {
+    try {
+      await handleFeedbackModal(interaction);
+    } catch (error) {
+      console.error('❌ Error handling bug feedback modal:', error);
+    }
+    return;
+  }
+
+  // ✅ Added: the "Mark Resolved" message context menu command.
+  if (interaction.isMessageContextMenuCommand() && interaction.commandName === 'Mark Resolved') {
+    try {
+      await handleResolveThread(interaction);
+    } catch (error) {
+      console.error('❌ Error handling Mark Resolved context menu:', error);
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
@@ -291,6 +322,13 @@ client.on('guildMemberAdd', async (member) => {
   await channel.send(buildWelcomeMessage(member)).catch((error) => {
     console.error('❌ Failed to send the welcome message:', error);
   });
+});
+
+// ─── BUG FORUM: NEW POST HANDLER ───────────────────────────────────────────
+
+client.on('threadCreate', async (thread, newlyCreated) => {
+  if (!newlyCreated) return;
+  await handleForumThreadCreate(thread);
 });
 
 // ─── GLOBAL ERROR HANDLERS ──────────────────────────────────────────────
