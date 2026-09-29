@@ -14,6 +14,7 @@ import { handleMusicButton } from './utils/musicButtons.js'; // ✅ Import music
 import { handleMessageXp } from './utils/leveling.js'; // ✅ Import leveling/Ascensions system
 import { handleForumThreadCreate, handleResolveThread } from './utils/bugForum.js'; // ✅ Import bug forum system
 import { handleStarButton, handleFeedbackModal } from './utils/bugFeedback.js'; // ✅ Import bug feedback rating system
+import { attachEventLogging } from './utils/eventLogger.js'; // ✅ Import edit/delete/invite logging system
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +30,7 @@ const client = new Client({
     GatewayIntentBits.DirectMessages, // ✅ Added to read DMs
     GatewayIntentBits.DirectMessageReactions, // ✅ Added for DM reactions (optional)
     GatewayIntentBits.GuildModeration, // ✅ Added for ban/unban events and audit log access
+    GatewayIntentBits.GuildInvites, // ✅ Added for invite create/delete tracking
   ],
   // ✅ Fixed: discord.js v14 uses the Partials enum, not raw strings like
   // 'CHANNEL' (that was v13 syntax). Without this fix, DM channels that
@@ -137,6 +139,8 @@ client.once('ready', async () => {
     process.env.STATUS_TEXT || 'Patients and messages',
     process.env.STATUS_TYPE || 'watching',
   );
+
+  attachEventLogging(client);
 
   startWebServer();
 
