@@ -1,3 +1,4 @@
+// src/utils/bloxlink.js
 import { logger } from './logger.js'; // ✅ Misma carpeta
 
 const BLOXLINK_API_KEY = process.env.BLOXLINK_API_KEY;
@@ -179,4 +180,63 @@ export async function getRobloxUserInfoByDiscord(discordId) {
     avatar: await getRobloxAvatar(userId),
     rank: await getRobloxGroupRank(userId),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ✅ NEW: Reverse lookup — Roblox User ID → Discord ID (for /hours system)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get Discord ID from Roblox User ID using Bloxlink API
+ * Used by the /hours system to link in-game playtime to Discord users.
+ * 
+ * @param {string|number} robloxUserId - The Roblox User ID
+ * @returns {Promise<string|null>} The Discord ID, or null if not linked
+ */
+export async function getDiscordFromRoblox(robloxUserId) {
+  try {
+    if (!robloxUserId) {
+      logger.warn('[Bloxlink] getDiscordFromRoblox called with empty robloxUserId');
+      return null;
+    }
+
+    const id = typeof robloxUserId === 'string' ? robloxUserId : String(robloxUserId);
+
+    const url = `https://api.blox.link/v4/public/guilds/${GUILD_ID}/roblox-to-discord/${id}`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': BLOXLINK_API_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!res.ok) {
+      logger.warn(`[Bloxlink] Reverse lookup returned ${res.status} for Roblox ID ${id}`);
+      return null;
+    }
+
+    const data = await res.json();
+
+    // Bloxlink returns: { discordIDs: ["123456789", ...] } or { discordID: "..." }
+    // depending on the API version — handle both shapes.
+    if (Array.isArray(data.discordIDs) && data.discordIDs.length > 0) {
+      return data.discordIDs[0];
+    }
+
+    if (data.discordID) {
+      return data.discordID;
+    }
+
+    if (data.discordId) {
+      return data.discordId;
+    }
+
+    logger.warn(`[Bloxlink] No Discord ID found for Roblox ID ${id}`);
+    return null;
+  } catch (error) {
+    logger.error(`[Bloxlink] getDiscordFromRoblox error: ${error.message}`);
+    return null;
+  }
 }
