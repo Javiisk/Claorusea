@@ -17,7 +17,7 @@ export default {
         .setRequired(true)
         .setMaxLength(2000))
     
-    // ─── ADJUNTOS ────────────────────────────────────────────────────────
+    // ─── ATTACHMENTS ─────────────────────────────────────────────────────
     .addAttachmentOption(opt =>
       opt.setName('image')
         .setDescription('Image to attach (jpg, png, gif, webp)')
@@ -60,7 +60,7 @@ export default {
         .setRequired(false)
         .setMaxLength(2048))
     
-    // ─── MODOS ESPECIALES ────────────────────────────────────────────────
+    // ─── SPECIAL MODES ───────────────────────────────────────────────────
     .addStringOption(opt =>
       opt.setName('reply_to')
         .setDescription('Message ID to reply to (optional)')
@@ -85,7 +85,7 @@ export default {
     const anonymous = interaction.options.getBoolean('anonymous') || false;
     const tts = interaction.options.getBoolean('tts') || false;
 
-    // Recopilar adjuntos
+    // Collect attachments
     const attachments = [
       interaction.options.getAttachment('image'),
       interaction.options.getAttachment('image2'),
@@ -94,17 +94,17 @@ export default {
     ].filter(Boolean);
 
     try {
-      // ─── MODO REPLY ──────────────────────────────────────────────────
+      // ─── REPLY MODE ──────────────────────────────────────────────────
       if (replyTo) {
         const targetMessage = await interaction.channel.messages.fetch(replyTo).catch(() => null);
         
         if (!targetMessage) {
           return interaction.editReply({
-            content: `❌ No se encontró el mensaje con ID \`${replyTo}\` en este canal.`
+            content: `❌ Message with ID \`${replyTo}\` was not found in this channel.`
           });
         }
 
-        // Si hay title, mandar embed. Si no, texto plano.
+        // If there's a title, send embed. Otherwise plain text.
         let payload;
         if (title) {
           const embed = new EmbedBuilder()
@@ -116,7 +116,7 @@ export default {
           if (attachments.length > 0) {
             embed.setImage(attachments[0].url);
             for (let i = 1; i < attachments.length; i++) {
-              embed.addFields({ name: '\u200b', value: `[Adjunto ${i + 1}](${attachments[i].url})` });
+              embed.addFields({ name: '\u200b', value: `[Attachment ${i + 1}](${attachments[i].url})` });
             }
           }
 
@@ -130,12 +130,12 @@ export default {
 
         await targetMessage.reply(payload);
 
-      // ─── MODO NORMAL ─────────────────────────────────────────────────
+      // ─── NORMAL MODE ─────────────────────────────────────────────────
       } else {
         let payload;
 
         if (title) {
-          // MODO EMBED
+          // EMBED MODE
           const embed = new EmbedBuilder()
             .setTitle(title)
             .setDescription(message)
@@ -147,8 +147,8 @@ export default {
             embed.setImage(attachments[0].url);
             for (let i = 1; i < attachments.length; i++) {
               embed.addFields({ 
-                name: `📎 Adjunto ${i + 1}`, 
-                value: `[Ver archivo](${attachments[i].url})`,
+                name: `📎 Attachment ${i + 1}`, 
+                value: `[View file](${attachments[i].url})`,
                 inline: false
               });
             }
@@ -160,7 +160,7 @@ export default {
 
           payload = { embeds: [embed] };
         } else {
-          // MODO TEXTO PLANO
+          // PLAIN TEXT MODE
           payload = { content: message, tts };
           
           if (attachments.length > 0) {
@@ -171,20 +171,20 @@ export default {
         await interaction.channel.send(payload);
       }
 
-      // ─── CONFIRMACIÓN ────────────────────────────────────────────────
+      // ─── CONFIRMATION ────────────────────────────────────────────────
       const confirmEmbed = new EmbedBuilder()
         .setColor('#57F287')
-        .setTitle('✅ Mensaje enviado')
+        .setTitle('✅ Message Sent')
         .addFields(
-          { name: '📝 Contenido', value: message.slice(0, 1024), inline: false },
-          { name: '📎 Adjuntos', value: `${attachments.length} archivo(s)`, inline: true },
-          { name: '📍 Canal', value: `<#${interaction.channel.id}>`, inline: true }
+          { name: '📝 Content', value: message.slice(0, 1024), inline: false },
+          { name: '📎 Attachments', value: `${attachments.length} file(s)`, inline: true },
+          { name: '📍 Channel', value: `<#${interaction.channel.id}>`, inline: true }
         )
         .setTimestamp();
 
       await interaction.editReply({ embeds: [confirmEmbed] });
 
-      logger.info(`[Say] ${interaction.user.tag} en #${interaction.channel.name}: ${message.slice(0, 50)}...`);
+      logger.info(`[Say] ${interaction.user.tag} in #${interaction.channel.name}: ${message.slice(0, 50)}...`);
 
     } catch (error) {
       logger.error('Say command error:', error.message, error.stack);
