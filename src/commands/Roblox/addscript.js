@@ -77,14 +77,17 @@ export default {
     const headers = { 'x-api-key': apiKey, 'Content-Type': 'application/json' };
 
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 1 — Create the script and return its Roblox Instance ID as output
+    // Build the Luau script that:
+    //   1. Searches for the target parent service
+    //   2. Destroys any existing script with that name
+    //   3. Creates a new script with the provided source
+    //   4. Does NOT call GetDebugId (which requires Plugin capability)
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Escape source for embedding in Luau long-string
-    // We use long-bracket syntax so the source can contain anything except "]==]"
-    const escapedSource = source.includes(']==]') ? source.replace(/]==]/g, ']== ]') : source;
+    // Escape long-bracket sequence just in case the source contains it
+    const safeSource = source.replace(/\]\]=?\]/g, match => match.replace(']', ' ]'));
 
-    const createCode = `
+    const luauScript = `
 local parent = game:GetService("${location}")
 if "${location}" == "StarterPlayerScripts" or "${location}" == "StarterCharacterScripts" then
     parent = game:GetService("StarterPlayer"):FindFirstChild("${location}")
@@ -96,12 +99,12 @@ if existing then existing:Destroy() end
 local s = Instance.new("${scriptType}")
 s.Name = "${scriptName}"
 s.Source = [==[
-${escapedSource}
+${safeSource}
 ]==]
 s.Parent = parent
 
--- Return the new Instance ID so the bot can use it for future updates
-return tostring(s:GetDebugId())
+-- Return a small confirmation string (must return a JSON-serializable value)
+return "OK:" .. s:GetFullName()
 `;
 
     let createRes;
@@ -109,22 +112,23 @@ return tostring(s:GetDebugId())
       createRes = await fetch(`${base}/luau-execution-session-tasks`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ script: createCode, timeout: '300s' }),
+        body: JSON.stringify({ script: luauScript, timeout: '300s' }),
       });
     } catch (e) {
-      return interaction.editReply({ content: `❌ Network error in step 1: ${e.message}` });
+      return interaction.editReply({ content: `❌ Network error: ${e.message}` });
     }
 
     if (!createRes.ok) {
       const err = await createRes.json().catch(() => ({}));
       return interaction.editReply({
-        content: `❌ Step 1 failed (${createRes.status}): ${err.message || JSON.stringify(err)}`,
+        content: `❌ Request failed (${createRes.status}): ${err.message || JSON.stringify(err)}`,
       });
     }
 
     const taskData = await createRes.json();
     const taskPath = taskData.path;
 
+    // ─── Poll until the task finishes ───────────────────────────────────
     let finalState = null;
     for (let i = 0; i < 40; i++) {
       await new Promise(r => setTimeout(r, 3000));
@@ -140,7 +144,7 @@ return tostring(s:GetDebugId())
       }
     }
 
-    if (!finalState) return interaction.editReply({ content: '⏳ Step 1 timed out.' });
+    if (!finalState) return interaction.editReply({ content: '⏳ Timed out waiting for task.' });
 
     if (finalState.state === 'FAILED') {
       return interaction.editReply({
@@ -148,30 +152,24 @@ return tostring(s:GetDebugId())
       });
     }
 
-    // Try to extract the Instance ID from the task output
-    const output = finalState.output?.text || finalState.output?.returnValue || '';
-    const idMatch = String(output).match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
-    const instanceId = idMatch ? idMatch[0] : null;
+    // Try to extract the "OK:..." confirmation
+    const outputText = JSON.stringify(finalState.output || finalState.result || {});
+    const okMatch = outputText.match(/OK:[^"\\]+/);
 
     const embed = new EmbedBuilder()
       .setColor(0x00ff00)
-      .setTitle('✅ Script Created')
+      .setTitle('✅ Script Written to Roblox')
       .addFields(
         { name: '📄 File', value: `\`${file.name}\``, inline: true },
         { name: '📂 Roblox Name', value: `\`${scriptName}\``, inline: true },
         { name: '📦 Type', value: scriptType, inline: true },
         { name: '📍 Location', value: location, inline: true },
         { name: '📏 Size', value: `${source.length} chars`, inline: true },
-        {
-          name: '🆔 Instance ID',
-          value: instanceId ? `\`${instanceId}\`` : '⚠️ Not returned by Roblox',
-          inline: false,
-        },
       )
-      .setFooter({ text: 'Script is now live in your game.' })
+      .setFooter({ text: okMatch ? okMatch[0] : 'Script applied. Verify in Studio if needed.' })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-    console.log(`[AddScript] ${interaction.user.tag} → ${scriptName}`);
+    console.log(`[AddScript] ${interaction.user.tag} → ${scriptName} (${source.length} chars)`);
   },
 };
