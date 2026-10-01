@@ -4,20 +4,18 @@ import {
   EmbedBuilder,
   PermissionFlagsBits,
 } from 'discord.js';
-import { getAllUsers } from '../../utils/activityStorage.js';
+import { getAllUsers } from '../../utils/hoursStorage.js';
 import { getRobloxUsernameById, getRobloxGroupRank } from '../../utils/bloxlink.js';
 
-// GMT-6 weekly reset — Monday 00:00 GMT-6
-const RESET_DAY = 0;        // Sunday in GMT-6 = Monday 00:00 (offset)
-const RESET_HOUR = 0;       // Midnight
-const GMT_OFFSET = -6;      // GMT-6
+const RESET_DAY = 0;
+const RESET_HOUR = 0;
+const GMT_OFFSET = -6;
 
 function getWeekStart() {
   const now = new Date();
   const gmt6 = new Date(now.getTime() + GMT_OFFSET * 60 * 60 * 1000);
 
-  // Get the most recent Sunday 00:00 GMT-6 (which is Monday 00:00 local)
-  const daysBack = gmt6.getUTCDay(); // 0=Sunday
+  const daysBack = gmt6.getUTCDay();
   const weekStart = new Date(gmt6);
   weekStart.setUTCDate(gmt6.getUTCDate() - daysBack);
   weekStart.setUTCHours(RESET_HOUR, 0, 0, 0);
@@ -54,14 +52,12 @@ export default {
     const weekStart = getWeekStart();
     const allUsers = getAllUsers();
 
-    // ─── Build user list ───────────────────────────────────────────────
     const users = [];
 
     for (const [discordId, data] of Object.entries(allUsers)) {
       if (!data.weeklyMinutes || data.weeklyMinutes <= 0) continue;
-      if (data.lastReset && data.lastReset < weekStart) continue; // skip old data
+      if (data.lastReset && data.lastReset < weekStart) continue;
 
-      // Resolve Roblox username + rank
       let robloxName = 'Unknown';
       let rank = 'N/A';
 
@@ -75,7 +71,7 @@ export default {
           if (groupRank) rank = groupRank;
         }
       } catch (err) {
-        // ignore, keep defaults
+        // keep defaults
       }
 
       users.push({
@@ -92,7 +88,6 @@ export default {
       });
     }
 
-    // ─── Sort & filter based on type ───────────────────────────────────
     let title = '';
     let filtered = [];
     let color = 0x5865F2;
@@ -111,8 +106,8 @@ export default {
       color = 0xED4245;
     } else if (type === 'sotw') {
       title = '🏆 Shifter of the Week';
-      const top = users.sort((a, b) => b.minutes - a.minutes)[0];
-      filtered = [top];
+      const sorted = [...users].sort((a, b) => b.minutes - a.minutes);
+      filtered = sorted.slice(0, 1);
       color = 0xFFD700;
     }
 
@@ -122,23 +117,19 @@ export default {
       });
     }
 
-    // ─── Format output ─────────────────────────────────────────────────
     const lines = filtered.map((u, i) => {
       const rankEmoji = type === 'sotw' ? '👑' : `#${i + 1}`;
       return `${rankEmoji} **${u.robloxName}** — \`${u.rank}\` — **${formatTime(u.minutes)}**`;
     });
 
-    // Discord embed description limit is 4096 — split if needed
     const description = lines.join('\n').slice(0, 4000);
-
-    const resetTimestamp = Math.floor((weekStart + 7 * 24 * 60 * 60 * 1000) / 1000);
 
     const embed = new EmbedBuilder()
       .setColor(color)
       .setTitle(title)
       .setDescription(description)
-      .setFooter({ text: `Resets every Monday 00:00 GMT-6 • Next: ` })
-      .setTimestamp(resetTimestamp * 1000);
+      .setFooter({ text: 'Resets every Monday 00:00 GMT-6' })
+      .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
   },
