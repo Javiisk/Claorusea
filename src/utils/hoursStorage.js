@@ -19,19 +19,16 @@ function save(data) {
   writeFileSync(STORAGE_PATH, JSON.stringify(data, null, 2));
 }
 
-// Reset semanal: domingos 8 PM GMT-6
 export function getLastResetTimestamp() {
   const now = new Date();
-  // Convertir a GMT-6
   const gmt6 = new Date(now.getTime() - 6 * 60 * 60 * 1000);
 
-  // Encontrar el último domingo a las 20:00 GMT-6
   const lastSunday = new Date(gmt6);
-  lastSunday.setUTCHours(20 + 6, 0, 0, 0); // 20:00 GMT-6 = 02:00 UTC del lunes
+  lastSunday.setUTCHours(20 + 6, 0, 0, 0);
   const day = gmt6.getUTCDay();
   const daysBack = day === 0 && gmt6.getUTCHours() >= 20 ? 0 : (day === 0 ? 7 : day);
   lastSunday.setUTCDate(gmt6.getUTCDate() - daysBack);
-  lastSunday.setUTCHours(2, 0, 0, 0); // 20:00 GMT-6 = 02:00 UTC siguiente día
+  lastSunday.setUTCHours(2, 0, 0, 0);
 
   return lastSunday.getTime();
 }
@@ -47,7 +44,6 @@ export function getHoursData(discordId) {
     lastReset: lastReset,
   };
 
-  // Reset si toca
   if (!user.lastReset || user.lastReset < lastReset) {
     user.weeklyMinutes = 0;
     user.lastReset = lastReset;
@@ -88,4 +84,9 @@ export function addHeartbeatMinutes(discordId, minutes) {
   const user = getHoursData(discordId);
   user.weeklyMinutes = (user.weeklyMinutes || 0) + minutes;
   saveHoursData(discordId, user);
+}
+
+// ─── GET ALL USERS (for /eligibles, leaderboards, etc.) ──────────────────
+export function getAllUsers() {
+  return load();
 }
