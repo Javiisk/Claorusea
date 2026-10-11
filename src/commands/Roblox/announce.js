@@ -66,19 +66,18 @@ export default {
     const prompt = buildPrompt(style, length, build, extra);
 
     try {
+      // ✅ NEW: Gemini 3.8 uses the /interactions endpoint
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/interactions`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'x-goog-api-key': GEMINI_API_KEY,
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-              temperature: 0.9,
-              maxOutputTokens: 1000,
-            },
+            model: 'gemini-3.8-flash',
+            input: prompt,
           }),
         }
       );
@@ -91,7 +90,19 @@ export default {
       }
 
       const data = await response.json();
-      const announcement = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+      // Extract the text from the new "steps" structure
+      let announcement = '';
+      for (const step of data.steps || []) {
+        if (step.type === 'model_output') {
+          for (const content of step.content || []) {
+            if (content.type === 'text' && content.text) {
+              announcement += content.text;
+            }
+          }
+        }
+      }
+      announcement = announcement.trim();
 
       if (!announcement) {
         return interaction.editReply({ content: '❌ AI returned an empty response.' });
