@@ -1,7 +1,7 @@
 // src/commands/Roblox/announce.js
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 export default {
   data: new SlashCommandBuilder()
@@ -57,52 +57,44 @@ export default {
     const build = interaction.options.getString('build');
     const extra = interaction.options.getString('extra') || '';
 
-    if (!GEMINI_API_KEY) {
+    if (!GROQ_API_KEY) {
       return interaction.editReply({
-        content: '❌ Missing `GEMINI_API_KEY` in environment variables.',
+        content: '❌ Missing `GROQ_API_KEY` in environment variables.',
       });
     }
 
     const prompt = buildPrompt(style, length, build, extra);
 
     try {
-      // ✅ NEW: Gemini 3.8 uses the /interactions endpoint
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/interactions`,
-        {
-          method: 'POST',
-          headers: {
-            'x-goog-api-key': GEMINI_API_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gemini-3.8-flash',
-            input: prompt,
-          }),
-        }
-      );
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GROQ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a facility announcer in a Roblox DS-genre game. You address people over the intercom in a serious, authoritative, slightly theatrical tone. You never break character. You never use emojis.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.9,
+          max_tokens: 1000,
+        }),
+      });
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
         return interaction.editReply({
-          content: `❌ Gemini error (${response.status}): ${err.error?.message || 'Unknown'}`,
+          content: `❌ Groq error (${response.status}): ${err.error?.message || 'Unknown'}`,
         });
       }
 
       const data = await response.json();
-
-      // Extract the text from the new "steps" structure
-      let announcement = '';
-      for (const step of data.steps || []) {
-        if (step.type === 'model_output') {
-          for (const content of step.content || []) {
-            if (content.type === 'text' && content.text) {
-              announcement += content.text;
-            }
-          }
-        }
-      }
-      announcement = announcement.trim();
+      const announcement = data.choices?.[0]?.message?.content?.trim();
 
       if (!announcement) {
         return interaction.editReply({ content: '❌ AI returned an empty response.' });
