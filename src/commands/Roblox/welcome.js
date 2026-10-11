@@ -2,76 +2,75 @@
 import {
   SlashCommandBuilder,
   PermissionFlagsBits,
+  EmbedBuilder,
   MessageFlags,
 } from 'discord.js';
-import { getRobloxGroupRank, getRobloxUsernameByDiscord } from '../../utils/bloxlink.js';
+import { getRobloxGroupRank, getRobloxUserByDiscord } from '../../utils/bloxlink.js';
 
-const PING_ROLE_ID = '1546995398907002982';
+const TARGET_CHANNEL_ID = '1546995398907002982';
+const RANK_NAME = 'Devoted';
+const RANKS_CHANNEL_URL = 'https://discord.com/channels/1546983561306050580/1546995558957457408';
 
 export default {
   data: new SlashCommandBuilder()
     .setName('welcome')
-    .setDescription('Send a welcome message to a newly ranked user')
+    .setDescription('Send a welcome embed to a newly ranked user')
     .setDMPermission(false)
     .addUserOption(opt =>
       opt.setName('user')
         .setDescription('User to welcome')
         .setRequired(true))
-    .addStringOption(opt =>
-      opt.setName('rank')
-        .setDescription('The rank they received (e.g. Devoted)')
-        .setRequired(true)
-        .setMaxLength(50))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const target = interaction.options.getUser('user');
-    const rank = interaction.options.getString('rank');
 
-    // Obtener nickname del ejecutor en este servidor
+    // Nickname del ejecutor en este servidor
     const executorMember = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
     const executorName = executorMember?.displayName || interaction.user.username;
 
-    // Obtener el rango del ejecutor en el grupo de Roblox
+    // Rango del ejecutor en el grupo de Roblox
     let executorRank = 'Staff';
     try {
-      const robloxData = await getRobloxUsernameByDiscord(interaction.user.id);
-      if (robloxData) {
-        // Obtener el robloxID del ejecutor
-        const { getRobloxUserByDiscord } = await import('../../utils/bloxlink.js');
-        const bloxlinkData = await getRobloxUserByDiscord(interaction.user.id);
-        if (bloxlinkData?.robloxID) {
-          const groupRank = await getRobloxGroupRank(bloxlinkData.robloxID);
-          if (groupRank && groupRank !== 'Error fetching rank' && groupRank !== 'Not in the group') {
-            executorRank = groupRank;
-          }
+      const bloxlinkData = await getRobloxUserByDiscord(interaction.user.id);
+      if (bloxlinkData?.robloxID) {
+        const groupRank = await getRobloxGroupRank(bloxlinkData.robloxID);
+        if (groupRank && groupRank !== 'Error fetching rank' && groupRank !== 'Not in the group') {
+          executorRank = groupRank;
         }
       }
-    } catch (err) {
+    } catch {
       // keep default
     }
 
-    const message =
+    const description =
       `<@${target.id}>,\n\n` +
-      `If you received this message, it's because you've been ranked to **${rank}** on **Adoresa!** ` +
-      `Welcome to your new role, so feel free to update your **ranks** on ` +
-      `https://discord.com/channels/1546983561306050580/1546995558957457408.\n\n` +
+      `If you received this message, it's because you've been ranked to **${RANK_NAME}** on **Adoresa!** ` +
+      `Welcome to your new role, so feel free to update your **ranks** on ${RANKS_CHANNEL_URL}.\n\n` +
       `**Remember to follow the rules and enjoy your new lamp and in-game advantages.**\n\n` +
       `-# Signed by, ${executorName}! ${executorRank}`;
 
-    // Publicar el mensaje con ping al rol en el canal
-    await interaction.channel.send({
-      content: message,
-      allowedMentions: {
-        users: [target.id],
-        roles: [PING_ROLE_ID],
-      },
+    const embed = new EmbedBuilder()
+      .setColor(0x808080) // gris
+      .setDescription(description);
+
+    // Enviar al canal específico
+    const channel = await interaction.client.channels.fetch(TARGET_CHANNEL_ID).catch(() => null);
+    if (!channel) {
+      return interaction.editReply({
+        content: `❌ No pude encontrar el canal <#${TARGET_CHANNEL_ID}>.`,
+      });
+    }
+
+    await channel.send({
+      embeds: [embed],
+      allowedMentions: { users: [target.id] },
     });
 
     await interaction.editReply({
-      content: `✅ Welcome message sent for <@${target.id}> (${rank}).`,
+      content: `✅ Welcome embed enviado para <@${target.id}>.`,
     });
   },
 };
