@@ -109,7 +109,6 @@ export default {
         if (res.ok) {
           const card = await res.json();
           trelloCardUrl = card.shortUrl;
-          // Save Trello card ID for future updates
           await registerStaff(target.id, { ...staffRecord, trelloCardId: card.id, trelloCardUrl });
         } else {
           console.error('[RegisterStaff] Trello error:', await res.text());
@@ -119,6 +118,15 @@ export default {
       }
     } else {
       console.warn('[RegisterStaff] Trello credentials missing, skipping card creation.');
+    }
+
+    // ✅ NEW: Immediate sync of the just-registered user
+    try {
+      const { syncRanks } = await import('../../utils/staffSync.js');
+      await syncRanks(interaction.client, target.id);
+      console.log(`[RegisterStaff] Immediate sync completed for ${target.id}`);
+    } catch (err) {
+      console.warn('[RegisterStaff] Immediate sync failed:', err.message);
     }
 
     // ─── Confirmation ──────────────────────────────────────────────────
