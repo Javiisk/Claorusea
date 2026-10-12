@@ -4,17 +4,21 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
-import { handleDM } from './utils/dmLogger.js'; // ✅ Import DM logger (matches actual file name/casing)
-import { buildWelcomeMessage } from './utils/welcomeMessage.js'; // ✅ Import welcome message builder
-import { applyPresence } from './utils/presence.js'; // ✅ Import presence/status helper
-import { handleTicketButton, handleTicketModal, handleTicketSelect } from './utils/ticketHandlers.js'; // ✅ Import ticket system handlers
-import { handleApplyButton, handleApplyModal } from './utils/applyHandlers.js'; // ✅ Import /apply handlers
-import { handleFeedbackButton } from './utils/feedbackHandlers.js'; // ✅ Import /feedback handlers
-import { handleMusicButton } from './utils/musicButtons.js'; // ✅ Import music playback button handlers
-import { handleMessageXp } from './utils/leveling.js'; // ✅ Import leveling/Ascensions system
-import { handleForumThreadCreate, handleResolveThread } from './utils/bugForum.js'; // ✅ Import bug forum system
-import { handleStarButton, handleFeedbackModal } from './utils/bugFeedback.js'; // ✅ Import bug feedback rating system
-import { attachEventLogging } from './utils/eventLogger.js'; // ✅ Import edit/delete/invite logging system
+import { handleDM } from './utils/dmLogger.js';
+import { buildWelcomeMessage } from './utils/welcomeMessage.js';
+import { applyPresence } from './utils/presence.js';
+import { handleTicketButton, handleTicketModal, handleTicketSelect } from './utils/ticketHandlers.js';
+import { handleApplyButton, handleApplyModal } from './utils/applyHandlers.js';
+import { handleFeedbackButton } from './utils/feedbackHandlers.js';
+import { handleMusicButton } from './utils/musicButtons.js';
+import { handleMessageXp } from './utils/leveling.js';
+import { handleForumThreadCreate, handleResolveThread } from './utils/bugForum.js';
+import { handleStarButton, handleFeedbackModal } from './utils/bugFeedback.js';
+import { attachEventLogging } from './utils/eventLogger.js';
+
+// ✅ NEW: Staff system
+import { ensureStaffTable } from './utils/staffStorage.js';
+import { startStaffSync } from './utils/staffSync.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,14 +31,11 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.DirectMessages, // ✅ Added to read DMs
-    GatewayIntentBits.DirectMessageReactions, // ✅ Added for DM reactions (optional)
-    GatewayIntentBits.GuildModeration, // ✅ Added for ban/unban events and audit log access
-    GatewayIntentBits.GuildInvites, // ✅ Added for invite create/delete tracking
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.DirectMessageReactions,
+    GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildInvites,
   ],
-  // ✅ Fixed: discord.js v14 uses the Partials enum, not raw strings like
-  // 'CHANNEL' (that was v13 syntax). Without this fix, DM channels that
-  // aren't cached yet may fail to fire messageCreate events.
   partials: [Partials.Channel, Partials.Message],
 });
 
@@ -56,7 +57,7 @@ async function loadCommands() {
   for (const folder of commandFolders) {
     const commandsPath = path.join(foldersPath, folder);
 
-    if (!fs.statSync(commandsPath).isDirectory()) continue; // ✅ Skip stray files
+    if (!fs.statSync(commandsPath).isDirectory()) continue;
 
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
@@ -132,8 +133,6 @@ client.once('ready', async () => {
   console.log(`✅ Bot connected as ${client.user.tag}`);
   console.log(`📊 Bot is in ${client.guilds.cache.size} guilds`);
 
-  // Default status shown under the bot's name — change anytime with /status,
-  // or by editing STATUS_TEXT / STATUS_TYPE in your environment variables.
   applyPresence(
     client,
     process.env.STATUS_TEXT || 'Patients and messages',
@@ -141,6 +140,10 @@ client.once('ready', async () => {
   );
 
   attachEventLogging(client);
+
+  // ✅ NEW: initialize staff table + start sync cron
+  await ensureStaffTable();
+  startStaffSync(client);
 
   startWebServer();
 
@@ -153,7 +156,6 @@ client.once('ready', async () => {
 // ─── INTERACTION CREATE ──────────────────────────────────────────────────
 
 client.on('interactionCreate', async (interaction) => {
-  // ✅ Added: autocomplete for commands like /play (song search suggestions).
   if (interaction.isAutocomplete()) {
     const command = client.commands.get(interaction.commandName);
     if (command && typeof command.autocomplete === 'function') {
@@ -166,7 +168,6 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Added: music playback control buttons (pause/skip/loop/volume/etc).
   if (interaction.isButton() && interaction.customId.startsWith('music_')) {
     try {
       await handleMusicButton(interaction);
@@ -176,7 +177,6 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Added: ticket category select menu (opening a ticket).
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith('ticket_open_select_')) {
     try {
       await handleTicketSelect(interaction);
@@ -186,7 +186,6 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Added: ticket system buttons (claim/close) and modals.
   if (interaction.isButton() && interaction.customId.startsWith('ticket_')) {
     try {
       await handleTicketButton(interaction);
@@ -205,8 +204,6 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Added: /apply buttons (accept/decline) and modals (the 4 chained
-  // application pages + the decline-reason modal).
   if (interaction.isButton() && interaction.customId.startsWith('apply_')) {
     try {
       await handleApplyButton(interaction);
@@ -225,7 +222,6 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Added: /feedback "View Feedback" button.
   if (interaction.isButton() && interaction.customId === 'feedback_view') {
     try {
       await handleFeedbackButton(interaction);
@@ -235,7 +231,6 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Added: bug report resolution star-rating buttons and modal.
   if (interaction.isButton() && interaction.customId.startsWith('bugfeedback_star_')) {
     try {
       await handleStarButton(interaction);
@@ -254,7 +249,6 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Added: the "Mark Resolved" message context menu command.
   if (interaction.isMessageContextMenuCommand() && interaction.commandName === 'Mark Resolved') {
     try {
       await handleResolveThread(interaction);
@@ -280,8 +274,6 @@ client.on('interactionCreate', async (interaction) => {
   } catch (error) {
     console.error(`❌ Error executing ${interaction.commandName}:`, error);
 
-    // ✅ Fixed: use followUp if the interaction was already replied/deferred,
-    // otherwise reply() throws "already replied" and swallows the real error.
     const errorReply = {
       content: '❌ An error occurred while executing the command.',
       ephemeral: true,
@@ -298,10 +290,9 @@ client.on('interactionCreate', async (interaction) => {
 // ─── DM MESSAGE HANDLER ──────────────────────────────────────────────────
 
 client.on('messageCreate', async (message) => {
-  // 🔍 Temporary debug log — remove once DMs are confirmed working.
   console.log(`🔔 messageCreate fired — channel type: ${message.channel.type}, author: ${message.author.tag}, bot: ${message.author.bot}`);
   await handleDM(client, message);
-  await handleMessageXp(message); // ✅ Ascensions/leveling XP gain
+  await handleMessageXp(message);
 });
 
 // ─── WELCOME MESSAGE HANDLER ──────────────────────────────────────────────
