@@ -1,163 +1,142 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
-import { logger } from '../../utils/logger.js';
-import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { getRobloxUserInfoByDiscord } from '../../utils/bloxlink.js'; // ✅ Ruta actualizada
+// src/commands/Roblox/registerstaff.js
+import {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  PermissionFlagsBits,
+  MessageFlags,
+} from 'discord.js';
+import {
+  getRobloxUserByDiscord,
+  getRobloxUsernameById,
+  getRobloxGroupRank,
+} from '../../utils/bloxlink.js';
+import { registerStaff, getStaff } from '../../utils/staffStorage.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const STAFF_PATH = join(__dirname, '../../../../staff-data.json');
-
-const ALLOWED_ROLES = [
-  '1505671307335958728',
-  '1505671314210553877',
-  '1505671325144973323',
-  '1505673879069393024',
-  '1505673808097574912',
-];
-
-function loadStaff() {
-  if (!existsSync(STAFF_PATH)) writeFileSync(STAFF_PATH, JSON.stringify({}));
-  return JSON.parse(readFileSync(STAFF_PATH, 'utf8'));
-}
-
-function saveStaff(data) {
-  writeFileSync(STAFF_PATH, JSON.stringify(data, null, 2));
-}
-
-async function getRobloxRank(userId) {
-  const res = await fetch(
-    `https://groups.roblox.com/v1/users/${userId}/groups/roles`
-  );
-  if (!res.ok) return { rank: 0, role: 'Unknown' };
-  const data = await res.json();
-  const group = data.data?.find(g => g.group.id === 376034335);
-  if (!group) return { rank: 0, role: 'Guest' };
-  return { rank: group.role.rank, role: group.role.name };
-}
+const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
+const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
+const TRELLO_LIST_ID = process.env.TRELLO_LIST_ID;
 
 export default {
   data: new SlashCommandBuilder()
     .setName('registerstaff')
-    .setDescription('Register or unregister a staff member. (Staff only)')
+    .setDescription('Register a staff member in the database and Trello.')
     .setDMPermission(false)
-    .addSubcommand(sub =>
-      sub
-        .setName('add')
-        .setDescription('Register a staff member.')
-        .addUserOption(opt =>
-          opt.setName('user')
-            .setDescription('Discord user to register as staff')
-            .setRequired(true)
-        )
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('remove')
-        .setDescription('Unregister a staff member.')
-        .addUserOption(opt =>
-          opt.setName('user')
-            .setDescription('Discord user to unregister')
-            .setRequired(true)
-        )
-    ),
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('Discord user to register')
+        .setRequired(true))
+    .addStringOption(opt =>
+      opt.setName('roblox_username')
+        .setDescription('Roblox username (if not linked via Bloxlink)')
+        .setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({
-        content: '❌ You don\'t have permission to use this command.',
-        ephemeral: true,
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const target = interaction.options.getUser('user');
+    const manualUsername = interaction.options.getString('roblox_username');
+
+    // ─── Already registered? ────────────────────────────────────────────
+    const existing = await getStaff(target.id);
+    if (existing) {
+      return interaction.editReply({
+        content: `⚠️ <@${target.id}> is already registered as staff. Rank: **${existing.rank || 'N/A'}**.`,
       });
     }
 
-    const deferSuccess = await InteractionHelper.safeDefer(interaction);
-    if (!deferSuccess) {
-      logger.warn('Registerstaff interaction defer failed', {
-        userId: interaction.user.id,
-        guildId: interaction.guildId,
-        commandName: 'registerstaff',
-      });
-      return;
-    }
-
-    const subcommand = interaction.options.getSubcommand();
-    const targetUser = interaction.options.getUser('user');
+    // ─── Resolve Roblox data ────────────────────────────────────────────
+    let robloxId = null;
+    let robloxUsername = manualUsername || null;
+    let robloxRank = 'N/A';
 
     try {
-      // ✅ Obtener Roblox info desde Bloxlink
-      const userInfo = await getRobloxUserInfoByDiscord(targetUser.id);
-
-      if (!userInfo) {
-        return await InteractionHelper.safeEditReply(interaction, {
-          content: `❌ **${targetUser.tag}** does not have a Roblox account linked in this server.`,
-        });
-      }
-
-      const robloxId = userInfo.id;
-      const robloxUsername = userInfo.username;
-
-      const staff = loadStaff();
-      const key = robloxUsername.toLowerCase();
-
-      if (subcommand === 'add') {
-        const { rank, role } = await getRobloxRank(robloxId);
-
-        staff[key] = {
-          username: robloxUsername,
-          robloxId: robloxId,
-          discordId: targetUser.id,
-          discordTag: targetUser.tag,
-          rank,
-          role,
-          registeredBy: interaction.user.id,
-          registeredAt: new Date().toISOString(),
-        };
-        saveStaff(staff);
-
-        const embed = createEmbed({ title: '✅ Staff Registered', description: null })
-          .setDescription(`**${robloxUsername}** has been registered as staff.`)
-          .setColor(0x57f287)
-          .addFields(
-            { name: '👤 Roblox Username', value: robloxUsername, inline: true },
-            { name: '🆔 Roblox ID', value: String(robloxId), inline: true },
-            { name: '🎖️ Rank', value: `${role} (${rank})`, inline: true },
-            { name: '📋 Discord User', value: `${targetUser}`, inline: true },
-            { name: '📋 Registered by', value: `<@${interaction.user.id}>`, inline: true }
-          )
-          .setTimestamp();
-
-        return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-      }
-
-      if (subcommand === 'remove') {
-        if (!staff[key]) {
-          return await InteractionHelper.safeEditReply(interaction, {
-            content: `❌ **${robloxUsername}** is not registered as staff.`,
-          });
+      const bloxlink = await getRobloxUserByDiscord(target.id);
+      if (bloxlink?.robloxID) {
+        robloxId = bloxlink.robloxID;
+        if (!robloxUsername) {
+          robloxUsername = await getRobloxUsernameById(robloxId);
         }
-
-        delete staff[key];
-        saveStaff(staff);
-
-        const embed = createEmbed({ title: '🗑️ Staff Unregistered', description: null })
-          .setDescription(`**${robloxUsername}** has been removed from the staff list.`)
-          .setColor(0xed4245)
-          .setTimestamp();
-
-        return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+        const rank = await getRobloxGroupRank(robloxId);
+        if (rank && rank !== 'Error fetching rank' && rank !== 'Not in the group') {
+          robloxRank = rank;
+        }
       }
-    } catch (error) {
-      logger.error('Registerstaff command error:', error.message, error.stack);
-      try {
-        return await InteractionHelper.safeReply(interaction, {
-          content: '❌ An error occurred.',
-        });
-      } catch (e) {
-        logger.error('Failed to send error reply:', e);
-      }
+    } catch (err) {
+      console.warn('[RegisterStaff] Bloxlink lookup failed:', err.message);
     }
+
+    if (!robloxUsername) {
+      return interaction.editReply({
+        content: `❌ Could not resolve Roblox username for <@${target.id}>. They need to link via Bloxlink or you must provide \`roblox_username\`.`,
+      });
+    }
+
+    // ─── Save to DB ────────────────────────────────────────────────────
+    const staffRecord = {
+      discordId: target.id,
+      robloxId,
+      robloxUsername,
+      rank: robloxRank,
+      registeredBy: interaction.user.id,
+      registeredAt: Date.now(),
+    };
+
+    await registerStaff(target.id, staffRecord);
+
+    // ─── Create Trello card ────────────────────────────────────────────
+    let trelloCardUrl = null;
+    if (TRELLO_API_KEY && TRELLO_TOKEN && TRELLO_LIST_ID) {
+      try {
+        const cardName = `${robloxUsername} (${target.username})`;
+        const cardDesc =
+          `**Discord:** <@${target.id}> (\`${target.tag}\`)\n` +
+          `**Roblox ID:** ${robloxId || 'N/A'}\n` +
+          `**Roblox Username:** ${robloxUsername}\n` +
+          `**Roblox Rank:** ${robloxRank}\n` +
+          `**Registered by:** ${interaction.user.tag}\n` +
+          `**Registered at:** <t:${Math.floor(Date.now() / 1000)}:F>`;
+
+        const res = await fetch(
+          `https://api.trello.com/1/cards?idList=${TRELLO_LIST_ID}&key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: cardName, desc: cardDesc }),
+          }
+        );
+
+        if (res.ok) {
+          const card = await res.json();
+          trelloCardUrl = card.shortUrl;
+          // Save Trello card ID for future updates
+          await registerStaff(target.id, { ...staffRecord, trelloCardId: card.id, trelloCardUrl });
+        } else {
+          console.error('[RegisterStaff] Trello error:', await res.text());
+        }
+      } catch (err) {
+        console.error('[RegisterStaff] Trello request failed:', err.message);
+      }
+    } else {
+      console.warn('[RegisterStaff] Trello credentials missing, skipping card creation.');
+    }
+
+    // ─── Confirmation ──────────────────────────────────────────────────
+    const embed = new EmbedBuilder()
+      .setColor(0x808080)
+      .setTitle('📋 Staff Registered')
+      .addFields(
+        { name: 'Discord', value: `<@${target.id}>`, inline: true },
+        { name: 'Roblox', value: robloxUsername, inline: true },
+        { name: 'Roblox Rank', value: robloxRank, inline: true },
+        {
+          name: 'Trello Card',
+          value: trelloCardUrl ? `[View card](${trelloCardUrl})` : '❌ Not created',
+          inline: false,
+        }
+      )
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
   },
 };
