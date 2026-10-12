@@ -5,7 +5,7 @@ import { getRobloxGroupRank } from './bloxlink.js';
 
 const TRELLO_API_KEY = process.env.TRELLO_API_KEY;
 const TRELLO_TOKEN = process.env.TRELLO_TOKEN;
-const SYNC_INTERVAL_MS = 30 * 60 * 1000; // cada 30 min
+const SYNC_INTERVAL_MS = 2 * 60 * 1000; // ✅ Cada 2 minutos
 
 // ─── TRELLO HELPERS ─────────────────────────────────────────────────────
 async function updateTrelloCard(cardId, newRank) {
@@ -30,9 +30,14 @@ async function updateTrelloCard(cardId, newRank) {
 }
 
 // ─── SYNC LOOP ──────────────────────────────────────────────────────────
-async function syncRanks(client) {
-  const staff = await getAllStaff();
-  if (staff.length === 0) return;
+export async function syncRanks(client, singleDiscordId = null) {
+  let staff = await getAllStaff();
+
+  if (singleDiscordId) {
+    staff = staff.filter(s => s.discordId === singleDiscordId);
+  }
+
+  if (staff.length === 0) return 0;
 
   let updated = 0;
 
@@ -45,16 +50,13 @@ async function syncRanks(client) {
       if (currentRank === 'Error fetching rank' || currentRank === 'Not in the group') continue;
 
       if (currentRank !== member.rank) {
-        logger.info(
-          `[StaffSync] ${member.robloxUsername}: ${member.rank} → ${currentRank}`
-        );
+        logger.info(`[StaffSync] ${member.robloxUsername}: ${member.rank} → ${currentRank}`);
         await updateStaffRank(member.discordId, currentRank);
 
         if (member.trelloCardId) {
           await updateTrelloCard(member.trelloCardId, currentRank);
         }
 
-        // Optional: notify a channel
         const NOTIFY_CHANNEL_ID = process.env.STAFF_SYNC_CHANNEL_ID;
         if (NOTIFY_CHANNEL_ID) {
           try {
@@ -70,16 +72,13 @@ async function syncRanks(client) {
         updated++;
       }
 
-      // small delay to avoid hitting Bloxlink rate limit
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 300));
     } catch (err) {
       logger.warn(`[StaffSync] Failed to check ${member.robloxUsername}:`, err.message);
     }
   }
 
-  if (updated > 0) {
-    logger.info(`[StaffSync] ✅ Updated ${updated} staff ranks.`);
-  }
+  return updated;
 }
 
 // ─── START ──────────────────────────────────────────────────────────────
@@ -88,13 +87,13 @@ export function startStaffSync(client) {
   if (started) return;
   started = true;
 
-  // First run after 1 min
-  setTimeout(() => syncRanks(client).catch(e => logger.error(e.message)), 60 * 1000);
+  // ✅ Primera ejecución a los 10 segundos
+  setTimeout(() => syncRanks(client).catch(e => logger.error(e.message)), 10 * 1000);
 
-  // Then every 30 min
+  // ✅ Luego cada 2 minutos
   setInterval(() => {
     syncRanks(client).catch(e => logger.error(e.message));
   }, SYNC_INTERVAL_MS);
 
-  logger.info('✅ Staff sync started (every 30 min)');
+  logger.info('✅ Staff sync started (every 2 minutes)');
 }
