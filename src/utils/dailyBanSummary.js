@@ -4,84 +4,69 @@ import {
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   MessageFlags,
 } from 'discord.js';
 import { logger } from './logger.js';
+import { getFromDb, setInDb } from './database.js';
 
-const SUMMARY_CHANNEL_ID = '1560388916018683965';
-const GMT_OFFSET = -6;
+const AUTOBAN_CHANNEL_ID = '1560388916018683965';
+const AUTOBAN_ALERT_KEY = 'autoban:alert:message_id';
 
-async function sendSummary(client) {
+export async function startDailyBanSummary(client) {
   try {
-    const channel = await client.channels.fetch(SUMMARY_CHANNEL_ID).catch(() => null);
+    const channel = await client.channels.fetch(AUTOBAN_CHANNEL_ID).catch(() => null);
     if (!channel) {
-      logger.warn('[DailySummary] Channel not found');
+      logger.warn('[DailyBanSummary] Channel not found');
       return;
     }
 
-    const now = new Date();
-    const gmt6 = new Date(now.getTime() + GMT_OFFSET * 60 * 60 * 1000);
+    // ─── Check if container already exists ─────────────────────────────
+    const existingId = await getFromDb(AUTOBAN_ALERT_KEY, null);
+    if (existingId) {
+      const existingMsg = await channel.messages.fetch(existingId).catch(() => null);
+      if (existingMsg) {
+        logger.info('[DailyBanSummary] Container already exists, skipping.');
+        return;
+      }
+      logger.warn('[DailyBanSummary] Stored message not found, sending a new one.');
+    }
 
-    const dateStr = gmt6.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'UTC',
-    });
-    const timeStr = gmt6.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'UTC',
-    });
-
+    // ─── Send the Container V2 ─────────────────────────────────────────
     const container = new ContainerBuilder()
-      .setAccentColor(0x808080)
+      .setAccentColor(0xED4245)
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('### 📊 Daily Summary')
+        new TextDisplayBuilder().setContent('## 🔨 Do not post here')
       )
       .addSeparatorComponents((sep) => sep.setSpacing(SeparatorSpacingSize.Small))
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `**Date:** ${dateStr}\n**Time:** ${timeStr} GMT-6`
+          `This channel is used to remove bots and compromised accounts. ` +
+          `Posting anything in this channel will automatically remove you from the server.`
+        )
+      )
+      .addSeparatorComponents((sep) => sep.setSpacing(SeparatorSpacingSize.Small))
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('Appeal a moderation')
+            .setStyle(ButtonStyle.Link)
+            .setURL('https://discord.gg/ajWYjRrTD5')
         )
       );
 
-    await channel.send({
+    const sent = await channel.send({
       components: [container],
       flags: MessageFlags.IsComponentsV2,
     });
 
-    logger.info('[DailySummary] Daily summary sent');
+    // ─── Save message ID so we don't duplicate on restart ──────────────
+    await setInDb(AUTOBAN_ALERT_KEY, sent.id);
+
+    logger.info(`[DailyBanSummary] Container V2 sent (id: ${sent.id})`);
   } catch (err) {
-    logger.error('[DailySummary] Failed:', err.message);
+    logger.error('[DailyBanSummary] Failed:', err.message);
   }
-}
-
-function msUntilNextRun() {
-  const now = new Date();
-  const gmt6 = new Date(now.getTime() + GMT_OFFSET * 60 * 60 * 1000);
-
-  const target = new Date(gmt6);
-  target.setUTCHours(23, 59, 0, 0);
-  if (target <= gmt6) target.setUTCDate(target.getUTCDate() + 1);
-
-  return target.getTime() - gmt6.getTime();
-}
-
-let started = false;
-export function startDailyBanSummary(client) {
-  if (started) return;
-  started = true;
-
-  const scheduleNext = () => {
-    const delay = msUntilNextRun();
-    setTimeout(async () => {
-      await sendSummary(client);
-      scheduleNext();
-    }, delay);
-    logger.info(`[DailySummary] Next summary in ${Math.round(delay / 60000)} min`);
-  };
-
-  scheduleNext();
 }
