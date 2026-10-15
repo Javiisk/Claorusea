@@ -32,7 +32,7 @@ export default {
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           [
-            `✅ **You have ${weekly} so far this week.**`,
+            `<:stopwatch:1560089346000945242> **You have ${weekly} so far this week.**`,
             `Your most recent shift was **${lastSession}** long.`,
             `📍 Last joined: ${lastJoin}`,
             `🔗 Need shifting tips? Visit <#${process.env.SHIFTING_TIPS_CHANNEL_ID || '000000000000000000'}>`,
