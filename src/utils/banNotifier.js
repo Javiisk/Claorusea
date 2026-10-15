@@ -18,10 +18,10 @@ export async function sendBanDM(user) {
     const dm = await user.createDM();
 
     const container = new ContainerBuilder()
-      .setAccentColor(0xED4245)
+      .setAccentColor(null)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          '<:WarningIcon:1547447355576684604> **Automod Message**'
+          '<:mod:1560395646626697317> **Automod Message**'
         )
       )
       .addSeparatorComponents((sep) => sep.setSpacing(SeparatorSpacingSize.Small))
