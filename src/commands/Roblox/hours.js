@@ -34,8 +34,8 @@ export default {
           [
             `<:stopwatch:1560089346000945242> **You have ${weekly} so far this week.**`,
             `Your most recent shift was **${lastSession}** long.`,
-            `📍 Last joined: ${lastJoin}`,
-            `🔗 Need shifting tips? Visit <#${process.env.SHIFTING_TIPS_CHANNEL_ID || '000000000000000000'}>`,
+            `> Last joined: ${lastJoin}`,
+            `<:GlassIcon:1547447346470846544> Need shifting tips? Visit <#${process.env.SHIFTING_TIPS_CHANNEL_ID || '000000000000000000'}>`,
           ].join('\n'),
         ),
       );
