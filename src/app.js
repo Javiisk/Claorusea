@@ -16,9 +16,13 @@ import { handleForumThreadCreate, handleResolveThread } from './utils/bugForum.j
 import { handleStarButton, handleFeedbackModal } from './utils/bugFeedback.js';
 import { attachEventLogging } from './utils/eventLogger.js';
 
-// ✅ NEW: Staff system
+// ✅ Staff system
 import { ensureStaffTable } from './utils/staffStorage.js';
 import { startStaffSync } from './utils/staffSync.js';
+
+// ✅ NEW: Autoban + Daily Summary
+import { registerAutoban } from './events/autobanMessage.js';
+import { startDailyBanSummary } from './utils/dailyBanSummary.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -141,9 +145,13 @@ client.once('ready', async () => {
 
   attachEventLogging(client);
 
-  // ✅ NEW: initialize staff table + start sync cron
+  // ✅ Staff system
   await ensureStaffTable();
   startStaffSync(client);
+
+  // ✅ NEW: Autoban + Daily summary
+  registerAutoban(client);
+  startDailyBanSummary(client);
 
   startWebServer();
 
