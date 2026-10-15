@@ -1,5 +1,5 @@
 // src/commands/Roblox/hours.js
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } from 'discord.js';
 import { getHoursData } from '../../utils/hoursStorage.js';
 
 function formatTime(minutes) {
@@ -27,16 +27,22 @@ export default {
       ? `<t:${Math.floor(data.lastJoinTimestamp / 1000)}:R>`
       : 'Never';
 
-    const embed = new EmbedBuilder()
-      .setColor(0x57F287)
-      .setDescription(
-        `✅ **You have ${weekly} so far this week.**\n` +
-        `Your most recent shift was **${lastSession}** long.\n` +
-        `📍 Last joined: ${lastJoin}\n` +
-        `🔗 Need shifting tips? Visit <#${process.env.SHIFTING_TIPS_CHANNEL_ID || '000000000000000000'}>`
-      )
-      .setTimestamp();
+    const container = new ContainerBuilder()
+      .setAccentColor(null)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          [
+            `✅ **You have ${weekly} so far this week.**`,
+            `Your most recent shift was **${lastSession}** long.`,
+            `📍 Last joined: ${lastJoin}`,
+            `🔗 Need shifting tips? Visit <#${process.env.SHIFTING_TIPS_CHANNEL_ID || '000000000000000000'}>`,
+          ].join('\n'),
+        ),
+      );
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+    });
   },
 };
