@@ -36,9 +36,9 @@ export async function startDailyBanSummary(client) {
 
     // ─── Send the Container V2 ─────────────────────────────────────────
     const container = new ContainerBuilder()
-      .setAccentColor(0xED4245)
+      .setAccentColor(null) // invisible con el tema de Discord
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('## 🔨 Do not post here')
+        new TextDisplayBuilder().setContent('## <:mod:1560395646626697317> Do not post here')
       )
       .addSeparatorComponents((sep) => sep.setSpacing(SeparatorSpacingSize.Small))
       .addTextDisplayComponents(
