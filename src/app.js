@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
+import cors from 'cors';
 import { handleDM } from './utils/dmLogger.js';
 import { buildWelcomeMessage } from './utils/welcomeMessage.js';
 import { applyPresence } from './utils/presence.js';
@@ -116,6 +117,12 @@ async function registerCommands(commands) {
 function startWebServer() {
   const app = express();
   const port = process.env.PORT || 3000;
+
+  app.use(cors({
+    origin: 'https://javiisk.github.io',
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type'],
+  }));
 
   app.use(express.json());
 
