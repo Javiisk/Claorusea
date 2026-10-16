@@ -18,7 +18,6 @@ export function registerSendContainerRoute(app, client) {
   app.post('/api/send-container', async (req, res) => {
     const { token, channelId, payload } = req.body;
 
-    // 1. Verify session
     if (!isAuthorized(token)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -31,7 +30,6 @@ export function registerSendContainerRoute(app, client) {
       const channel = await client.channels.fetch(channelId);
       if (!channel) return res.status(404).json({ error: 'Channel not found' });
 
-      // 2. Build container from payload
       const container = new ContainerBuilder();
       container.setAccentColor(payload.accent_color ?? null);
 
@@ -45,13 +43,12 @@ export function registerSendContainerRoute(app, client) {
         }
       }
 
-      // 3. Send
       await channel.send({
         components: [container],
         flags: MessageFlags.IsComponentsV2,
       });
 
-      logger.info(`[SendContainer] Container sent to ${channelId}`);
+      logger.info(`[SendContainer] Sent to ${channelId}`);
       res.json({ ok: true });
     } catch (err) {
       logger.error('[SendContainer] Error:', err.message);
@@ -60,16 +57,15 @@ export function registerSendContainerRoute(app, client) {
   });
 }
 
-// ─── JSON → Component builders ───────────────────────────────────────────
 function addComponent(container, comp) {
   switch (comp.type) {
-    case 10: // Text Display
+    case 10:
       container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(comp.content || '')
       );
       break;
 
-    case 14: { // Separator
+    case 14: {
       const spacing = comp.spacing === 2
         ? SeparatorSpacingSize.Large
         : SeparatorSpacingSize.Small;
@@ -79,7 +75,7 @@ function addComponent(container, comp) {
       break;
     }
 
-    case 12: { // Media Gallery
+    case 12: {
       const gallery = new MediaGalleryBuilder();
       for (const item of comp.items || []) {
         if (item.media?.url) {
@@ -92,7 +88,7 @@ function addComponent(container, comp) {
       break;
     }
 
-    case 1: { // Action Row
+    case 1: {
       const row = new ActionRowBuilder();
       for (const btn of comp.components || []) {
         if (btn.type === 2) {
