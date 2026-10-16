@@ -26,6 +26,7 @@ import { startDailyBanSummary } from './utils/dailyBanSummary.js';
 
 // ✅ NEW: Web API routes
 import { registerAuthRoutes } from './web/auth.js';
+import { registerGetChannelsRoute } from './web/getChannels.js';
 import { registerSendContainerRoute } from './web/sendContainer.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -134,6 +135,7 @@ function startWebServer() {
 
   // ✅ Web API routes
   registerAuthRoutes(app);
+  registerGetChannelsRoute(app, client);
   registerSendContainerRoute(app, client);
 
   app.listen(port, () => {
