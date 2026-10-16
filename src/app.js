@@ -24,6 +24,10 @@ import { startStaffSync } from './utils/staffSync.js';
 import { registerAutoban } from './events/autobanMessage.js';
 import { startDailyBanSummary } from './utils/dailyBanSummary.js';
 
+// ✅ NEW: Web API routes
+import { registerAuthRoutes } from './web/auth.js';
+import { registerSendContainerRoute } from './web/sendContainer.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -112,6 +116,8 @@ function startWebServer() {
   const app = express();
   const port = process.env.PORT || 3000;
 
+  app.use(express.json());
+
   app.get('/', (req, res) => {
     res.send('Bot is alive! 🤖');
   });
@@ -125,6 +131,10 @@ function startWebServer() {
       guilds: client.guilds.cache.size
     });
   });
+
+  // ✅ Web API routes
+  registerAuthRoutes(app);
+  registerSendContainerRoute(app, client);
 
   app.listen(port, () => {
     console.log(`✅ Web server running on port ${port}`);
