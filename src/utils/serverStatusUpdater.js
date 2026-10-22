@@ -35,7 +35,7 @@ export function startServerStatusUpdater(client) {
 
       const timeStr = new Date().toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' });
       lines.push(`\nLast Update: ${timeStr} GMT`);
-      lines.push(`Service hosted by Vexliato`);
+      lines.push(`Service hosted by Mooneress`);
 
       const container = new ContainerBuilder()
         .setAccentColor(null)
