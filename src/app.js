@@ -30,6 +30,10 @@ import { registerAuthRoutes } from './web/auth.js';
 import { registerGetChannelsRoute } from './web/getChannels.js';
 import { registerSendContainerRoute } from './web/sendContainer.js';
 
+// ✅ NEW: Server Status
+import { registerServerStatusRoute } from './utils/serverStatusDB.js';
+import { startServerStatusUpdater } from './utils/serverStatusUpdater.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -145,6 +149,9 @@ function startWebServer() {
   registerGetChannelsRoute(app, client);
   registerSendContainerRoute(app, client);
 
+  // ✅ Server Status API
+  registerServerStatusRoute(app);
+
   app.listen(port, () => {
     console.log(`✅ Web server running on port ${port}`);
   });
@@ -171,6 +178,9 @@ client.once('ready', async () => {
   // ✅ NEW: Autoban + Daily summary
   registerAutoban(client);
   startDailyBanSummary(client);
+
+  // ✅ NEW: Server Status updater
+  startServerStatusUpdater(client);
 
   startWebServer();
 
