@@ -1,27 +1,25 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+// src/commands/Roblox/endshift.js
+import { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'fs';
+import { readFileSync, existsSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SHIFT_PATH = join(__dirname, '../../../../shift-data.json');
+const DATA_DIR = join(__dirname, '../../../../data');
+const SHIFT_PATH = join(DATA_DIR, 'shift-data.json');
 
-const GAME_LINK = 'https://www.roblox.com/games/90664126150507/Whispering-Pines-Summer-Camp';
-
-const ALLOWED_ROLES = [
-  '1505671318262255616',
-  '1507261877431042159',
-  '1505673879069393024',
-  '1505673808097574912',
-  '1505671309915328713',
-  '1505671292873867544',
-];
+// Aseguramos que la carpeta data exista
+if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
 function loadShift() {
   if (!existsSync(SHIFT_PATH)) return null;
-  return JSON.parse(readFileSync(SHIFT_PATH, 'utf8'));
+  try {
+    return JSON.parse(readFileSync(SHIFT_PATH, 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 function clearShift() {
@@ -34,11 +32,7 @@ export default {
     .setDescription('End the current shift 🔴'),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({ content: '❌ You don\'t have permission to use this command.', ephemeral: true });
-    }
-
+    // ✅ Ya no hay validación de ALLOWED_ROLES, cualquiera puede usarlo
     const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
     if (!deferSuccess) {
       logger.warn('EndShift defer failed', { userId: interaction.user.id });
@@ -53,34 +47,52 @@ export default {
         });
       }
 
-      // Editar el embed original
+      // Buscar el canal y el mensaje original
       const channel = await interaction.client.channels.fetch(shift.channelId);
       const msg = await channel.messages.fetch(shift.messageId);
 
-      const endedEmbed = new EmbedBuilder()
-        .setColor(0x2B2D31)
-        .setDescription(
-          `The sun rises, the moon sets, and our lovely <@${shift.hostId}> open our camp gates for all of you including newcomers! So what are you waiting for! Join us and visit our islands and camp, explore and investigate! Everyone is welcome to this great shift, We're waiting for you... or even explore the secrets of our beloved islands, Join us before it's too late and the camp gates close again! We'll be waiting.\n\n` +
-          `🔑 — Everyone is welcome, if no one joins within 10 minutes the shift will be cancelled and the camp will close its doors again and the moon will set again.\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `Looks like you're late, the camp has closed, the lights have gone out, the moon has set again, and our amazing staff has left.\n\n` +
-          `Loading link... E-E-ERROR Error code: ???\n\n` +
-          `shift status: 🔴`
+      // Construimos el Container V2 actualizado para el final del turno
+      const endedContainer = new ContainerBuilder()
+        .setAccentColor(0x2B2D31)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `The sun rises, the moon sets, and our lovely <@${shift.hostId}> open our camp gates for all of you including newcomers! So what are you waiting for! Join us and visit our islands and camp, explore and investigate! Everyone is welcome to this great shift, We're waiting for you... or even explore the secrets of our beloved islands, Join us before it's too late and the camp gates close again! We'll be waiting.\n\n` +
+            `🔑 — Everyone is welcome, if no one joins within 10 minutes the shift will be cancelled and the camp will close its doors again and the moon will set again.`
+          )
         )
-        .setTimestamp();
+        .addSeparatorComponents((sep) => sep.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `Looks like you're late, the camp has closed, the lights have gone out, the moon has set again, and our amazing staff has left.\n\n` +
+            `Loading link... E-E-ERROR Error code: ???`
+          )
+        )
+        .addSeparatorComponents((sep) => sep.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`shift status: 🔴`)
+        );
 
-      await msg.edit({ embeds: [endedEmbed] });
+      // Editamos el mensaje original
+      await msg.edit({ 
+        components: [endedContainer],
+        flags: MessageFlags.IsComponentsV2 
+      });
 
       // DM al host
       try {
         const host = await interaction.client.users.fetch(shift.hostId);
-        const dmEmbed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setDescription(
-            `Greetings! **You Adoresa shift its already concluded**, hope you haved a wonderful shift! Remember to do your shift log.`
-          )
-          .setTimestamp();
-        await host.send({ embeds: [dmEmbed] });
+        const dmContainer = new ContainerBuilder()
+          .setAccentColor(0x5865F2)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `Greetings! **Your Adoresa shift has already concluded**, hope you had a wonderful shift! Remember to do your shift log.`
+            )
+          );
+
+        await host.send({ 
+          components: [dmContainer],
+          flags: MessageFlags.IsComponentsV2 
+        });
       } catch { /* DMs disabled */ }
 
       clearShift();
