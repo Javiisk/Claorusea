@@ -1,30 +1,31 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+// src/commands/Roblox/startshift.js
+import { SlashCommandBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SHIFT_PATH = join(__dirname, '../../../../shift-data.json');
+const DATA_DIR = join(__dirname, '../../../../data');
+const SHIFT_PATH = join(DATA_DIR, 'shift-data.json');
 
-const SHIFT_CHANNEL_ID = '1507135602326372423';
+// ✅ Canal actualizado
+const SHIFT_CHANNEL_ID = '1546992061847310346'; 
 const SHIFT_PING_ROLE = '1513330672754884751';
 const GAME_LINK = 'https://www.roblox.com/games/90664126150507/Whispering-Pines-Summer-Camp';
 
-const ALLOWED_ROLES = [
-  '1505671309915328713',
-  '1505673808097574912',
-  '1505673879069393024',
-  '1507261877431042159',
-  '1505671318262255616',
-  '1505671292873867544',
-];
+// Aseguramos que la carpeta data exista
+if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
 function loadShift() {
   if (!existsSync(SHIFT_PATH)) return null;
-  const data = JSON.parse(readFileSync(SHIFT_PATH, 'utf8'));
-  return data || null;
+  try {
+    const data = JSON.parse(readFileSync(SHIFT_PATH, 'utf8'));
+    return data || null;
+  } catch {
+    return null;
+  }
 }
 
 function saveShift(data) {
@@ -37,11 +38,7 @@ export default {
     .setDescription('Start a shift 🔑'),
 
   async execute(interaction) {
-    const hasRole = interaction.member.roles.cache.some(r => ALLOWED_ROLES.includes(r.id));
-    if (!hasRole) {
-      return await interaction.reply({ content: '❌ You don\'t have permission to use this command.', ephemeral: true });
-    }
-
+    // ✅ Ya no hay validación de ALLOWED_ROLES, cualquiera puede usarlo
     const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
     if (!deferSuccess) {
       logger.warn('StartShift defer failed', { userId: interaction.user.id });
@@ -56,22 +53,40 @@ export default {
         });
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(0x2B2D31)
-        .setDescription(
-          `The sun rises, the moon sets, and our lovely <@${interaction.user.id}> open our camp gates for all of you including newcomers! So what are you waiting for! Join us and visit our islands and camp, explore and investigate! Everyone is welcome to this great shift, We're waiting for you... or even explore the secrets of our beloved islands, Join us before it's too late and the camp gates close again! We'll be waiting.\n\n` +
-          `🔑 — Everyone is welcome, if no one joins within 10 minutes the shift will be cancelled and the camp will close its doors again and the moon will set again.\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `Now then... what are you waiting for? Don't be late before the camp gates get closed, and our camp staff leave! we invite you:\n\n` +
-          `[Whispering Pines Summer Camp](${GAME_LINK})\n\n` +
-          `shift status: 🟢`
+      // Construimos el Container V2
+      const container = new ContainerBuilder()
+        .setAccentColor(0x2B2D31)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `The sun rises, the moon sets, and our lovely <@${interaction.user.id}> open our camp gates for all of you including newcomers! So what are you waiting for! Join us and visit our islands and camp, explore and investigate! Everyone is welcome to this great shift, We're waiting for you... or even explore the secrets of our beloved islands, Join us before it's too late and the camp gates close again! We'll be waiting.\n\n` +
+            `🔑 — Everyone is welcome, if no one joins within 10 minutes the shift will be cancelled and the camp will close its doors again and the moon will set again.`
+          )
         )
-        .setTimestamp();
+        .addSeparatorComponents((sep) => sep.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `Now then... what are you waiting for? Don't be late before the camp gates get closed, and our camp staff leave! we invite you:`
+          )
+        )
+        .addActionRowComponents(
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('Whispering Pines Summer Camp')
+              .setStyle(ButtonStyle.Link)
+              .setURL(GAME_LINK)
+          )
+        )
+        .addSeparatorComponents((sep) => sep.setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`shift status: 🟢`)
+        );
 
       const channel = await interaction.client.channels.fetch(SHIFT_CHANNEL_ID);
+      
       const msg = await channel.send({
         content: `<@&${SHIFT_PING_ROLE}>`,
-        embeds: [embed],
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
       });
 
       saveShift({
