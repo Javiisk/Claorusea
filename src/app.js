@@ -34,6 +34,9 @@ import { registerSendContainerRoute } from './web/sendContainer.js';
 import { registerServerStatusRoute } from './utils/serverStatusDB.js';
 import { startServerStatusUpdater } from './utils/serverStatusUpdater.js';
 
+// ✅ NEW: Verification System
+import { handleVerifyButton, handleVerifyModal } from './utils/verifyHandler.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -202,6 +205,17 @@ client.on('interactionCreate', async (interaction) => {
         console.error(`❌ Error in autocomplete for ${interaction.commandName}:`, error);
       }
     }
+    return;
+  }
+
+  // ✅ Verification System Handlers (Added)
+  if (interaction.isButton() && interaction.customId.startsWith('verify_')) {
+    try { await handleVerifyButton(interaction); } catch (e) { console.error('❌ Error handling verify button:', e); }
+    return;
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('verify_')) {
+    try { await handleVerifyModal(interaction); } catch (e) { console.error('❌ Error handling verify modal:', e); }
     return;
   }
 
