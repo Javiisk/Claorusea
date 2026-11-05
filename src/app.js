@@ -7,7 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import { handleDM } from './utils/dmLogger.js';
 import { buildWelcomeMessage } from './utils/welcomeMessage.js';
-import { applyPresence } from './utils/presence.js';
+import { startPresenceRotation } from './utils/presence.js'; // ✅ CAMBIADO
 import { handleTicketButton, handleTicketModal, handleTicketSelect } from './utils/ticketHandlers.js';
 import { handleApplyButton, handleApplyModal } from './utils/applyHandlers.js';
 import { handleFeedbackButton } from './utils/feedbackHandlers.js';
@@ -169,11 +169,8 @@ client.once('ready', async () => {
   console.log(`✅ Bot connected as ${client.user.tag}`);
   console.log(`📊 Bot is in ${client.guilds.cache.size} guilds`);
 
-  applyPresence(
-    client,
-    process.env.STATUS_TEXT || 'Patients and messages',
-    process.env.STATUS_TYPE || 'watching',
-  );
+  // ✅ NEW: Start the rotating presence system
+  startPresenceRotation(client);
 
   attachEventLogging(client);
 
@@ -211,7 +208,7 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Verification System Handlers (Added)
+  // ✅ Verification System Handlers
   if (interaction.isButton() && interaction.customId.startsWith('verify_')) {
     try { await handleVerifyButton(interaction); } catch (e) { console.error('❌ Error handling verify button:', e); }
     return;
@@ -222,7 +219,7 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ✅ Style System Handlers (Added)
+  // ✅ Style System Handlers
   if ((interaction.isButton() && interaction.customId.startsWith('style_')) || 
       (interaction.isStringSelectMenu() && interaction.customId.startsWith('style_'))) {
     try { await handleStyleInteraction(interaction); } catch (e) { console.error('❌ Error handling style interaction:', e); }
