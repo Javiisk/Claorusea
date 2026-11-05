@@ -37,6 +37,9 @@ import { startServerStatusUpdater } from './utils/serverStatusUpdater.js';
 // ✅ NEW: Verification System
 import { handleVerifyButton, handleVerifyModal } from './utils/verifyHandler.js';
 
+// ✅ NEW: Style System
+import { handleStyleInteraction } from './utils/styleHandler.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -216,6 +219,13 @@ client.on('interactionCreate', async (interaction) => {
 
   if (interaction.isModalSubmit() && interaction.customId.startsWith('verify_')) {
     try { await handleVerifyModal(interaction); } catch (e) { console.error('❌ Error handling verify modal:', e); }
+    return;
+  }
+
+  // ✅ Style System Handlers (Added)
+  if ((interaction.isButton() && interaction.customId.startsWith('style_')) || 
+      (interaction.isStringSelectMenu() && interaction.customId.startsWith('style_'))) {
+    try { await handleStyleInteraction(interaction); } catch (e) { console.error('❌ Error handling style interaction:', e); }
     return;
   }
 
